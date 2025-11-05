@@ -67,3 +67,18 @@ export default tseslint.config([
   },
 ])
 ```
+
+## 上傳字典與資產
+
+此專案提供兩支腳本，協助將資料與前端資產同步至 Cloudflare R2 Storage。執行前請確認：
+- 已安裝並設定 `rclone`，且存在名為 `r2` 的 remote。
+- `data/dictionary` 與 `data/assets` 目錄已備妥要上傳的內容。
+
+指令說明：
+- `sh commands/upload_dictionary.sh`：同步 `data/dictionary` 底下的 `pack`、`pcck`、`phck`、`ptck` 目錄到 `r2:moedict-dictionary`。 (windows環境是`bash commands/upload_dictionary.sh`)
+- `sh commands/upload_assets.sh`：同步 `data/assets` 目錄到 `r2:moedict-assets-preview`。(windows環境是`bash commands/upload_assets.sh`)
+
+腳本會自動檢查環境並以 `rclone sync` 執行上傳，結束後亦會輸出摘要與驗證結果。若需進一步調整或排查，請參考 `commands` 目錄中的腳本內容。
+
+
+
