@@ -20,7 +20,7 @@
 			"preview_bucket_name": "<your-fonts-bucket-preview>"
 		},
 		{
-			"binding": "ASSETS",
+			"binding": "MOEDICT_ASSETS",
 			"bucket_name": "<your-assets-bucket>",
 			"preview_bucket_name": "<your-assets-bucket-preview>"
 		},
