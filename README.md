@@ -68,7 +68,9 @@ export default tseslint.config([
 ])
 ```
 
-## 上傳字典與資產
+## 開發準備
+
+### 上傳字典與資產
 
 此專案提供兩支腳本，協助將資料與前端資產同步至 Cloudflare R2 Storage。執行前請確認：
 - 已安裝並設定 `rclone`，且存在名為 `r2` 的 remote。
@@ -81,4 +83,55 @@ export default tseslint.config([
 腳本會自動檢查環境並以 `rclone sync` 執行上傳，結束後亦會輸出摘要與驗證結果。若需進一步調整或排查，請參考 `commands` 目錄中的腳本內容。
 
 
+### 設定資產端點（ASSET_BASE_URL）
 
+- 本專案的 CSS/JS/圖片/字體會透過 `ASSET_BASE_URL` 從 R2 公開端點載入。
+- 請先複製範本設定，並填上你自己的 bucket 與公開端點：
+
+```bash
+cp wrangler.jsonc.example wrangler.jsonc
+# 編輯 wrangler.jsonc → vars.ASSET_BASE_URL: "https://<your-pub-id>.r2.dev"
+```
+
+- 若未設定 `ASSET_BASE_URL`，伺服器端渲染會直接報錯提示。
+
+### 部署到 CloudFlare
+
+#### 1. 設置 CloudFlare 認證
+```bash
+wrangler auth login
+```
+
+#### 2. 創建必要資源
+```bash
+
+
+# 創建 R2 Storage
+wrangler r2 bucket create moedict-fonts
+wrangler r2 bucket create moedict-fonts-preview
+wrangler r2 bucket create moedict-assets
+wrangler r2 bucket create moedict-assets-preview
+wrangler r2 bucket create moedict-dictionary
+wrangler r2 bucket create moedict-dictionary-preview
+```
+
+#### 3. 更新配置
+- 以 `wrangler.jsonc.example` 為範本建立 `wrangler.jsonc`
+- 在 `vars` 設定你的公開資產端點：
+
+```jsonc
+{
+  "vars": {
+    "ASSET_BASE_URL": "https://<your-pub-id>.r2.dev"
+  }
+}
+```
+
+#### 4. 部署 Worker
+```bash
+# 部署到生產環境
+npm run deploy
+
+# 或使用 wrangler 直接部署
+wrangler deploy
+```
