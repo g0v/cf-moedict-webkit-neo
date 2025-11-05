@@ -12,6 +12,7 @@
 		"cf-typegen": "wrangler types"
 	},
 	"dependencies": {
+		"@cf-wasm/resvg": "^0.1.24",
 		"react": "^19.1.1",
 		"react-dom": "^19.1.1"
 	},
