@@ -5,6 +5,7 @@ export default {
     console.log(url.pathname);
 
     if (url.pathname.startsWith("/api/")) {
+      console.log('🔍 [Index] 處理 API 請求:', url.pathname);
       return Response.json({
         name: "Cloudflare",
       });
