@@ -127,7 +127,14 @@ wrangler r2 bucket create moedict-dictionary-preview
 }
 ```
 
-#### 4. 部署 Worker
+#### 4. 近端測試
+
+```bash
+# 近端測試
+npm run dev
+```
+
+#### 5. 部署 Worker
 ```bash
 # 部署到生產環境
 npm run deploy
