@@ -1,9 +1,11 @@
 import { useState } from 'react'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import reactLogo from './assets/react.svg'
 import viteLogo from '/vite.svg'
 import cloudflareLogo from './assets/Cloudflare_Logo.svg'
 import { About } from './pages/About'
+import { RadicalView } from './pages/RadicalView'
+import { MiddlePoint } from './MiddlePoint'
 import './App.css'
 
 function Home() {
@@ -64,7 +66,13 @@ function App() {
         <Route path="/" element={<Home />} />
         <Route path="/about" element={<About />} />
         <Route path="/about.html" element={<About />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
+        
+        {/* 部首表（唯一合法的純靜態 segment） */}
+        <Route path="/@" element={<RadicalView lang='a' />} />
+        <Route path="/~@" element={<RadicalView lang='c' />} />
+
+        {/* 其他路由交由 MiddlePoint 分流 */}
+        <Route path="*" element={<MiddlePoint />} />
       </Routes>
     </BrowserRouter>
   )
