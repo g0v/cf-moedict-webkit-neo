@@ -1,61 +1,63 @@
-import { useState, useEffect } from 'react'
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import cloudflareLogo from './assets/Cloudflare_Logo.svg'
+import { useEffect, useState } from 'react'
+import { BrowserRouter, Routes, Route, useLocation, Outlet } from 'react-router-dom'
 import { About } from './pages/About'
 import { RadicalView } from './pages/RadicalView'
 import { MiddlePoint } from './MiddlePoint'
+import { DictionaryA } from './pages/Dictionary-a'
+import { Layout } from './components/Layout'
 import './App.css'
 
-function Home() {
-  const [count, setCount] = useState(0)
-  const [name, setName] = useState('unknown')
+/**
+ * Normal Layout 包裝器
+ */
+function NormalLayout() {
+  const [r2Endpoint, setR2Endpoint] = useState<string>('');
+
+  useEffect(() => {
+    fetch('/api/config')
+      .then((res) => res.json())
+      .then((data: { assetBaseUrl?: string }) => {
+        if (data.assetBaseUrl) {
+          const endpoint = data.assetBaseUrl.replace(/\/$/, '');
+          setR2Endpoint(endpoint);
+        }
+      })
+      .catch((err) => {
+        console.error('取得 ASSET_BASE_URL 失敗:', err);
+      });
+  }, []);
 
   return (
-    <>
-      <div>
-        <a href='https://vite.dev' target='_blank'>
-          <img src={viteLogo} className='logo' alt='Vite logo' />
-        </a>
-        <a href='https://react.dev' target='_blank'>
-          <img src={reactLogo} className='logo react' alt='React logo' />
-        </a>
-        <a href='https://workers.cloudflare.com/' target='_blank'>
-          <img src={cloudflareLogo} className='logo cloudflare' alt='Cloudflare logo' />
-        </a>
-      </div>
-      <h1>Vite + React + Cloudflare</h1>
-      <div className='card'>
-        <button
-          onClick={() => setCount((count) => count + 1)}
-          aria-label='increment'
-        >
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <div className='card'>
-        <button
-          onClick={() => {
-            fetch('/api/')
-              .then((res) => res.json() as Promise<{ name: string }>)
-              .then((data) => setName(data.name))
-          }}
-          aria-label='get name'
-        >
-          Name from API is: {name}
-        </button>
-        <p>
-          Edit <code>worker/index.ts</code> to change the name
-        </p>
-      </div>
-      <p className='read-the-docs'>
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
+    <Layout layout="normal" r2Endpoint={r2Endpoint}>
+      <Outlet />
+    </Layout>
+  )
+}
+
+/**
+ * About Layout 包裝器
+ */
+function AboutLayout() {
+  const [r2Endpoint, setR2Endpoint] = useState<string>('');
+
+  useEffect(() => {
+    fetch('/api/config')
+      .then((res) => res.json())
+      .then((data: { assetBaseUrl?: string }) => {
+        if (data.assetBaseUrl) {
+          const endpoint = data.assetBaseUrl.replace(/\/$/, '');
+          setR2Endpoint(endpoint);
+        }
+      })
+      .catch((err) => {
+        console.error('取得 ASSET_BASE_URL 失敗:', err);
+      });
+  }, []);
+
+  return (
+    <Layout layout="about" r2Endpoint={r2Endpoint}>
+      <Outlet />
+    </Layout>
   )
 }
 
@@ -91,16 +93,24 @@ function App() {
     <BrowserRouter>
       <URLDecoder />
       <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/about" element={<About />} />
-        <Route path="/about.html" element={<About />} />
-        
-        {/* 部首表（唯一合法的純靜態 segment） */}
-        <Route path="/@" element={<RadicalView lang='a' />} />
-        <Route path="/~@" element={<RadicalView lang='c' />} />
+        {/* About 頁面使用 about layout */}
+        <Route element={<AboutLayout />}>
+          <Route path="/about" element={<About />} />
+          <Route path="/about.html" element={<About />} />
+        </Route>
 
-        {/* 其他路由交由 MiddlePoint 分流 */}
-        <Route path="*" element={<MiddlePoint />} />
+        {/* 其他頁面使用 normal layout */}
+        <Route element={<NormalLayout />}>
+          {/* 首頁路由 */}
+          <Route path="/" element={<DictionaryA word="萌" />} />
+          
+          {/* 部首表（唯一合法的純靜態 segment） */}
+          <Route path="/@" element={<RadicalView lang='a' />} />
+          <Route path="/~@" element={<RadicalView lang='c' />} />
+
+          {/* 其他路由交由 MiddlePoint 分流 */}
+          <Route path="*" element={<MiddlePoint />} />
+        </Route>
       </Routes>
     </BrowserRouter>
   )
