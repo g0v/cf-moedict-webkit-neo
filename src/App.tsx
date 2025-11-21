@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
 import reactLogo from './assets/react.svg'
 import viteLogo from '/vite.svg'
 import cloudflareLogo from './assets/Cloudflare_Logo.svg'
@@ -59,9 +59,37 @@ function Home() {
   )
 }
 
+/**
+ * URL 解碼組件：監聽 URL 變化，當發現被編碼時自動還原
+ * 注意：主要的攔截邏輯已經在 main.tsx 中設置，這裡只處理路由變化後的檢查
+ */
+function URLDecoder() {
+  const location = useLocation();
+
+  useEffect(() => {
+    // 當路由變化時，檢查並修正 URL（作為備用機制）
+    const currentPath = window.location.pathname;
+    
+    if (currentPath.includes('%')) {
+      try {
+        const decoded = decodeURIComponent(currentPath);
+        if (decoded !== currentPath) {
+          // 使用 replaceState 避免在歷史記錄中留下編碼的 URL
+          window.history.replaceState(null, '', decoded);
+        }
+      } catch (e) {
+        console.warn('URL 解碼失敗:', e);
+      }
+    }
+  }, [location.pathname]);
+
+  return null;
+}
+
 function App() {
   return (
     <BrowserRouter>
+      <URLDecoder />
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/about" element={<About />} />
