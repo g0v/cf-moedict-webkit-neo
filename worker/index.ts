@@ -1,10 +1,13 @@
+import { handleDictionaryAPI } from '../src/api/handleDictionaryAPI';
+
 interface Env {
 	ASSET_BASE_URL?: string;
 	DICTIONARY_BASE_URL?: string;
+	DICTIONARY: R2Bucket;
 }
 
 export default {
-  fetch(request, env: Env) {
+  async fetch(request, env: Env) {
     console.log('🔍 [Index] 開始處理請求:', request.url);
     const url = new URL(request.url);
     console.log(url.pathname);
@@ -23,57 +26,66 @@ export default {
       });
     }
 
-    if (url.pathname.startsWith("/api/")) {
+    // 字典 JSON API 路由
+    if (
+      url.pathname.endsWith('.json') &&
+      !url.pathname.startsWith('/api/') &&
+      !url.pathname.startsWith('/assets/')
+    ) {
+      return handleDictionaryAPI(request, url, env);
+    }
+
+    if (url.pathname.startsWith('/api/')) {
       console.log('🔍 [Index] 處理 API 請求:', url.pathname);
-      
+
       // 提供配置資訊 API
-      if (url.pathname === "/api/config") {
+      if (url.pathname === '/api/config') {
         return Response.json({
           assetBaseUrl: env.ASSET_BASE_URL || '',
           dictionaryBaseUrl: env.DICTIONARY_BASE_URL || '',
         });
       }
-      
+
       return Response.json({
-        name: "Cloudflare",
+        name: 'Cloudflare',
       });
     }
 
     // 代理 R2 靜態資源請求（字體、CSS、圖片等）
-    if (env.ASSET_BASE_URL && url.pathname.startsWith("/assets/")) {
-      const assetPath = url.pathname.replace("/assets/", "");
+    if (env.ASSET_BASE_URL && url.pathname.startsWith('/assets/')) {
+      const assetPath = url.pathname.replace('/assets/', '');
       const assetUrl = `${env.ASSET_BASE_URL}/${assetPath}${url.search}`;
-      
+
       console.log('🔍 [Index] 代理靜態資源請求:', assetUrl);
-      
+
       return fetch(assetUrl, {
         method: request.method,
         headers: {
           // 只傳遞必要的 headers
           'User-Agent': request.headers.get('User-Agent') || 'Cloudflare-Worker',
         },
-      }).then(response => {
+      }).then((response) => {
         // 複製回應並添加 CORS headers
         const newHeaders = new Headers(response.headers);
-        const origin = request.headers.get("Origin");
-        
+        const origin = request.headers.get('Origin');
+
         // 允許請求的來源
         if (origin) {
-          newHeaders.set("Access-Control-Allow-Origin", origin);
-          newHeaders.set("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
-          newHeaders.set("Access-Control-Allow-Headers", "Content-Type");
-          newHeaders.set("Access-Control-Allow-Credentials", "true");
+          newHeaders.set('Access-Control-Allow-Origin', origin);
+          newHeaders.set('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+          newHeaders.set('Access-Control-Allow-Headers', 'Content-Type');
+          newHeaders.set('Access-Control-Allow-Credentials', 'true');
         } else {
           // 如果沒有 Origin header，允許所有來源（開發環境）
-          newHeaders.set("Access-Control-Allow-Origin", "*");
+          newHeaders.set('Access-Control-Allow-Origin', '*');
         }
-        
+
         return new Response(response.body, {
           status: response.status,
           statusText: response.statusText,
           headers: newHeaders,
         });
-      }).catch(error => {
+      }).catch((error) => {
         console.error('代理請求失敗:', error);
         return new Response('代理請求失敗', { status: 502 });
       });
