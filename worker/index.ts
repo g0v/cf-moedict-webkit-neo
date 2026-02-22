@@ -26,24 +26,32 @@ export default {
       });
     }
 
-    // 字典 JSON API 路由
-    if (
-      url.pathname.endsWith('.json') &&
-      !url.pathname.startsWith('/api/') &&
-      !url.pathname.startsWith('/assets/')
-    ) {
-      return handleDictionaryAPI(request, url, env);
-    }
 
     if (url.pathname.startsWith('/api/')) {
       console.log('🔍 [Index] 處理 API 請求:', url.pathname);
 
       // 提供配置資訊 API
       if (url.pathname === '/api/config') {
+        console.log('🔍 [Index] 提供配置資訊');
         return Response.json({
           assetBaseUrl: env.ASSET_BASE_URL || '',
           dictionaryBaseUrl: env.DICTIONARY_BASE_URL || '',
         });
+      }
+
+      // 字典 JSON API 路由
+      if (
+        url.pathname.endsWith('.json') &&
+        !url.pathname.startsWith('/assets/')
+      ) {
+        console.log('🔍 [Index] 處理字典 API 請求:', url.pathname);
+        const response = await handleDictionaryAPI(request, url, env);
+        if (response) {
+          return response;
+        } else {
+          console.warn('⚠️ [Index] 字典 API 處理失敗，返回 404:', url.pathname);
+          return new Response('Not Found', { status: 404 });
+        }
       }
 
       return Response.json({

@@ -79,9 +79,14 @@ export async function handleDictionaryAPI(
 }
 
 function parseTextFromUrl(pathname: string): { lang: DictionaryLang; cleanText: string } {
-  const noSuffix = pathname.replace(/\.json$/, '');
+
+  console.log(`Parsing text from URL pathname: ${pathname}`);
+
+  const noSuffix = pathname.replace('/api/', '').replace(/\.json$/, '');
   const noLeadingSlash = noSuffix.replace(/^\//, '');
   const decoded = decodeURIComponent(noLeadingSlash);
+
+  console.log(`Decoded text from URL: ${decoded}`);
 
   const slashParts = decoded.split('/').filter(Boolean);
   if (slashParts.length >= 2 && isDictionaryLang(slashParts[0])) {
@@ -223,6 +228,9 @@ export async function lookupDictionaryEntry(
   lang: DictionaryLang,
   env: DictionaryEnv,
 ): Promise<DictionaryAPIResponse | null> {
+
+  console.log(`Looking up dictionary entry for text: "${text}" in language: "${lang}"`);
+
   if (text.startsWith('@') || text.startsWith('=')) {
     return null;
   }
@@ -325,6 +333,7 @@ async function getCrossReferences(
 ): Promise<Array<{ lang: DictionaryLang; words: string[] }>> {
   try {
     const xrefPath = `${lang}/xref.json`;
+    console.log(`Looking for cross-reference at: ${xrefPath}`);
     const xrefObject = await env.DICTIONARY.get(xrefPath);
     if (!xrefObject) {
       return [];
