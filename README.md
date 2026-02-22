@@ -140,5 +140,5 @@ npm run dev
 npm run deploy
 
 # 或使用 wrangler 直接部署
-wrangler deploy
+npx wrangler deploy
 ```
