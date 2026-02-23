@@ -10,6 +10,7 @@ import {
 } from '../utils/radical-page-utils';
 
 const ATTR = 'data-radical-id';
+const RESULT_LINK_SELECTOR = '.result a[href]:not(.xref)';
 const LOADING_HTML = '<div class="entry"><div class="entry-item"><div class="def">載入中…</div></div></div>';
 const EMPTY_HTML = '<div class="entry"><div class="entry-item"><div class="def">找不到內容</div></div></div>';
 
@@ -139,10 +140,37 @@ async function buildEntryTooltipHTML(rawToken: string): Promise<string> {
   return `${buildTitleSection(title, `/${token}`)}<div class="entry">${content}</div>`;
 }
 
-function resolveTooltipAnchor(target: EventTarget | null): HTMLAnchorElement | null {
+function resolveTooltipIdFromHref(rawHref: string | null): string {
+  const href = String(rawHref || '').trim();
+  if (!href) return '';
+  if (/^(?:https?:|mailto:|tel:|javascript:)/i.test(href)) return '';
+  return normalizeTooltipId(href);
+}
+
+function shouldUseRadicalTooltip(id: string): boolean {
+  return id === '@' || id === '~@' || id.startsWith('@') || id.startsWith('~@');
+}
+
+interface TooltipTarget {
+  anchor: HTMLAnchorElement;
+  id: string;
+}
+
+function resolveTooltipTarget(target: EventTarget | null): TooltipTarget | null {
   if (!(target instanceof Element)) return null;
-  const anchor = target.closest(`[${ATTR}]`);
-  return anchor instanceof HTMLAnchorElement ? anchor : null;
+
+  const customAnchor = target.closest(`[${ATTR}]`);
+  if (customAnchor instanceof HTMLAnchorElement) {
+    const id = String(customAnchor.getAttribute(ATTR) || '').trim();
+    if (!id) return null;
+    return { anchor: customAnchor, id };
+  }
+
+  const fallbackAnchor = target.closest(RESULT_LINK_SELECTOR);
+  if (!(fallbackAnchor instanceof HTMLAnchorElement)) return null;
+  const id = resolveTooltipIdFromHref(fallbackAnchor.getAttribute('href'));
+  if (!id) return null;
+  return { anchor: fallbackAnchor, id };
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -240,8 +268,10 @@ export function useRadicalTooltip(): void {
         if (id.startsWith('entry:')) {
           const entryTarget = id.slice(6).trim() || anchor.getAttribute('href') || '';
           html = await buildEntryTooltipHTML(entryTarget);
-        } else {
+        } else if (shouldUseRadicalTooltip(id)) {
           html = await buildRadicalTooltipHTML(id);
+        } else {
+          html = await buildEntryTooltipHTML(id);
         }
         cache.set(cacheKey, html || EMPTY_HTML);
       }
@@ -262,16 +292,13 @@ export function useRadicalTooltip(): void {
     };
 
     const onMouseOver = (event: MouseEvent) => {
-      const anchor = resolveTooltipAnchor(event.target);
-      if (!anchor) return;
-
-      const id = anchor.getAttribute(ATTR) || '';
-      if (!id) return;
+      const target = resolveTooltipTarget(event.target);
+      if (!target) return;
 
       clearHideTimer();
       clearShowTimer();
       showTimer = window.setTimeout(() => {
-        showTooltip(anchor, id).catch(() => {
+        showTooltip(target.anchor, target.id).catch(() => {
           if (tooltipEl) {
             tooltipEl.innerHTML = EMPTY_HTML;
             tooltipEl.style.display = 'block';
@@ -281,8 +308,7 @@ export function useRadicalTooltip(): void {
     };
 
     const onMouseOut = (event: MouseEvent) => {
-      const anchor = resolveTooltipAnchor(event.target);
-      if (!anchor) return;
+      if (!resolveTooltipTarget(event.target)) return;
       clearShowTimer();
 
       const related = event.relatedTarget;
