@@ -221,6 +221,39 @@ export function InlineStyles({ r2Endpoint }: InlineStylesProps) {
 				position: static;
 			}
 		}
+
+		/* 字典發音按鈕（複刻原專案） */
+		.part-of-speech.playAudio {
+			color: #6B0000;
+			background: transparent;
+			font-size: 90%;
+			padding: 0;
+			cursor: pointer;
+			line-height: 100%;
+			display: inline-block;
+		}
+		.audioBlock {
+			display: inline-block;
+			margin-left: 8px;
+			font-size: 70% !important;
+		}
+		.playAudio {
+			margin-left: 5px;
+			color: #6B0000;
+			font-size: 70%;
+			padding-left: 5px;
+			display: inline-block !important;
+		}
+		.icon-play:before { content: "\\f04b"; }
+		.icon-stop:before { content: "\\f04d"; }
+
+		/* 外文翻譯 TTS 可點擊 */
+		.fw_def {
+			cursor: pointer;
+		}
+		.fw_def:hover {
+			text-decoration: underline;
+		}
 		`
 			}}
 		/>

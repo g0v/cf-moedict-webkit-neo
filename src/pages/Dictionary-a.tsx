@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState, type MouseEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { cleanTextForTTS, speakText } from '../tts-utils';
+import { getAudioUrl, playAudioUrl } from '../audio-utils';
 
 type DictionaryLang = 'a' | 't' | 'h' | 'c';
 
@@ -97,6 +99,8 @@ function getLangName(lang: DictionaryLang): string {
   if (lang === 'c') return '兩岸';
   return '華語';
 }
+
+const LANG_A: DictionaryLang = 'a';
 
 export function DictionaryA({ word }: DictionaryProps) {
   const navigate = useNavigate();
@@ -243,6 +247,26 @@ export function DictionaryA({ word }: DictionaryProps) {
 
             <h1 className="title" data-title={title}>
               <span dangerouslySetInnerHTML={{ __html: title }} />
+              {heteronym.audio_id && (
+                <span className="audioBlock">
+                  <i
+                    role="button"
+                    tabIndex={0}
+                    className="icon-play playAudio part-of-speech"
+                    title="播放發音"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      playAudioUrl(getAudioUrl(LANG_A, heteronym.audio_id!));
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        playAudioUrl(getAudioUrl(LANG_A, heteronym.audio_id!));
+                      }
+                    }}
+                  />
+                </span>
+              )}
             </h1>
 
             {(heteronym.bopomofo || heteronym.pinyin || heteronym.trs) && (
@@ -326,11 +350,6 @@ export function DictionaryA({ word }: DictionaryProps) {
               </div>
             ))}
 
-            {heteronym.audio_id ? (
-              <div className="entry-item">
-                <small>音檔代碼：{heteronym.audio_id}</small>
-              </div>
-            ) : null}
           </div>
         );
       })}
@@ -340,19 +359,52 @@ export function DictionaryA({ word }: DictionaryProps) {
           {english ? (
             <div className="xref-line">
               <span className="fw_lang">英</span>
-              <span className="fw_def">{formatTranslation(english)}</span>
+              <span
+                className="fw_def"
+                data-label="英"
+                data-text={cleanTextForTTS(english)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const text = (e.currentTarget.getAttribute('data-text') ?? '').trim();
+                  if (text) speakText('英', text);
+                }}
+              >
+                {formatTranslation(english)}
+              </span>
             </div>
           ) : null}
           {deutsch ? (
             <div className="xref-line">
               <span className="fw_lang">德</span>
-              <span className="fw_def">{formatTranslation(deutsch)}</span>
+              <span
+                className="fw_def"
+                data-label="德"
+                data-text={cleanTextForTTS(deutsch)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const text = (e.currentTarget.getAttribute('data-text') ?? '').trim();
+                  if (text) speakText('德', text);
+                }}
+              >
+                {formatTranslation(deutsch)}
+              </span>
             </div>
           ) : null}
           {francais ? (
             <div className="xref-line">
               <span className="fw_lang">法</span>
-              <span className="fw_def">{formatTranslation(francais)}</span>
+              <span
+                className="fw_def"
+                data-label="法"
+                data-text={cleanTextForTTS(francais)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const text = (e.currentTarget.getAttribute('data-text') ?? '').trim();
+                  if (text) speakText('法', text);
+                }}
+              >
+                {formatTranslation(francais)}
+              </span>
             </div>
           ) : null}
         </div>
