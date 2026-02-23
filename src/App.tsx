@@ -62,6 +62,19 @@ function AboutLayout() {
 }
 
 /**
+ * 路由切換時捲動至頁面頂部
+ */
+function ScrollToTop() {
+  const location = useLocation();
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
+
+  return null;
+}
+
+/**
  * URL 解碼組件：監聽 URL 變化，當發現被編碼時自動還原
  * 注意：主要的攔截邏輯已經在 main.tsx 中設置，這裡只處理路由變化後的檢查
  */
@@ -91,6 +104,7 @@ function URLDecoder() {
 function App() {
   return (
     <BrowserRouter>
+      <ScrollToTop />
       <URLDecoder />
       <Routes>
         {/* About 頁面使用 about layout */}
