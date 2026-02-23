@@ -8,6 +8,8 @@ import {
   type DictionaryDefinition,
   type DictionaryEntryResponse,
 } from '../utils/radical-page-utils';
+import { rightAngle } from '../utils/ruby2hruby';
+import { decorateRuby, formatBopomofo, formatPinyin } from '../utils/bopomofo-pinyin-utils';
 
 const ATTR = 'data-radical-id';
 const RESULT_LINK_SELECTOR = '.result a[href]:not(.xref)';
@@ -51,6 +53,13 @@ function renderPartOfSpeech(typeText: string): string {
     .filter(Boolean)
     .map((tag) => `<span class="part-of-speech">${escapeHtml(tag)}</span>`)
     .join('');
+}
+
+function getLangFromToken(token: string): 'a' | 't' | 'h' | 'c' {
+  if (token.startsWith("'") || token.startsWith('!')) return 't';
+  if (token.startsWith(':')) return 'h';
+  if (token.startsWith('~')) return 'c';
+  return 'a';
 }
 
 async function buildRadicalTooltipHTML(rawId: string): Promise<string> {
@@ -108,6 +117,7 @@ async function buildRadicalTooltipHTML(rawId: string): Promise<string> {
 async function buildEntryTooltipHTML(rawToken: string): Promise<string> {
   const token = normalizeTooltipId(rawToken).replace(/^\//, '');
   if (!token) return EMPTY_HTML;
+  const lang = getLangFromToken(token);
 
   const entry = await fetchJsonByToken<DictionaryEntryResponse>(token);
   if (!entry) {
@@ -119,6 +129,13 @@ async function buildEntryTooltipHTML(rawToken: string): Promise<string> {
   const heteronym = Array.isArray(entry.heteronyms) ? entry.heteronyms[0] : undefined;
   const definitions = Array.isArray(heteronym?.definitions) ? heteronym.definitions : [];
   const grouped = groupDefinitions(definitions);
+  const rubyData = decorateRuby({
+    LANG: lang,
+    title,
+    bopomofo: heteronym?.bopomofo,
+    pinyin: heteronym?.pinyin,
+    trs: heteronym?.trs,
+  });
 
   const itemsHtml = Array.from(grouped.entries())
     .slice(0, 4)
@@ -136,8 +153,34 @@ async function buildEntryTooltipHTML(rawToken: string): Promise<string> {
     })
     .join('');
 
+  let titleHtml = '';
+  if (rubyData.ruby) {
+    const hruby = rightAngle(rubyData.ruby);
+    titleHtml = `<span class="h1">${hruby}</span>`;
+  } else {
+    const safeTitle = escapeHtml(title);
+    titleHtml = `<span class="h1"><a href="./#${safeTitle}">${safeTitle}</a></span>`;
+  }
+  const youyinHtml = rubyData.youyin ? `<small class="youyin">${escapeHtml(stripTags(rubyData.youyin))}</small>` : '';
+
+  let pronunciationHtml = '';
+  if (heteronym?.bopomofo || heteronym?.pinyin || rubyData.bAlt || rubyData.pAlt) {
+    const cnClass = rubyData.cnSpecific ? ` ${rubyData.cnSpecific}` : '';
+    const altCnBlock =
+      rubyData.cnSpecific && rubyData.pinyin && rubyData.bopomofo
+        ? `<small class="alternative cn-specific"><span class="pinyin">${formatPinyin(rubyData.pinyin)}</span><span class="bopomofo">${formatBopomofo(rubyData.bopomofo)}</span></small>`
+        : '';
+    const mainBpmf = heteronym?.bopomofo ? `<span class="bopomofo">${formatBopomofo(heteronym.bopomofo)}</span>` : '';
+    const mainPinyin = heteronym?.pinyin || heteronym?.trs ? `<span class="pinyin">${formatPinyin(heteronym.pinyin || heteronym.trs || '')}</span>` : '';
+    const altBlock =
+      rubyData.bAlt || rubyData.pAlt
+        ? `<small class="alternative">${rubyData.pAlt ? `<span class="pinyin">${formatPinyin(rubyData.pAlt)}</span>` : ''}${rubyData.bAlt ? `<span class="bopomofo">${formatBopomofo(rubyData.bAlt)}</span>` : ''}</small>`
+        : '';
+    pronunciationHtml = `<div class="bopomofo${cnClass}">${altCnBlock}<div class="main-pronunciation">${mainBpmf}${mainPinyin}</div>${altBlock}</div>`;
+  }
+
   const content = itemsHtml || '<div class="entry-item"><div class="def">找不到內容</div></div>';
-  return `${buildTitleSection(title, `/${token}`)}<div class="entry">${content}</div>`;
+  return `<div class="title" data-title="${escapeHtml(title)}">${titleHtml}${youyinHtml}</div>${pronunciationHtml}<div class="entry">${content}</div>`;
 }
 
 function resolveTooltipIdFromHref(rawHref: string | null): string {

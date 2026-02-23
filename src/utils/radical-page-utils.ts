@@ -6,6 +6,10 @@ export interface DictionaryDefinition {
 }
 
 export interface DictionaryHeteronym {
+  bopomofo?: string;
+  pinyin?: string;
+  trs?: string;
+  alt?: string;
   definitions?: DictionaryDefinition[];
 }
 

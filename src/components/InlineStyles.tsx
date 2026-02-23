@@ -267,19 +267,25 @@ export function InlineStyles({ r2Endpoint }: InlineStylesProps) {
 			max-width: 360px;
 			padding: 8px 12px;
 		}
-		.ui-tooltip .title .h1,
-		.ui-tooltip .title .h1 a,
-		.ui-tooltip .title h1,
-		.ui-tooltip .title h1 a {
-			font-family: "Biaodian Pro Serif CNS", "Numeral LF Serif", "MOEDICT", "Fira Sans OT", "Georgia", "Times New Roman", "Zhuyin Kaiti", "TW-Kai-98_1", "教育部標準楷書", "kai-pc", "CMEXc1", "BiauKai", "MOEDICT-IOS-KAI", "DFKaiShu-SB-Estd-BF", "全字庫正楷體", "Kaiti TC", "楷體-繁", "文鼎ＰＬ新中楷", "cwText 楷書", cursive, serif, "HanaMinA", "HanaMinB", "HAN NOM A", "HAN NOM B", "Han Kaiti CNS", cursive, serif !important;
-			color: #000 !important;
-		}
-		.ui-tooltip .title .h1 a,
-		.ui-tooltip .title h1 a,
-		.ui-tooltip .stroke-list .stroke-char {
-			text-decoration: none !important;
-			color: #000 !important;
-		}
+			.ui-tooltip .title .h1,
+			.ui-tooltip .title h1 {
+				font-family: "Biaodian Pro Serif CNS", "Numeral LF Serif", "MOEDICT", "Fira Sans OT", "Georgia", "Times New Roman", "Zhuyin Kaiti", "TW-Kai-98_1", "教育部標準楷書", "kai-pc", "CMEXc1", "BiauKai", "MOEDICT-IOS-KAI", "DFKaiShu-SB-Estd-BF", "全字庫正楷體", "Kaiti TC", "楷體-繁", "文鼎ＰＬ新中楷", "cwText 楷書", cursive, serif, "HanaMinA", "HanaMinB", "HAN NOM A", "HAN NOM B", "Han Kaiti CNS", cursive, serif !important;
+				font-size: 30px !important;
+				line-height: 2 !important;
+				font-weight: 501 !important;
+				margin: -0.25em 0 0.5em !important;
+				padding-bottom: 0.3em !important;
+				border-bottom: none !important;
+				color: #000 !important;
+			}
+			.ui-tooltip .title .h1 a,
+			.ui-tooltip .title h1 a,
+			.ui-tooltip .stroke-list .stroke-char {
+				font-family: inherit !important;
+				font-size: inherit !important;
+				text-decoration: none !important;
+				color: #000 !important;
+			}
 		.ui-tooltip .title .h1 a:hover,
 		.ui-tooltip .title h1 a:hover,
 		.ui-tooltip .stroke-list .stroke-char:hover {

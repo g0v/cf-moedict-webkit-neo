@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useRadicalTooltip } from '../hooks/useRadicalTooltip';
 import { cleanTextForTTS, speakText } from '../utils/tts-utils';
 import { getAudioUrl, playAudioUrl } from '../utils/audio-utils';
+import { rightAngle } from '../utils/ruby2hruby';
+import { decorateRuby, formatBopomofo, formatPinyin } from '../utils/bopomofo-pinyin-utils';
 
 export type DictionaryLang = 'a' | 't' | 'h' | 'c';
 
@@ -53,6 +55,25 @@ interface DictionaryState {
 interface DictionaryPageProps {
   word?: string;
   lang: DictionaryLang;
+}
+
+function groupDefinitions(definitions: Definition[]): Map<string, Definition[]> {
+  const grouped = new Map<string, Definition[]>();
+  for (const definition of definitions) {
+    const key = String(definition.type || '');
+    const list = grouped.get(key) ?? [];
+    list.push(definition);
+    grouped.set(key, list);
+  }
+  return grouped;
+}
+
+function splitPartOfSpeech(typeText: string): string[] {
+  if (!typeText) return [];
+  return typeText
+    .split(',')
+    .map((tag) => untag(tag).trim())
+    .filter(Boolean);
 }
 
 function toStringArray(value: string[] | string | undefined): string[] {
@@ -294,14 +315,16 @@ export function DictionaryPage({ word, lang }: DictionaryPageProps) {
   return (
     <div className="result" onClick={onContentClick} aria-busy={state.loading}>
       {heteronyms.map((heteronym, idx) => {
+        const rubyData = decorateRuby({
+          LANG: lang,
+          title,
+          bopomofo: heteronym.bopomofo,
+          pinyin: heteronym.pinyin,
+          trs: heteronym.trs,
+        });
+
         const definitions = Array.isArray(heteronym.definitions) ? heteronym.definitions : [];
-        const groups = new Map<string, Definition[]>();
-        for (const def of definitions) {
-          const key = (def.type ?? '').trim();
-          const current = groups.get(key) ?? [];
-          current.push(def);
-          groups.set(key, current);
-        }
+        const groups = groupDefinitions(definitions);
 
         return (
           <div key={`${title}-${idx}`} className="entry">
@@ -315,7 +338,13 @@ export function DictionaryPage({ word, lang }: DictionaryPageProps) {
             )}
 
             <h1 className="title" data-title={title}>
-              <span dangerouslySetInnerHTML={{ __html: title }} />
+              {(() => {
+                const htmlRuby = rubyData.ruby || '';
+                if (!htmlRuby) return <span dangerouslySetInnerHTML={{ __html: title }} />;
+                const hruby = rightAngle(htmlRuby);
+                return <span dangerouslySetInnerHTML={{ __html: hruby }} />;
+              })()}
+              {rubyData.youyin && <small className="youyin">{rubyData.youyin}</small>}
               {heteronym.audio_id && (
                 <span className="audioBlock">
                   <i
@@ -345,79 +374,95 @@ export function DictionaryPage({ word, lang }: DictionaryPageProps) {
               )}
             </h1>
 
-            {(heteronym.bopomofo || heteronym.pinyin || heteronym.trs) && (
-              <div className="bopomofo">
+            {(heteronym.bopomofo || heteronym.pinyin || rubyData.bAlt || rubyData.pAlt) && (
+              <div className={`bopomofo ${rubyData.cnSpecific}`}>
                 {heteronym.alt && (
                   <div lang="zh-Hans" className="cn-specific">
                     <span className="xref part-of-speech">简</span>
                     <span className="xref">{heteronym.alt}</span>
                   </div>
                 )}
-                {heteronym.bopomofo && (
-                  <div className="main-pronunciation">
-                    <span className="bopomofo" dangerouslySetInnerHTML={{ __html: heteronym.bopomofo }} />
-                  </div>
+
+                {rubyData.cnSpecific && rubyData.pinyin && rubyData.bopomofo && (
+                  <small className="alternative cn-specific">
+                    <span className="pinyin" dangerouslySetInnerHTML={{ __html: formatPinyin(rubyData.pinyin) }} />
+                    <span className="bopomofo" dangerouslySetInnerHTML={{ __html: formatBopomofo(rubyData.bopomofo) }} />
+                  </small>
                 )}
-                {heteronym.pinyin && (
-                  <div className="main-pronunciation">
-                    <span className="pinyin" dangerouslySetInnerHTML={{ __html: heteronym.pinyin }} />
-                  </div>
-                )}
-                {heteronym.trs && (
-                  <div className="main-pronunciation">
-                    <span className="pinyin" dangerouslySetInnerHTML={{ __html: heteronym.trs }} />
-                  </div>
+
+                <div className="main-pronunciation">
+                  {heteronym.bopomofo && (
+                    <span className="bopomofo" dangerouslySetInnerHTML={{ __html: formatBopomofo(heteronym.bopomofo) }} />
+                  )}
+                  {(heteronym.pinyin || heteronym.trs) && (
+                    <span
+                      className="pinyin"
+                      dangerouslySetInnerHTML={{ __html: formatPinyin(heteronym.pinyin || heteronym.trs || '') }}
+                    />
+                  )}
+                </div>
+
+                {(rubyData.bAlt || rubyData.pAlt) && (
+                  <small className="alternative">
+                    {rubyData.pAlt && (
+                      <span className="pinyin" dangerouslySetInnerHTML={{ __html: formatPinyin(rubyData.pAlt) }} />
+                    )}
+                    {rubyData.bAlt && (
+                      <span className="bopomofo" dangerouslySetInnerHTML={{ __html: formatBopomofo(rubyData.bAlt) }} />
+                    )}
+                  </small>
                 )}
               </div>
             )}
 
-            {Array.from(groups.entries()).map(([type, items], groupIdx) => (
-              <div key={`${type}-${groupIdx}`} className="entry-item">
-                {type
-                  ? type
-                      .split(',')
-                      .map((tag) => tag.trim())
-                      .filter(Boolean)
-                      .map((tag) => (
-                        <span key={`${type}-${tag}`} className="part-of-speech">
-                          {untag(tag)}
-                        </span>
-                      ))
-                  : null}
-                <ol className={type ? 'margin-modified' : undefined}>
-                  {items.map((def, defIdx) => (
-                    <li key={`${type}-${defIdx}`}>
-                      {def.def ? <div className="def" dangerouslySetInnerHTML={{ __html: def.def }} /> : null}
-                      {toStringArray(def.example).map((text, exampleIdx) => (
-                        <div
-                          key={`example-${exampleIdx}`}
-                          className="example"
-                          dangerouslySetInnerHTML={{ __html: formatExampleIcon(text) }}
-                        />
-                      ))}
-                      {toStringArray(def.quote).map((text, quoteIdx) => (
-                        <div key={`quote-${quoteIdx}`} className="quote" dangerouslySetInnerHTML={{ __html: text }} />
-                      ))}
-                      {toStringArray(def.link).map((text, linkIdx) => (
-                        <div key={`link-${linkIdx}`} className="quote" dangerouslySetInnerHTML={{ __html: text }} />
-                      ))}
-                      {toStringArray(def.synonyms).length > 0 && (
-                        <div className="synonyms">
-                          <span className="part-of-speech">似</span>
-                          <span>{untag(toStringArray(def.synonyms).join('、').replace(/,/g, '、'))}</span>
-                        </div>
-                      )}
-                      {toStringArray(def.antonyms).length > 0 && (
-                        <div className="antonyms">
-                          <span className="part-of-speech">反</span>
-                          <span>{untag(toStringArray(def.antonyms).join('、').replace(/,/g, '、'))}</span>
-                        </div>
-                      )}
-                    </li>
+            {Array.from(groups.entries()).map(([type, items], groupIdx) => {
+              const posTags = splitPartOfSpeech(type);
+              return (
+                <div key={`${type}-${groupIdx}`} className="entry-item">
+                  {posTags.map((tag) => (
+                    <span key={`${type}-${tag}`} className="part-of-speech">
+                      {tag}
+                    </span>
                   ))}
-                </ol>
-              </div>
-            ))}
+                  <ol className={posTags.length > 0 ? 'margin-modified' : undefined}>
+                    {items.map((def, defIdx) => (
+                      <li key={`${type}-${defIdx}`}>
+                        {def.def ? (
+                          <p className="definition">
+                            <span className="def" dangerouslySetInnerHTML={{ __html: def.def }} />
+                          </p>
+                        ) : null}
+                        {toStringArray(def.example).map((text, exampleIdx) => (
+                          <div
+                            key={`example-${exampleIdx}`}
+                            className="example"
+                            dangerouslySetInnerHTML={{ __html: formatExampleIcon(text) }}
+                          />
+                        ))}
+                        {toStringArray(def.quote).map((text, quoteIdx) => (
+                          <div key={`quote-${quoteIdx}`} className="quote" dangerouslySetInnerHTML={{ __html: text }} />
+                        ))}
+                        {toStringArray(def.link).map((text, linkIdx) => (
+                          <div key={`link-${linkIdx}`} className="quote" dangerouslySetInnerHTML={{ __html: text }} />
+                        ))}
+                        {toStringArray(def.synonyms).length > 0 && (
+                          <div className="synonyms">
+                            <span className="part-of-speech">似</span>
+                            <span>{untag(toStringArray(def.synonyms).join('、').replace(/,/g, '、'))}</span>
+                          </div>
+                        )}
+                        {toStringArray(def.antonyms).length > 0 && (
+                          <div className="antonyms">
+                            <span className="part-of-speech">反</span>
+                            <span>{untag(toStringArray(def.antonyms).join('、').replace(/,/g, '、'))}</span>
+                          </div>
+                        )}
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              );
+            })}
           </div>
         );
       })}
