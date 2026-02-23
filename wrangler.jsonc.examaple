@@ -17,17 +17,20 @@
 		{
 			"binding": "FONTS",
 			"bucket_name": "<your-fonts-bucket>",
-			"preview_bucket_name": "<your-fonts-bucket-preview>"
+			"preview_bucket_name": "<your-fonts-bucket-preview>",
+			"remote": true
 		},
 		{
 			"binding": "MOEDICT_ASSETS",
 			"bucket_name": "<your-assets-bucket>",
-			"preview_bucket_name": "<your-assets-bucket-preview>"
+			"preview_bucket_name": "<your-assets-bucket-preview>",
+			"remote": true
 		},
 		{
 			"binding": "DICTIONARY",
 			"bucket_name": "<your-dictionary-bucket>",
-			"preview_bucket_name": "<your-dictionary-bucket-preview>"
+			"preview_bucket_name": "<your-dictionary-bucket-preview>",
+			"remote": true
 		}
 	],
 	"vars": {
