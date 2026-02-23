@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState, type MouseEvent } from 'react';
+import { useEffect, useMemo, useState, type KeyboardEvent, type MouseEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { cleanTextForTTS, speakText } from '../tts-utils';
-import { getAudioUrl, playAudioUrl } from '../audio-utils';
+import { cleanTextForTTS, speakText } from '../utils/tts-utils';
+import { getAudioUrl, playAudioUrl } from '../utils/audio-utils';
 
 type DictionaryLang = 'a' | 't' | 'h' | 'c';
 
@@ -71,7 +71,6 @@ function normalizeHref(rawHref: string): string | null {
   let token = href;
   token = token.replace(/^\.\//, '');
   token = token.replace(/^#/, '');
-  token = token.replace(/^#/, '');
   token = token.trim();
 
   if (!token) return null;
@@ -100,7 +99,73 @@ function getLangName(lang: DictionaryLang): string {
   return '華語';
 }
 
+type TTSLabel = '英' | '德' | '法';
+
+function XrefTranslationLine({
+  label,
+  value,
+}: {
+  label: TTSLabel;
+  value: string | string[];
+}) {
+  const cleaned = cleanTextForTTS(value);
+  const handleClick = (e: MouseEvent<HTMLSpanElement>) => {
+    e.stopPropagation();
+    if (cleaned.trim()) speakText(label, cleaned);
+  };
+  const handleKeyDown = (e: KeyboardEvent<HTMLSpanElement>) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      if (cleaned.trim()) speakText(label, cleaned);
+    }
+  };
+  return (
+    <div className="xref-line">
+      <span className="fw_lang">{label}</span>
+      <span
+        className="fw_def"
+        role="button"
+        tabIndex={0}
+        onClick={handleClick}
+        onKeyDown={handleKeyDown}
+      >
+        {formatTranslation(value)}
+      </span>
+    </div>
+  );
+}
+
 const LANG_A: DictionaryLang = 'a';
+
+// Kangxi 部首映射，成對儲存（奇數位為 Kangxi 符號，偶數位為對應顯示字）
+const CJK_RADICALS =
+  '⼀一⼁丨⼂丶⼃丿⼄乙⼅亅⼆二⼇亠⼈人⼉儿⼊入⼋八⼌冂⼍冖⼎冫⼏几⼐凵⼑刀⼒力⼓勹⼔匕⼕匚⼖匸⼗十⼘卜⼙卩⼚厂⼛厶⼜又⼝口⼞囗⼟土⼠士⼡夂⼢夊⼣夕⼤大⼥女⼦子⼧宀⼨寸⼩小⼪尢⼫尸⼬屮⼭山⼮巛⼯工⼰己⼱巾⼲干⼳幺⼴广⼵廴⼶廾⼷弋⼸弓⼹彐⼺彡⼻彳⼼心⼽戈⼾戶⼿手⽀支⽁攴⽂文⽃斗⽄斤⽅方⽆无⽇日⽈曰⽉月⽊木⽋欠⽌止⽍歹⽎殳⽏毋⽐比⽑毛⽒氏⽓气⽔水⽕火⽖爪⽗父⽘爻⽙爿⺦丬⽚片⽛牙⽜牛⽝犬⽞玄⽟玉⽠瓜⽡瓦⽢甘⽣生⽤用⽥田⽦疋⽧疒⽨癶⽩白⽪皮⽫皿⽬目⽭矛⽮矢⽯石⽰示⽱禸⽲禾⽳穴⽴立⽵竹⽶米⽷糸⺰纟⽸缶⽹网⽺羊⽻羽⽼老⽽而⽾耒⽿耳⾀聿⾁肉⾂臣⾃自⾄至⾅臼⾆舌⾇舛⾈舟⾉艮⾊色⾋艸⾌虍⾍虫⾎血⾏行⾐衣⾑襾⾒見⻅见⾓角⾔言⻈讠⾕谷⾖豆⾗豕⾘豸⾙貝⻉贝⾚赤⾛走⾜足⾝身⾞車⻋车⾟辛⾠辰⾡辵⻌辶⾢邑⾣酉⾤釆⾥里⾦金⻐钅⾧長⻓长⾨門⻔门⾩阜⾪隶⾫隹⾬雨⾭靑⾮非⾯面⾰革⾱韋⻙韦⾲韭⾳音⾴頁⻚页⾵風⻛风⾶飛⻜飞⾷食⻠饣⾸首⾹香⾺馬⻢马⾻骨⾼高⾽髟⾾鬥⾿鬯⿀鬲⿁鬼⿂魚⻥鱼⻦鸟⿃鳥⿄鹵⻧卤⿅鹿⿆麥⻨麦⿇麻⿈黃⻩黄⿉黍⿊黑⿋黹⿌黽⻪黾⿍鼎⿎鼓⿏鼠⿐鼻⿑齊⻬齐⿒齒⻮齿⿓龍⻰龙⿔龜⻳龟⿕龠';
+
+function normalizeRadicalChar(input: string): string {
+  try {
+    if (!input) return '';
+    const raw = input.replace(/<[^>]*>/g, '');
+    const idx = CJK_RADICALS.indexOf(raw);
+    if (idx >= 0 && idx % 2 === 0) {
+      return CJK_RADICALS.charAt(idx + 1) || raw;
+    }
+    return raw;
+  } catch {
+    return input || '';
+  }
+}
+
+function RadicalGlyph({ char }: { char: string }) {
+  const ch = normalizeRadicalChar(char);
+  return (
+    <span className="glyph">
+      <a title="部首檢索" className="xref" href={`./#@${ch}`} style={{ color: 'white' }}>
+        {' '}
+        {ch}
+      </a>
+    </span>
+  );
+}
 
 export function DictionaryA({ word }: DictionaryProps) {
   const navigate = useNavigate();
@@ -252,6 +317,7 @@ export function DictionaryA({ word }: DictionaryProps) {
                   <i
                     role="button"
                     tabIndex={0}
+                    aria-label="播放發音"
                     className="icon-play playAudio part-of-speech"
                     title="播放發音"
                     onClick={(e) => {
@@ -356,57 +422,9 @@ export function DictionaryA({ word }: DictionaryProps) {
 
       {(english || deutsch || francais) && (
         <div className="xrefs">
-          {english ? (
-            <div className="xref-line">
-              <span className="fw_lang">英</span>
-              <span
-                className="fw_def"
-                data-label="英"
-                data-text={cleanTextForTTS(english)}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const text = (e.currentTarget.getAttribute('data-text') ?? '').trim();
-                  if (text) speakText('英', text);
-                }}
-              >
-                {formatTranslation(english)}
-              </span>
-            </div>
-          ) : null}
-          {deutsch ? (
-            <div className="xref-line">
-              <span className="fw_lang">德</span>
-              <span
-                className="fw_def"
-                data-label="德"
-                data-text={cleanTextForTTS(deutsch)}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const text = (e.currentTarget.getAttribute('data-text') ?? '').trim();
-                  if (text) speakText('德', text);
-                }}
-              >
-                {formatTranslation(deutsch)}
-              </span>
-            </div>
-          ) : null}
-          {francais ? (
-            <div className="xref-line">
-              <span className="fw_lang">法</span>
-              <span
-                className="fw_def"
-                data-label="法"
-                data-text={cleanTextForTTS(francais)}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const text = (e.currentTarget.getAttribute('data-text') ?? '').trim();
-                  if (text) speakText('法', text);
-                }}
-              >
-                {formatTranslation(francais)}
-              </span>
-            </div>
-          ) : null}
+          {english && <XrefTranslationLine label="英" value={english} />}
+          {deutsch && <XrefTranslationLine label="德" value={deutsch} />}
+          {francais && <XrefTranslationLine label="法" value={francais} />}
         </div>
       )}
 
@@ -440,31 +458,4 @@ export function DictionaryA({ word }: DictionaryProps) {
       ) : null}
     </div>
   );
-
-  function RadicalGlyph(props: { char: string }) {
-    const ch = normalizeRadicalChar(props.char);
-    return (
-      <span className="glyph">
-        <a title="部首檢索" className="xref" href={`./#@${ch}`} style={{ color: 'white' }}> {ch}</a>
-      </span>
-    );
-  }
-
-  function normalizeRadicalChar(input: string): string {
-    // 依原專案：Kangxi 部首映射，成對儲存（奇數位為 Kangxi 符號，偶數位為對應顯示字）
-    const CJK_RADICALS = '⼀一⼁丨⼂丶⼃丿⼄乙⼅亅⼆二⼇亠⼈人⼉儿⼊入⼋八⼌冂⼍冖⼎冫⼏几⼐凵⼑刀⼒力⼓勹⼔匕⼕匚⼖匸⼗十⼘卜⼙卩⼚厂⼛厶⼜又⼝口⼞囗⼟土⼠士⼡夂⼢夊⼣夕⼤大⼥女⼦子⼧宀⼨寸⼩小⼪尢⼫尸⼬屮⼭山⼮巛⼯工⼰己⼱巾⼲干⼳幺⼴广⼵廴⼶廾⼷弋⼸弓⼹彐⼺彡⼻彳⼼心⼽戈⼾戶⼿手⽀支⽁攴⽂文⽃斗⽄斤⽅方⽆无⽇日⽈曰⽉月⽊木⽋欠⽌止⽍歹⽎殳⽏毋⽐比⽑毛⽒氏⽓气⽔水⽕火⽖爪⽗父⽘爻⽙爿⺦丬⽚片⽛牙⽜牛⽝犬⽞玄⽟玉⽠瓜⽡瓦⽢甘⽣生⽤用⽥田⽦疋⽧疒⽨癶⽩白⽪皮⽫皿⽬目⽭矛⽮矢⽯石⽰示⽱禸⽲禾⽳穴⽴立⽵竹⽶米⽷糸⺰纟⽸缶⽹网⽺羊⽻羽⽼老⽽而⽾耒⽿耳⾀聿⾁肉⾂臣⾃自⾄至⾅臼⾆舌⾇舛⾈舟⾉艮⾊色⾋艸⾌虍⾍虫⾎血⾏行⾐衣⾑襾⾒見⻅见⾓角⾔言⻈讠⾕谷⾖豆⾗豕⾘豸⾙貝⻉贝⾚赤⾛走⾜足⾝身⾞車⻋车⾟辛⾠辰⾡辵⻌辶⾢邑⾣酉⾤釆⾥里⾦金⻐钅⾧長⻓长⾨門⻔门⾩阜⾪隶⾫隹⾬雨⾭靑⾮非⾯面⾰革⾱韋⻙韦⾲韭⾳音⾴頁⻚页⾵風⻛风⾶飛⻜飞⾷食⻠饣⾸首⾹香⾺馬⻢马⾻骨⾼高⾽髟⾾鬥⾿鬯⿀鬲⿁鬼⿂魚⻥鱼⻦鸟⿃鳥⿄鹵⻧卤⿅鹿⿆麥⻨麦⿇麻⿈黃⻩黄⿉黍⿊黑⿋黹⿌黽⻪黾⿍鼎⿎鼓⿏鼠⿐鼻⿑齊⻬齐⿒齒⻮齿⿓龍⻰龙⿔龜⻳龟⿕龠';
-
-    try {
-      if (!input) return '';
-      // 移除可能的超連結標籤
-      const raw = input.replace(/<[^>]*>/g, '');
-      const idx = CJK_RADICALS.indexOf(raw);
-      if (idx >= 0 && idx % 2 === 0) {
-        // 將 Kangxi 符號轉為對應顯示字
-        return CJK_RADICALS.charAt(idx + 1) || raw;
-      }
-      return raw;
-    } catch (_e) { return input || ''; }
-  }
-
 }
