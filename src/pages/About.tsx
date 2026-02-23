@@ -75,7 +75,7 @@ export function About({ assetBaseUrl }: AboutProps) {
 			<div style={{ textAlign: 'center' }}>
 				{R2_ENDPOINT && (
 					<img
-						style={{ marginTop: '75px', marginBottom: '15px', background: 'white' }}
+						style={{ marginTop: '25px', marginBottom: '15px', background: 'white' }}
 						title="萌典首頁"
 						src="/assets/images/icon.png"
 						width="50%"
@@ -400,7 +400,7 @@ export function About({ assetBaseUrl }: AboutProps) {
 			{R2_ENDPOINT && (
 				<a target="_blank" href="https://github.com/audreyt/moedict-webkit" rel="noopener noreferrer">
 					<img
-						style={{ zIndex: 9999, position: 'absolute', top: '50px', right: 0, border: 0 }}
+						style={{ zIndex: 9999, position: 'absolute', top: '0px', right: 0, border: 0 }}
 						src="/assets/images/right-graphite@2x.png"
 						width="120"
 						height="120"
