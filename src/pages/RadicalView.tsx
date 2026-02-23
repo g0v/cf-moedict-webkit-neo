@@ -1,22 +1,112 @@
-/**
- * 部首表頁面
- * 用途：顯示部首列表
- * 路由：/@, /~@
- * 參數：lang (靜態 - 由路由指定)
- */
-
-type RadicalLang = 'a' | 'c';
+import { useEffect, useState, type MouseEvent } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useRadicalTooltip } from '../hooks/useRadicalTooltip';
+import { fetchRadicalRows, type RadicalLang } from '../utils/radical-page-utils';
 
 interface RadicalViewProps {
   lang: RadicalLang;
 }
 
+interface RadicalState {
+  loading: boolean;
+  rows: string[][];
+  error: string | null;
+}
+
 export function RadicalView({ lang }: RadicalViewProps) {
+  const navigate = useNavigate();
+  const [state, setState] = useState<RadicalState>({
+    loading: true,
+    rows: [],
+    error: null,
+  });
+
+  useRadicalTooltip();
+
+  useEffect(() => {
+    let active = true;
+    setState({ loading: true, rows: [], error: null });
+
+    fetchRadicalRows(lang, '@')
+      .then((rows) => {
+        if (!active) return;
+        setState({ loading: false, rows, error: null });
+      })
+      .catch((error: unknown) => {
+        if (!active) return;
+        const message = error instanceof Error ? error.message : '部首表載入失敗';
+        setState({ loading: false, rows: [], error: message });
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [lang]);
+
+  const onNavigate = (event: MouseEvent<HTMLAnchorElement>, to: string): void => {
+    event.preventDefault();
+    navigate(to);
+  };
+
+  if (state.loading) {
+    return (
+      <div className="result" style={{ marginTop: '50px' }}>
+        <h1 className="title" style={{ marginTop: '0' }}>部首表</h1>
+        <div className="entry">
+          <div className="entry-item">
+            <div className="def">載入中…</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (state.error) {
+    return (
+      <div className="result" style={{ marginTop: '50px' }}>
+        <h1 className="title" style={{ marginTop: '0' }}>部首表</h1>
+        <div className="entry">
+          <div className="entry-item">
+            <div className="def">{state.error}</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const prefix = lang === 'c' ? '/~@' : '/@';
+  const tooltipPrefix = lang === 'c' ? '~@' : '@';
+
   return (
-    <div>
-      <h1>部首表</h1>
-      <p>語言：{lang}</p>
+    <div className="result" style={{ marginTop: '50px' }}>
+      <h1 className="title" style={{ marginTop: '0' }}>部首表</h1>
+      <div className="entry">
+        <div className="entry-item list">
+          {state.rows.map((row, stroke) => (
+            <div key={stroke} style={{ margin: '8px 0' }}>
+              <span className="stroke-count" style={{ marginRight: '8px' }}>{stroke}</span>
+              <span className="stroke-list">
+                {row.map((radical) => {
+                  const to = `${prefix}${radical}`;
+                  return (
+                    <a
+                      key={`${stroke}-${radical}`}
+                      className="stroke-char"
+                      href={to}
+                      data-radical-id={`${tooltipPrefix}${radical}`}
+                      style={{ marginRight: '6px' }}
+                      onClick={(event) => onNavigate(event, to)}
+                    >
+                      {radical}
+                    </a>
+                  );
+                })}
+              </span>
+              <hr style={{ margin: '0', padding: '0', height: '0' }} />
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
-

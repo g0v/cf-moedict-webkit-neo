@@ -1,0 +1,322 @@
+import { useEffect } from 'react';
+import {
+  escapeHtml,
+  fetchJsonByToken,
+  normalizeRows,
+  normalizeTooltipId,
+  stripTags,
+  type DictionaryDefinition,
+  type DictionaryEntryResponse,
+} from '../utils/radical-page-utils';
+
+const ATTR = 'data-radical-id';
+const LOADING_HTML = '<div class="entry"><div class="entry-item"><div class="def">載入中…</div></div></div>';
+const EMPTY_HTML = '<div class="entry"><div class="entry-item"><div class="def">找不到內容</div></div></div>';
+
+function buildTitleSection(label: string, href: string): string {
+  const safeLabel = escapeHtml(label);
+  const safeHref = escapeHtml(href);
+  return `<div class="title" data-title="${safeLabel}"><span class="h1"><a href="${safeHref}">${safeLabel}</a></span></div>`;
+}
+
+function normalizeEntryTitleToken(token: string): string {
+  let value = token.replace(/^\//, '').trim();
+  if (!value) return '';
+  if (value.startsWith('\\')) {
+    value = value.slice(1);
+  }
+  if (/^['!:~]/.test(value)) {
+    value = value.slice(1);
+  }
+  return value;
+}
+
+function groupDefinitions(definitions: DictionaryDefinition[]): Map<string, DictionaryDefinition[]> {
+  const grouped = new Map<string, DictionaryDefinition[]>();
+  for (const definition of definitions) {
+    const key = String(definition.type || '').trim();
+    const existing = grouped.get(key) || [];
+    existing.push(definition);
+    grouped.set(key, existing);
+  }
+  return grouped;
+}
+
+function renderPartOfSpeech(typeText: string): string {
+  if (!typeText) return '';
+  return typeText
+    .split(',')
+    .map((tag) => stripTags(tag).trim())
+    .filter(Boolean)
+    .map((tag) => `<span class="part-of-speech">${escapeHtml(tag)}</span>`)
+    .join('');
+}
+
+async function buildRadicalTooltipHTML(rawId: string): Promise<string> {
+  const id = normalizeTooltipId(rawId);
+  if (!id) return EMPTY_HTML;
+
+  if (id === '@' || id === '~@') {
+    const isCrossStrait = id.startsWith('~');
+    const data = normalizeRows(await fetchJsonByToken<unknown>(id));
+    if (data.length === 0) return EMPTY_HTML;
+    const prefix = isCrossStrait ? '/~@' : '/@';
+
+    let html = `${buildTitleSection('部首表', prefix)}<div class="entry"><div class="entry-item"><div style="max-height: 300px; overflow-y: auto;">`;
+    for (let stroke = 0; stroke < data.length; stroke += 1) {
+      const radicals = data[stroke] || [];
+      if (radicals.length === 0) continue;
+      html += `<div><span class="stroke-count">${stroke}</span><span class="stroke-list">`;
+      for (const radical of radicals) {
+        html += `<a href="${prefix}${encodeURIComponent(radical)}" class="stroke-char">${escapeHtml(radical)}</a>`;
+      }
+      html += '</span></div>';
+    }
+    html += '</div></div></div>';
+    return html;
+  }
+
+  const isCrossStrait = id.startsWith('~@');
+  const match = isCrossStrait ? id.match(/^~@(.+)$/) : id.match(/^@(.+)$/);
+  const radical = match?.[1] ? decodeURIComponent(match[1]) : '';
+  if (!radical) return EMPTY_HTML;
+
+  const token = isCrossStrait ? `~@${radical}` : `@${radical}`;
+  const data = normalizeRows(await fetchJsonByToken<unknown>(token));
+  if (data.length === 0) return EMPTY_HTML;
+
+  const prefix = isCrossStrait ? '/~' : '/';
+  const bucketHref = `${isCrossStrait ? '/~@' : '/@'}${encodeURIComponent(radical)}`;
+  let html = `${buildTitleSection(`${radical} 部`, bucketHref)}<div class="entry"><div class="entry-item"><div style="max-height: 300px; overflow-y: auto;">`;
+  for (let stroke = 0; stroke < Math.min(data.length, 8); stroke += 1) {
+    const chars = data[stroke] || [];
+    if (chars.length === 0) continue;
+    html += `<div><span class="stroke-count">${stroke}</span><span class="stroke-list">`;
+    for (const char of chars.slice(0, 15)) {
+      html += `<a href="${prefix}${encodeURIComponent(char)}" class="stroke-char">${escapeHtml(char)}</a>`;
+    }
+    if (chars.length > 15) {
+      html += `<span style="color:#666;">（還有 ${chars.length - 15} 個字）</span>`;
+    }
+    html += '</span></div>';
+  }
+  html += '</div></div></div>';
+  return html;
+}
+
+async function buildEntryTooltipHTML(rawToken: string): Promise<string> {
+  const token = normalizeTooltipId(rawToken).replace(/^\//, '');
+  if (!token) return EMPTY_HTML;
+
+  const entry = await fetchJsonByToken<DictionaryEntryResponse>(token);
+  if (!entry) {
+    const label = normalizeEntryTitleToken(token) || token;
+    return `${buildTitleSection(label, `/${token}`)}${EMPTY_HTML}`;
+  }
+
+  const title = stripTags(String(entry.title || normalizeEntryTitleToken(token) || token));
+  const heteronym = Array.isArray(entry.heteronyms) ? entry.heteronyms[0] : undefined;
+  const definitions = Array.isArray(heteronym?.definitions) ? heteronym.definitions : [];
+  const grouped = groupDefinitions(definitions);
+
+  const itemsHtml = Array.from(grouped.entries())
+    .slice(0, 4)
+    .map(([type, items]) => {
+      const partOfSpeech = renderPartOfSpeech(type);
+      const listHtml = items
+        .slice(0, 6)
+        .map((item) => `<li><p class="definition"><span class="def">${escapeHtml(stripTags(String(item.def || '')))}</span></p></li>`)
+        .join('');
+      if (!listHtml) {
+        return '';
+      }
+      const listClass = partOfSpeech ? ' class="margin-modified"' : '';
+      return `<div class="entry-item">${partOfSpeech}<ol${listClass}>${listHtml}</ol></div>`;
+    })
+    .join('');
+
+  const content = itemsHtml || '<div class="entry-item"><div class="def">找不到內容</div></div>';
+  return `${buildTitleSection(title, `/${token}`)}<div class="entry">${content}</div>`;
+}
+
+function resolveTooltipAnchor(target: EventTarget | null): HTMLAnchorElement | null {
+  if (!(target instanceof Element)) return null;
+  const anchor = target.closest(`[${ATTR}]`);
+  return anchor instanceof HTMLAnchorElement ? anchor : null;
+}
+
+function clamp(value: number, min: number, max: number): number {
+  if (value < min) return min;
+  if (value > max) return max;
+  return value;
+}
+
+export function useRadicalTooltip(): void {
+  useEffect(() => {
+    let tooltipEl: HTMLDivElement | null = null;
+    let showTimer: number | null = null;
+    let hideTimer: number | null = null;
+    let currentId = '';
+    let currentAnchor: HTMLAnchorElement | null = null;
+    const cache = new Map<string, string>();
+
+    const clearShowTimer = () => {
+      if (showTimer != null) {
+        window.clearTimeout(showTimer);
+        showTimer = null;
+      }
+    };
+
+    const clearHideTimer = () => {
+      if (hideTimer != null) {
+        window.clearTimeout(hideTimer);
+        hideTimer = null;
+      }
+    };
+
+    const createTooltip = (): HTMLDivElement => {
+      if (tooltipEl) return tooltipEl;
+      const element = document.createElement('div');
+      element.className = 'ui-tooltip prefer-pinyin-true';
+      element.style.position = 'absolute';
+      element.style.display = 'none';
+      element.style.zIndex = '9999';
+      element.innerHTML = EMPTY_HTML;
+      element.addEventListener('mouseenter', clearHideTimer);
+      element.addEventListener('mouseleave', () => {
+        clearHideTimer();
+        hideTimer = window.setTimeout(() => {
+          if (tooltipEl) {
+            tooltipEl.style.display = 'none';
+          }
+          currentId = '';
+          currentAnchor = null;
+        }, 120);
+      });
+      document.body.appendChild(element);
+      tooltipEl = element;
+      return element;
+    };
+
+    const positionTooltip = (anchor: HTMLAnchorElement) => {
+      const element = createTooltip();
+      const rect = anchor.getBoundingClientRect();
+      const scrollX = window.pageXOffset || document.documentElement.scrollLeft || 0;
+      const scrollY = window.pageYOffset || document.documentElement.scrollTop || 0;
+      const viewportWidth = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
+      const viewportHeight = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0);
+      const tooltipWidth = element.offsetWidth || 240;
+      const tooltipHeight = element.offsetHeight || 160;
+
+      const minX = scrollX + 8;
+      let maxX = scrollX + Math.max(viewportWidth - tooltipWidth - 8, 8);
+      if (maxX < minX) maxX = minX;
+
+      const minY = scrollY + 8;
+      let maxY = scrollY + Math.max(viewportHeight - tooltipHeight - 8, 8);
+      if (maxY < minY) maxY = minY;
+
+      const desiredX = scrollX + rect.left + rect.width / 2 - tooltipWidth / 2;
+      const desiredY = scrollY + rect.bottom + 12;
+
+      element.style.left = `${clamp(desiredX, minX, maxX)}px`;
+      element.style.top = `${clamp(desiredY, minY, maxY)}px`;
+    };
+
+    const showTooltip = async (anchor: HTMLAnchorElement, rawId: string) => {
+      const id = String(rawId || '').trim();
+      if (!id) return;
+
+      currentId = id;
+      currentAnchor = anchor;
+      const element = createTooltip();
+      element.innerHTML = LOADING_HTML;
+      element.style.display = 'block';
+      positionTooltip(anchor);
+
+      const cacheKey = id;
+      let html = cache.get(cacheKey);
+      if (!html) {
+        if (id.startsWith('entry:')) {
+          const entryTarget = id.slice(6).trim() || anchor.getAttribute('href') || '';
+          html = await buildEntryTooltipHTML(entryTarget);
+        } else {
+          html = await buildRadicalTooltipHTML(id);
+        }
+        cache.set(cacheKey, html || EMPTY_HTML);
+      }
+
+      if (!tooltipEl || currentId !== id) return;
+      tooltipEl.innerHTML = html || EMPTY_HTML;
+      tooltipEl.style.display = 'block';
+      if (currentAnchor) {
+        positionTooltip(currentAnchor);
+      }
+    };
+
+    const hideTooltip = () => {
+      if (!tooltipEl) return;
+      tooltipEl.style.display = 'none';
+      currentId = '';
+      currentAnchor = null;
+    };
+
+    const onMouseOver = (event: MouseEvent) => {
+      const anchor = resolveTooltipAnchor(event.target);
+      if (!anchor) return;
+
+      const id = anchor.getAttribute(ATTR) || '';
+      if (!id) return;
+
+      clearHideTimer();
+      clearShowTimer();
+      showTimer = window.setTimeout(() => {
+        showTooltip(anchor, id).catch(() => {
+          if (tooltipEl) {
+            tooltipEl.innerHTML = EMPTY_HTML;
+            tooltipEl.style.display = 'block';
+          }
+        });
+      }, 120);
+    };
+
+    const onMouseOut = (event: MouseEvent) => {
+      const anchor = resolveTooltipAnchor(event.target);
+      if (!anchor) return;
+      clearShowTimer();
+
+      const related = event.relatedTarget;
+      if (related instanceof Element && related.closest('.ui-tooltip')) {
+        return;
+      }
+
+      clearHideTimer();
+      hideTimer = window.setTimeout(hideTooltip, 150);
+    };
+
+    const refreshPosition = () => {
+      if (!tooltipEl || tooltipEl.style.display !== 'block' || !currentAnchor || !currentId) {
+        return;
+      }
+      positionTooltip(currentAnchor);
+    };
+
+    document.addEventListener('mouseover', onMouseOver);
+    document.addEventListener('mouseout', onMouseOut);
+    window.addEventListener('scroll', refreshPosition, true);
+    window.addEventListener('resize', refreshPosition);
+
+    return () => {
+      clearShowTimer();
+      clearHideTimer();
+      document.removeEventListener('mouseover', onMouseOver);
+      document.removeEventListener('mouseout', onMouseOut);
+      window.removeEventListener('scroll', refreshPosition, true);
+      window.removeEventListener('resize', refreshPosition);
+      if (tooltipEl) {
+        tooltipEl.remove();
+        tooltipEl = null;
+      }
+    };
+  }, []);
+}

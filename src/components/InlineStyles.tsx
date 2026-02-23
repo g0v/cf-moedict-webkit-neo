@@ -254,9 +254,57 @@ export function InlineStyles({ r2Endpoint }: InlineStylesProps) {
 		.fw_def:hover {
 			text-decoration: underline;
 		}
+
+		/* 部首頁與 Tooltip 對齊原專案 */
+		.stroke-list .stroke-char {
+			margin-right: 6px;
+			text-decoration: none;
+		}
+		.stroke-list .stroke-char:hover {
+			text-decoration: none;
+		}
+		.ui-tooltip {
+			max-width: 360px;
+			padding: 8px 12px;
+		}
+		.ui-tooltip .title .h1,
+		.ui-tooltip .title .h1 a,
+		.ui-tooltip .title h1,
+		.ui-tooltip .title h1 a {
+			font-family: "Biaodian Pro Serif CNS", "Numeral LF Serif", "MOEDICT", "Fira Sans OT", "Georgia", "Times New Roman", "Zhuyin Kaiti", "TW-Kai-98_1", "教育部標準楷書", "kai-pc", "CMEXc1", "BiauKai", "MOEDICT-IOS-KAI", "DFKaiShu-SB-Estd-BF", "全字庫正楷體", "Kaiti TC", "楷體-繁", "文鼎ＰＬ新中楷", "cwText 楷書", cursive, serif, "HanaMinA", "HanaMinB", "HAN NOM A", "HAN NOM B", "Han Kaiti CNS", cursive, serif !important;
+			color: #000 !important;
+		}
+		.ui-tooltip .title .h1 a,
+		.ui-tooltip .title h1 a,
+		.ui-tooltip .stroke-list .stroke-char {
+			text-decoration: none !important;
+			color: #000 !important;
+		}
+		.ui-tooltip .title .h1 a:hover,
+		.ui-tooltip .title h1 a:hover,
+		.ui-tooltip .stroke-list .stroke-char:hover {
+			text-decoration: none !important;
+		}
+		.ui-tooltip .stroke-list {
+			display: inline-flex;
+			flex-wrap: wrap;
+			gap: 6px;
+		}
+		.ui-tooltip .entry-item {
+			margin-top: 8px;
+		}
+		.ui-tooltip .entry-item .part-of-speech {
+			margin-right: 4px;
+		}
+		.ui-tooltip .entry-item ol {
+			margin: 8px 0 0 20px;
+			padding: 0;
+		}
+		.ui-tooltip .entry-item ol.margin-modified {
+			margin-top: 4px;
+		}
 		`
 			}}
 		/>
 	);
 }
-
