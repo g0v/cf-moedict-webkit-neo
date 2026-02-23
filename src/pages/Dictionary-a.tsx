@@ -176,6 +176,7 @@ export function DictionaryA({ word }: DictionaryProps) {
     terms: [],
     error: null,
   });
+  const [playingAudioId, setPlayingAudioId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!queryWord) {
@@ -185,6 +186,7 @@ export function DictionaryA({ word }: DictionaryProps) {
 
     const controller = new AbortController();
     setState({ loading: true, entry: null, terms: [], error: null });
+    setPlayingAudioId(null);
 
     fetch(`/api/${encodeURIComponent(queryWord)}.json`, { signal: controller.signal })
       .then(async (res) => {
@@ -313,21 +315,29 @@ export function DictionaryA({ word }: DictionaryProps) {
             <h1 className="title" data-title={title}>
               <span dangerouslySetInnerHTML={{ __html: title }} />
               {heteronym.audio_id && (
-                <span className="audioBlock">
+                <span
+                  className={`audioBlock`}
+                >
                   <i
                     role="button"
                     tabIndex={0}
-                    aria-label="播放發音"
-                    className="icon-play playAudio part-of-speech"
-                    title="播放發音"
+                    aria-label={playingAudioId === heteronym.audio_id ? '停止播放' : '播放發音'}
+                    className={`${playingAudioId === heteronym.audio_id ? 'icon-stop' : 'icon-play'} playAudio part-of-speech`}
+                    title={playingAudioId === heteronym.audio_id ? '停止播放' : '播放發音'}
                     onClick={(e) => {
                       e.stopPropagation();
-                      playAudioUrl(getAudioUrl(LANG_A, heteronym.audio_id!));
+                      const audioId = heteronym.audio_id!;
+                      playAudioUrl(getAudioUrl(LANG_A, audioId), (playing) => {
+                        setPlayingAudioId(playing ? audioId : null);
+                      });
                     }}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' || e.key === ' ') {
                         e.preventDefault();
-                        playAudioUrl(getAudioUrl(LANG_A, heteronym.audio_id!));
+                        const audioId = heteronym.audio_id!;
+                        playAudioUrl(getAudioUrl(LANG_A, audioId), (playing) => {
+                          setPlayingAudioId(playing ? audioId : null);
+                        });
                       }
                     }}
                   />
