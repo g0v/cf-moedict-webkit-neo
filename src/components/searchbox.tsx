@@ -391,6 +391,7 @@ export function SearchBox({ currentLang }: SearchBoxProps) {
 					className="ui-autocomplete ui-front ui-menu ui-widget ui-widget-content ui-corner-all invisible search-results"
 					id="sidebar-search-results"
 					role="listbox"
+					style={{ position: 'fixed', zIndex: isMobileViewport ? 2200 : 1200 }}
 				>
 					{loadingSuggestions && (
 						<li className="ui-menu-item is-status" role="presentation">

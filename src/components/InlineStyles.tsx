@@ -138,6 +138,8 @@ export function InlineStyles({ r2Endpoint }: InlineStylesProps) {
 			padding: 0;
 			display: block !important;
 			visibility: visible !important;
+			position: fixed !important;
+			z-index: 1200 !important;
 		}
 
 		.ui-autocomplete.search-results .ui-menu-item {
@@ -181,6 +183,8 @@ export function InlineStyles({ r2Endpoint }: InlineStylesProps) {
 				left: 15px !important;
 				right: 15px !important;
 				width: auto !important;
+				position: fixed !important;
+				z-index: 2200 !important;
 			}
 		}
 
