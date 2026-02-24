@@ -132,24 +132,39 @@ export function InlineStyles({ r2Endpoint }: InlineStylesProps) {
 			box-shadow: 0 2px 8px rgba(0,0,0,0.15);
 		}
 
-		.ui-autocomplete ul {
+		.ui-autocomplete.search-results {
 			list-style: none;
-			margin: 0;
+			margin: 8px 0 0;
 			padding: 0;
+			display: block !important;
+			visibility: visible !important;
 		}
 
-		.ui-autocomplete .ui-menu-item {
+		.ui-autocomplete.search-results .ui-menu-item {
 			padding: 8px 12px;
 			cursor: pointer;
 			border-bottom: 1px solid #eee;
 		}
 
-		.ui-autocomplete .ui-menu-item:hover {
+		.ui-autocomplete.search-results .ui-menu-item a,
+		.ui-autocomplete.search-results .ui-menu-item span {
+			display: block;
+			color: #333;
+			text-decoration: none;
+			font-weight: 400;
+		}
+
+		.ui-autocomplete.search-results .ui-menu-item.is-status {
+			cursor: default;
+			color: #666;
+		}
+
+		.ui-autocomplete.search-results .ui-menu-item:not(.is-status):hover {
 			background: #f0f0f0;
 		}
 
 		@media only screen and (min-width: 768px) {
-			.ui-autocomplete {
+			.ui-autocomplete.search-results {
 				top: 113px !important;
 				bottom: auto !important;
 				left: 19px !important;
@@ -159,12 +174,13 @@ export function InlineStyles({ r2Endpoint }: InlineStylesProps) {
 		}
 
 		@media only screen and (max-width: 767px) {
-			ul.ui-autocomplete {
-				top: 100px !important;
+			.ui-autocomplete.search-results {
+				top: 145px !important;
 				height: auto !important;
-				max-height: 75% !important;
-				left: 0 !important;
-				width: 100% !important;
+				max-height: 68vh !important;
+				left: 15px !important;
+				right: 15px !important;
+				width: auto !important;
 			}
 		}
 
@@ -181,6 +197,32 @@ export function InlineStyles({ r2Endpoint }: InlineStylesProps) {
 
 		.query-box .search-form {
 			width: 100%;
+		}
+
+		.query-box .mobile-search-toggle {
+			display: none;
+			width: 100%;
+			text-align: left;
+			border: 1px solid #d6d6d8;
+			border-radius: 8px;
+			background: #f3f3f5;
+			color: #3b3140;
+			padding: 8px 12px;
+			line-height: 1.3;
+			align-items: center;
+		}
+
+		.query-box .mobile-search-toggle-arrow {
+			margin-right: 8px;
+			font-size: 1.2em;
+		}
+
+		@media only screen and (max-width: 767px) {
+			.query-box .mobile-search-toggle {
+				display: flex;
+				margin-top: 12px;
+				font-size: 1.05em;
+			}
 		}
 
 		/* 隱藏搜尋輸入框的取消按鈕 */

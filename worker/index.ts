@@ -29,6 +29,12 @@ export default {
 
     if (url.pathname.startsWith('/api/')) {
       console.log('🔍 [Index] 處理 API 請求:', url.pathname);
+      const origin = request.headers.get('Origin');
+      const corsHeaders = {
+        'Access-Control-Allow-Origin': origin || '*',
+        'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type',
+      };
 
       // 提供配置資訊 API
       if (url.pathname === '/api/config') {
@@ -36,6 +42,37 @@ export default {
         return Response.json({
           assetBaseUrl: env.ASSET_BASE_URL || '',
           dictionaryBaseUrl: env.DICTIONARY_BASE_URL || '',
+        });
+      }
+
+      // Sidebar 搜尋索引 API（從 DICTIONARY R2 讀取各語系 index.json）
+      const indexMatch = url.pathname.match(/^\/api\/index\/([athc])\.json$/);
+      if (indexMatch) {
+        const lang = indexMatch[1];
+        const key = `${lang}/index.json`;
+        const obj = await env.DICTIONARY.get(key);
+
+        if (!obj) {
+          return new Response(
+            JSON.stringify({ error: 'Not Found', message: `找不到索引檔：${key}` }),
+            {
+              status: 404,
+              headers: {
+                'Content-Type': 'application/json; charset=utf-8',
+                ...corsHeaders,
+              },
+            }
+          );
+        }
+
+        const content = await obj.text();
+        return new Response(content, {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json; charset=utf-8',
+            'Cache-Control': 'public, max-age=300',
+            ...corsHeaders,
+          },
         });
       }
 
