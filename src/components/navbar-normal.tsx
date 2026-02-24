@@ -68,6 +68,13 @@ function inferLangFromPath(pathname: string): Lang {
 	return 'a';
 }
 
+function getStarredPath(lang: Lang): string {
+	if (lang === 't') return "/'=*";
+	if (lang === 'h') return '/:=*';
+	if (lang === 'c') return '/~=*';
+	return '/=*';
+}
+
 /**
  * 主要導航列組件
  */
@@ -75,6 +82,7 @@ export function NavbarNormal({ currentLang }: NavbarNormalProps) {
 	const location = useLocation();
 	const navigate = useNavigate();
 	const resolvedLang = currentLang || inferLangFromPath(location.pathname);
+	const starredPath = getStarredPath(resolvedLang);
 	const currentLangOption = LANG_OPTIONS.find(opt => opt.key === resolvedLang);
 	const escAttr = (s: string) => (s || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;');
 	const [dropdownInitialized, setDropdownInitialized] = useState(false);
@@ -241,8 +249,8 @@ export function NavbarNormal({ currentLang }: NavbarNormalProps) {
 					<li id="btn-starred">
 						<a
 							title="字詞紀錄簿"
-							href="/=*"
-							onClick={(e) => handleLinkClick(e, '/=*')}
+							href={starredPath}
+							onClick={(e) => handleLinkClick(e, starredPath)}
 						>
 							<i className="icon-bookmark-empty"></i>
 						</a>
@@ -347,4 +355,3 @@ export function NavbarNormal({ currentLang }: NavbarNormalProps) {
 		</>
 	);
 }
-

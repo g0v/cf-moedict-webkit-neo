@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type MouseEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useRadicalTooltip } from '../hooks/useRadicalTooltip';
 import { fetchRadicalRows, type RadicalLang } from '../utils/radical-page-utils';
+import { addToLRU } from '../utils/word-record-utils';
 
 interface RadicalDetailViewProps {
   lang: RadicalLang;
@@ -24,6 +25,11 @@ export function RadicalDetailView({ lang, radical }: RadicalDetailViewProps) {
   });
 
   useRadicalTooltip();
+
+  useEffect(() => {
+    if (!cleanRadical) return;
+    addToLRU(`@${cleanRadical}`, lang);
+  }, [cleanRadical, lang]);
 
   useEffect(() => {
     if (!cleanRadical) {

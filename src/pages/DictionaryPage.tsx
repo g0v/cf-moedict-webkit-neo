@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState, type KeyboardEvent, type MouseEvent } from 'react';
+import { useCallback, useEffect, useMemo, useState, type KeyboardEvent, type MouseEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useRadicalTooltip } from '../hooks/useRadicalTooltip';
 import { cleanTextForTTS, speakText } from '../utils/tts-utils';
 import { getAudioUrl, playAudioUrl } from '../utils/audio-utils';
 import { rightAngle } from '../utils/ruby2hruby';
 import { decorateRuby, formatBopomofo, formatPinyin } from '../utils/bopomofo-pinyin-utils';
+import { addStarWord, addToLRU, hasStarWord, removeStarWord } from '../utils/word-record-utils';
 
 export type DictionaryLang = 'a' | 't' | 'h' | 'c';
 
@@ -199,6 +200,8 @@ export function DictionaryPage({ word, lang }: DictionaryPageProps) {
     error: null,
   });
   const [playingAudioId, setPlayingAudioId] = useState<string | null>(null);
+  const [isStarred, setIsStarred] = useState(false);
+  const storageWord = useMemo(() => untag((state.entry?.title || queryWord || '').trim()), [state.entry?.title, queryWord]);
 
   useRadicalTooltip();
 
@@ -242,6 +245,30 @@ export function DictionaryPage({ word, lang }: DictionaryPageProps) {
       controller.abort();
     };
   }, [langTokenPrefix, queryWord]);
+
+  useEffect(() => {
+    if (!state.entry) return;
+    addToLRU(queryWord, lang);
+  }, [state.entry, queryWord, lang]);
+
+  useEffect(() => {
+    if (!state.entry || !storageWord) {
+      setIsStarred(false);
+      return;
+    }
+    setIsStarred(hasStarWord(lang, storageWord));
+  }, [state.entry, storageWord, lang]);
+
+  const toggleStar = useCallback(() => {
+    if (!storageWord) return;
+    const current = hasStarWord(lang, storageWord);
+    if (current) {
+      removeStarWord(lang, storageWord);
+    } else {
+      addStarWord(lang, storageWord);
+    }
+    setIsStarred(!current);
+  }, [lang, storageWord]);
 
   const onContentClick = (event: MouseEvent<HTMLDivElement>): void => {
     const target = event.target;
@@ -327,7 +354,7 @@ export function DictionaryPage({ word, lang }: DictionaryPageProps) {
         const groups = groupDefinitions(definitions);
 
         return (
-          <div key={`${title}-${idx}`} className="entry">
+          <div key={`${title}-${idx}`} className="entry" style={{ position: 'relative' }}>
             {(entry.radical || entry.stroke_count || entry.non_radical_stroke_count) && (
               <div className="radical">
                 {entry.radical && <RadicalGlyph char={entry.radical} lang={lang} />}
@@ -335,6 +362,30 @@ export function DictionaryPage({ word, lang }: DictionaryPageProps) {
                 <span>{entry.non_radical_stroke_count ?? 0}</span>
                 <span className="count"> = {entry.stroke_count ?? ''}</span>
               </div>
+            )}
+            {idx === 0 && (
+              <i
+                className={`star iconic-color ${isStarred ? 'icon-star' : 'icon-star-empty'}`}
+                title={isStarred ? '已加入記錄簿' : '加入字詞記錄簿'}
+                style={{ color: '#400', top: '50px', right: '0px', cursor: 'pointer' }}
+                data-word={title}
+                data-lang={lang}
+                role="button"
+                tabIndex={0}
+                aria-label={isStarred ? '已加入記錄簿' : '加入字詞記錄簿'}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  event.preventDefault();
+                  toggleStar();
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    toggleStar();
+                  }
+                }}
+              />
             )}
 
             <h1 className="title" data-title={title}>

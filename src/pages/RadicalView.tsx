@@ -2,6 +2,7 @@ import { useEffect, useState, type MouseEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useRadicalTooltip } from '../hooks/useRadicalTooltip';
 import { fetchRadicalRows, type RadicalLang } from '../utils/radical-page-utils';
+import { addToLRU } from '../utils/word-record-utils';
 
 interface RadicalViewProps {
   lang: RadicalLang;
@@ -22,6 +23,10 @@ export function RadicalView({ lang }: RadicalViewProps) {
   });
 
   useRadicalTooltip();
+
+  useEffect(() => {
+    addToLRU('@', lang);
+  }, [lang]);
 
   useEffect(() => {
     let active = true;
