@@ -4,7 +4,7 @@
 			"path": "."
 		},
 		{
-			"path": "../cf-moedict-webkit"
+			"path": "../moedict-webkit"
 		}
 	],
 	"settings": {}
