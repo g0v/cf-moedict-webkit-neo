@@ -224,6 +224,11 @@ function clamp(value: number, min: number, max: number): number {
 
 export function useRadicalTooltip(): void {
   useEffect(() => {
+    // 觸控裝置不顯示 tooltip（無法關閉）
+    if (typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches) {
+      return;
+    }
+
     let tooltipEl: HTMLDivElement | null = null;
     let showTimer: number | null = null;
     let hideTimer: number | null = null;
