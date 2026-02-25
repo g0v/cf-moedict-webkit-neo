@@ -15,10 +15,10 @@
 		"@cf-wasm/resvg": "^0.1.24",
 		"react": "^19.1.1",
 		"react-dom": "^19.1.1",
-		"react-router-dom": "^7.9.6"
+		"react-router-dom": "^7.13.1"
 	},
 	"devDependencies": {
-		"@cloudflare/vite-plugin": "^1.13.19",
+		"@cloudflare/vite-plugin": "^1.25.5",
 		"@eslint/js": "^9.33.0",
 		"@types/react": "^19.1.10",
 		"@types/react-dom": "^19.1.7",
@@ -30,6 +30,6 @@
 		"typescript": "~5.8.3",
 		"typescript-eslint": "^8.39.1",
 		"vite": "^7.1.2",
-		"wrangler": "^4.45.4"
+		"wrangler": "^4.68.1"
 	}
 }
