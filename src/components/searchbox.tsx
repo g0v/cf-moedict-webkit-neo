@@ -195,6 +195,7 @@ export function SearchBox({ currentLang }: SearchBoxProps) {
 	const navigate = useNavigate();
 	const inputRef = useRef<HTMLInputElement>(null);
 	const requestIdRef = useRef(0);
+	const blurTimerRef = useRef<number | null>(null);
 	const [searchValue, setSearchValue] = useState('');
 	const [suggestions, setSuggestions] = useState<SuggestionItem[]>([]);
 	const [loadingSuggestions, setLoadingSuggestions] = useState(false);
@@ -203,6 +204,7 @@ export function SearchBox({ currentLang }: SearchBoxProps) {
 		return window.matchMedia(MOBILE_BREAKPOINT_QUERY).matches;
 	});
 	const [showMobileResults, setShowMobileResults] = useState(false);
+	const [isContainerActive, setIsContainerActive] = useState(false);
 	const resolvedLang = currentLang || inferLangFromPath(location.pathname);
 
 	// 從路由更新輸入框值
@@ -247,6 +249,15 @@ export function SearchBox({ currentLang }: SearchBoxProps) {
 	useEffect(() => {
 		setShowMobileResults(false);
 	}, [activeSearchLang, activeSearchTerm, isMobileViewport]);
+
+	// 清理 blur timer
+	useEffect(() => {
+		return () => {
+			if (blurTimerRef.current !== null) {
+				window.clearTimeout(blurTimerRef.current);
+			}
+		};
+	}, []);
 
 	// 從 index.json 載入搜尋結果
 	useEffect(() => {
@@ -310,11 +321,36 @@ export function SearchBox({ currentLang }: SearchBoxProps) {
 		[syncRouteWithInput]
 	);
 
+	// container 取得 focus（任何子元素 focus 都算）
+	const handleContainerFocus = useCallback(() => {
+		if (blurTimerRef.current !== null) {
+			window.clearTimeout(blurTimerRef.current);
+			blurTimerRef.current = null;
+		}
+		setIsContainerActive(true);
+	}, []);
+
+	// container 失去 focus（延遲確認 focus 沒有移到 container 內其他元素）
+	const handleContainerBlur = useCallback((e: React.FocusEvent<HTMLDivElement>) => {
+		if (e.currentTarget.contains(e.relatedTarget as Node)) {
+			return;
+		}
+		blurTimerRef.current = window.setTimeout(() => {
+			setIsContainerActive(false);
+			blurTimerRef.current = null;
+		}, 200);
+	}, []);
+
 	// 處理選擇建議
 	const handleSelectSuggestion = useCallback(
 		(suggestion: SuggestionItem) => {
+			if (blurTimerRef.current !== null) {
+				window.clearTimeout(blurTimerRef.current);
+				blurTimerRef.current = null;
+			}
 			setSearchValue(suggestion.value);
 			setShowMobileResults(false);
+			setIsContainerActive(false);
 
 			const path = formatSearchTerm(suggestion.value, suggestion.lang);
 			navigate(path);
@@ -350,16 +386,23 @@ export function SearchBox({ currentLang }: SearchBoxProps) {
 				}
 			} else if (e.key === 'Escape') {
 				setShowMobileResults(false);
+				setIsContainerActive(false);
+				inputRef.current?.blur();
 			}
 		},
 		[handleSelectSuggestion, loadingSuggestions, suggestions]
 	);
 
-	const shouldShowMobileToggle = isMobileViewport && hasActiveSearch;
-	const shouldRenderResultList = hasActiveSearch && (!isMobileViewport || showMobileResults);
+	const shouldShowMobileToggle = isMobileViewport && hasActiveSearch && isContainerActive;
+	const shouldRenderResultList = hasActiveSearch && isContainerActive && (!isMobileViewport || showMobileResults);
 
 	return (
-		<div className="search-container" style={{ position: 'relative' }}>
+		<div
+			className="search-container"
+			style={{ position: 'relative' }}
+			onFocus={handleContainerFocus}
+			onBlur={handleContainerBlur}
+		>
 			<form onSubmit={handleSubmit} className="search-form">
 				<input
 					ref={inputRef}
