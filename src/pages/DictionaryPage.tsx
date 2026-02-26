@@ -163,11 +163,12 @@ function normalizeRadicalChar(input: string): string {
     const raw = input.replace(/<[^>]*>/g, '');
     const idx = CJK_RADICALS.indexOf(raw);
     if (idx >= 0 && idx % 2 === 0) {
-      return CJK_RADICALS.charAt(idx + 1) || raw;
+      const normalized = CJK_RADICALS.charAt(idx + 1) || raw;
+      return normalized === '靑' ? '青' : normalized;
     }
-    return raw;
+    return raw === '靑' ? '青' : raw;
   } catch {
-    return input || '';
+    return input === '靑' ? '青' : input || '';
   }
 }
 

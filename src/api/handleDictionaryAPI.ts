@@ -188,7 +188,14 @@ async function handleRadicalLookup(
   env: DictionaryEnv,
 ): Promise<Response> {
   const radicalPath = `${lang}/${text}.json`;
-  const radicalObject = await env.DICTIONARY.get(radicalPath);
+  let radicalObject = await env.DICTIONARY.get(radicalPath);
+
+  // 青 / 靑 兩種字形在資料中並存，做雙向 fallback 以避免部首查詢中斷
+  if (!radicalObject && text === '@青') {
+    radicalObject = await env.DICTIONARY.get(`${lang}/@靑.json`);
+  } else if (!radicalObject && text === '@靑') {
+    radicalObject = await env.DICTIONARY.get(`${lang}/@青.json`);
+  }
 
   if (!radicalObject) {
     return jsonResponse(

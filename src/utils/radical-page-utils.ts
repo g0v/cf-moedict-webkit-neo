@@ -39,6 +39,10 @@ export function stripTags(input: string): string {
   return String(input || '').replace(/<[^>]*>/g, '');
 }
 
+export function normalizeRadicalVariant(input: string): string {
+  return input === '靑' ? '青' : input;
+}
+
 export function normalizeRows(raw: unknown): string[][] {
   try {
     if (!raw) return [];
@@ -52,17 +56,21 @@ export function normalizeRows(raw: unknown): string[][] {
       const rows: string[][] = [];
       for (let i = 0; i <= max; i += 1) {
         const row = obj[String(i)];
-        rows[i] = Array.isArray(row) ? row.filter(Boolean).map(String) : [];
+        rows[i] = Array.isArray(row)
+          ? row.filter(Boolean).map((item) => normalizeRadicalVariant(String(item)))
+          : [];
       }
       return rows;
     }
 
     if (Array.isArray(raw) && raw.every((row) => Array.isArray(row) || row == null)) {
-      return raw.map((row) => (Array.isArray(row) ? row.filter(Boolean).map(String) : []));
+      return raw.map((row) =>
+        Array.isArray(row) ? row.filter(Boolean).map((item) => normalizeRadicalVariant(String(item))) : []
+      );
     }
 
     if (Array.isArray(raw)) {
-      return [raw.filter(Boolean).map(String)];
+      return [raw.filter(Boolean).map((item) => normalizeRadicalVariant(String(item)))];
     }
 
     return [];
