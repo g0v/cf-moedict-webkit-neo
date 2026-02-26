@@ -1,144 +1,146 @@
-# React + TypeScript + Vite
+# cf-moedict-webkit-neo
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+萌典（moedict）前端重構專案，使用 React + TypeScript + Vite，部署於 Cloudflare Workers。
 
-Currently, two official plugins are available:
+## 社群協作
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+### 回報問題
 
-## Expanding the ESLint configuration
+- 請先確認是否已有相同 issue。
+- 問題描述請包含：重現步驟、預期結果、實際結果、截圖（可選）、瀏覽器與作業系統版本。
+- 資料相關問題（如部首、詞條、分類）請盡量附上對應詞條與 URL。
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### 提交程式碼
 
-```js
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+- 建議流程：
+  1. Fork 專案並開新分支（例如：`fix/radical-qing`、`feat/sidebar-keyboard`）。
+  2. 完成修改後送出 Pull Request。
+  3. PR 內容請包含：變更摘要、測試方式、風險/相容性說明。
 
-      // Remove tseslint.configs.recommended and replace with this
-      ...tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      ...tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      ...tseslint.configs.stylisticTypeChecked,
+### PR 最低檢查
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+- `npx tsc -b --pretty false`
+- `npm run lint`
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## 使用自己的 Cloudflare R2 開發（必看）
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+本專案啟動前，**必須先將靜態資源與字典資料上傳到自己的 R2**。  
+若未上傳，頁面會出現樣式缺失、查詢不到資料或 API 404。
 
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+### 1. 前置需求
 
-## 開發準備
+- Node.js（建議 `>= 20.19`）
+- npm
+- Wrangler CLI
+- rclone
+- Cloudflare 帳號（可建立 R2 bucket 與 Worker）
 
-### 上傳字典與資產
+### 2. 建立 R2 Buckets
 
-此專案提供兩支腳本，協助將資料與前端資產同步至 Cloudflare R2 Storage。執行前請確認：
-- 已安裝並設定 `rclone`，且存在名為 `r2` 的 remote。
-- `data/dictionary` 與 `data/assets` 目錄已備妥要上傳的內容。
-
-指令說明：
-- `sh commands/upload_dictionary.sh`：同步 `data/dictionary` 底下的 `pack`、`pcck`、`phck`、`ptck` 目錄到 `r2:moedict-dictionary`。 (windows環境是`bash commands/upload_dictionary.sh`)
-- `sh commands/upload_assets.sh`：同步 `data/assets` 目錄到 `r2:moedict-assets-preview`。(windows環境是`bash commands/upload_assets.sh`)
-
-腳本會自動檢查環境並以 `rclone sync` 執行上傳，結束後亦會輸出摘要與驗證結果。若需進一步調整或排查，請參考 `commands` 目錄中的腳本內容。
-
-
-### 設定資產端點（ASSET_BASE_URL）
-
-- 本專案的 CSS/JS/圖片/字體會透過 `ASSET_BASE_URL` 從 R2 公開端點載入。
-- 請先複製範本設定，並填上你自己的 bucket 與公開端點：
+可自訂名稱，以下為範例：
 
 ```bash
-cp wrangler.jsonc.example wrangler.jsonc
-# 編輯 wrangler.jsonc → vars.ASSET_BASE_URL: "https://<your-pub-id>.r2.dev"
+wrangler r2 bucket create <your-fonts-bucket>
+wrangler r2 bucket create <your-fonts-bucket-preview>
+wrangler r2 bucket create <your-assets-bucket>
+wrangler r2 bucket create <your-assets-bucket-preview>
+wrangler r2 bucket create <your-dictionary-bucket>
+wrangler r2 bucket create <your-dictionary-bucket-preview>
 ```
 
-- 若未設定 `ASSET_BASE_URL`，伺服器端渲染會直接報錯提示。
+### 3. 設定 rclone（remote 名稱建議 `r2`）
 
-### 部署到 CloudFlare
-
-#### 1. 設置 CloudFlare 認證
 ```bash
-wrangler auth login
+rclone config
 ```
 
-#### 2. 創建必要資源
+完成後可先確認：
+
 ```bash
-
-
-# 創建 R2 Storage
-wrangler r2 bucket create moedict-fonts
-wrangler r2 bucket create moedict-fonts-preview
-wrangler r2 bucket create moedict-assets
-wrangler r2 bucket create moedict-assets-preview
-wrangler r2 bucket create moedict-dictionary
-wrangler r2 bucket create moedict-dictionary-preview
+rclone listremotes
 ```
 
-#### 3. 更新配置
-- 以 `wrangler.jsonc.example` 為範本建立 `wrangler.jsonc`
-- 在 `vars` 設定你的公開資產端點：
+### 4. 先上傳資料（必要步驟）
+
+#### 4.1 上傳所有靜態資源
+
+```bash
+rclone sync data/assets/ r2:<your-assets-bucket>/ \
+  --progress --transfers=8 --checkers=16 --fast-list
+```
+
+#### 4.2 上傳所有字典資料
+
+請同步整個 `data/dictionary`（不是只傳 `pack`）：
+
+```bash
+rclone sync data/dictionary/ r2:<your-dictionary-bucket>/ \
+  --progress --transfers=16 --checkers=32 --fast-list
+```
+
+說明：
+- 專案會使用 `pack/pcck/phck/ptck`，也會讀取 `a/`、`c/` 與根目錄下 `@*.json`、`=*.json` 等檔案。
+- 只上傳部分目錄會導致部首表、分類索引或搜尋功能不完整。
+
+### 5. 建立 `wrangler.jsonc`
+
+本 repo 的範本檔名是 `wrangler.jsonc.examaple`（注意拼字）。
+
+```bash
+cp wrangler.jsonc.examaple wrangler.jsonc
+```
+
+接著修改以下欄位：
+
+1. `r2_buckets[*].bucket_name`
+2. `r2_buckets[*].preview_bucket_name`
+3. `vars.ASSET_BASE_URL`
+4. `vars.DICTIONARY_BASE_URL`
+
+範例：
 
 ```jsonc
 {
+  "r2_buckets": [
+    {
+      "binding": "MOEDICT_ASSETS",
+      "bucket_name": "<your-assets-bucket>",
+      "preview_bucket_name": "<your-assets-bucket-preview>",
+      "remote": true
+    },
+    {
+      "binding": "DICTIONARY",
+      "bucket_name": "<your-dictionary-bucket>",
+      "preview_bucket_name": "<your-dictionary-bucket-preview>",
+      "remote": true
+    }
+  ],
   "vars": {
-    "ASSET_BASE_URL": "https://<your-pub-id>.r2.dev"
+    "ASSET_BASE_URL": "https://<your-assets-public-domain>",
+    "DICTIONARY_BASE_URL": "https://<your-dictionary-public-domain>"
   }
 }
 ```
 
-#### 4. 近端測試
+### 6. 本機啟動與部署
 
 ```bash
-# 近端測試
+npm install
+wrangler auth login
 npm run dev
 ```
 
-#### 5. 部署 Worker
-```bash
-# 部署到生產環境
-npm run deploy
+部署：
 
-# 或使用 wrangler 直接部署
+```bash
+npm run deploy
+# 或
 npx wrangler deploy
 ```
+
+## 補充：現有上傳腳本
+
+- `commands/upload_assets.sh`
+- `commands/upload_dictionary.sh`
+
+這兩支腳本可作為參考，但若你使用自訂 bucket 名稱，請先調整腳本中的 bucket 設定，或直接使用上面的 `rclone sync` 指令。
