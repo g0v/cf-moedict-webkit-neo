@@ -194,6 +194,7 @@ export function SearchBox({ currentLang }: SearchBoxProps) {
 	const location = useLocation();
 	const navigate = useNavigate();
 	const inputRef = useRef<HTMLInputElement>(null);
+	const suggestionRefs = useRef<Array<HTMLAnchorElement | null>>([]);
 	const requestIdRef = useRef(0);
 	const blurTimerRef = useRef<number | null>(null);
 	const [searchValue, setSearchValue] = useState('');
@@ -370,9 +371,50 @@ export function SearchBox({ currentLang }: SearchBoxProps) {
 		[navigate, resolvedLang, searchValue]
 	);
 
-	// 處理 Enter 鍵
-	const handleKeyDown = useCallback(
+	const focusSuggestionByIndex = useCallback((index: number) => {
+		const target = suggestionRefs.current[index];
+		if (target) {
+			target.focus();
+		}
+	}, []);
+
+	const handleSuggestionKeyDown = useCallback(
+		(event: React.KeyboardEvent<HTMLAnchorElement>, index: number, suggestion: SuggestionItem) => {
+			if (event.key === 'ArrowDown') {
+				event.preventDefault();
+				if (suggestions.length === 0) return;
+				const nextIndex = index >= suggestions.length - 1 ? 0 : index + 1;
+				focusSuggestionByIndex(nextIndex);
+				return;
+			}
+
+			if (event.key === 'ArrowUp') {
+				event.preventDefault();
+				if (suggestions.length === 0) return;
+				const nextIndex = index <= 0 ? suggestions.length - 1 : index - 1;
+				focusSuggestionByIndex(nextIndex);
+				return;
+			}
+
+			if (event.key === 'Enter' || event.key === ' ') {
+				event.preventDefault();
+				handleSelectSuggestion(suggestion);
+			}
+		},
+		[focusSuggestionByIndex, handleSelectSuggestion, suggestions.length]
+	);
+
+	// 輸入框鍵盤事件
+	const handleInputKeyDown = useCallback(
 		(e: React.KeyboardEvent<HTMLInputElement>) => {
+			if (e.key === 'ArrowDown' && !isMobileViewport) {
+				if (!loadingSuggestions && suggestions.length > 0) {
+					e.preventDefault();
+					focusSuggestionByIndex(0);
+				}
+				return;
+			}
+
 			if (e.key === 'Enter') {
 				e.preventDefault();
 				if (!loadingSuggestions && suggestions.length > 0) {
@@ -390,7 +432,7 @@ export function SearchBox({ currentLang }: SearchBoxProps) {
 				inputRef.current?.blur();
 			}
 		},
-		[handleSelectSuggestion, loadingSuggestions, suggestions]
+		[focusSuggestionByIndex, handleSelectSuggestion, isMobileViewport, loadingSuggestions, suggestions]
 	);
 
 	const shouldShowMobileToggle = isMobileViewport && hasActiveSearch && isContainerActive;
@@ -413,7 +455,7 @@ export function SearchBox({ currentLang }: SearchBoxProps) {
 					placeholder="請輸入欲查詢的字詞"
 					value={searchValue}
 					onChange={handleInputChange}
-					onKeyDown={handleKeyDown}
+					onKeyDown={handleInputKeyDown}
 				/>
 			</form>
 			{shouldShowMobileToggle && (
@@ -453,13 +495,11 @@ export function SearchBox({ currentLang }: SearchBoxProps) {
 									className="ui-corner-all"
 									tabIndex={-1}
 									role="button"
-									onClick={() => handleSelectSuggestion(suggestion)}
-									onKeyDown={(event) => {
-										if (event.key === 'Enter' || event.key === ' ') {
-											event.preventDefault();
-											handleSelectSuggestion(suggestion);
-										}
+									ref={(node) => {
+										suggestionRefs.current[idx] = node;
 									}}
+									onClick={() => handleSelectSuggestion(suggestion)}
+									onKeyDown={(event) => handleSuggestionKeyDown(event, idx, suggestion)}
 								>
 									{suggestion.label}
 								</a>
