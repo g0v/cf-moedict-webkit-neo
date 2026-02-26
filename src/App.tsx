@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
-import { BrowserRouter, Routes, Route, useLocation, Outlet } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, useLocation, Outlet, Navigate } from 'react-router-dom'
 import { About } from './pages/About'
 import { RadicalView } from './pages/RadicalView'
 import { MiddlePoint } from './MiddlePoint'
 import { DictionaryA } from './pages/Dictionary-a'
 import { Layout } from './components/Layout'
+import { readLastLookup } from './utils/word-record-utils'
 import './App.css'
 
 /**
@@ -101,6 +102,22 @@ function URLDecoder() {
   return null;
 }
 
+function formatWordPath(word: string, lang: 'a' | 't' | 'h' | 'c'): string {
+  if (!word) return '/萌';
+  if (lang === 't') return `/'${word}`;
+  if (lang === 'h') return `/:${word}`;
+  if (lang === 'c') return `/~${word}`;
+  return `/${word}`;
+}
+
+function HomeRoute() {
+  const lastLookup = readLastLookup();
+  if (!lastLookup) {
+    return <DictionaryA word="萌" />;
+  }
+  return <Navigate to={formatWordPath(lastLookup.word, lastLookup.lang)} replace />;
+}
+
 function App() {
   return (
     <BrowserRouter>
@@ -116,7 +133,7 @@ function App() {
         {/* 其他頁面使用 normal layout */}
         <Route element={<NormalLayout />}>
           {/* 首頁路由 */}
-          <Route path="/" element={<DictionaryA word="萌" />} />
+          <Route path="/" element={<HomeRoute />} />
           
           {/* 部首表（唯一合法的純靜態 segment） */}
           <Route path="/@" element={<RadicalView lang='a' />} />

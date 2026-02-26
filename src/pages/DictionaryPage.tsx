@@ -5,7 +5,7 @@ import { cleanTextForTTS, speakText } from '../utils/tts-utils';
 import { getAudioUrl, playAudioUrl } from '../utils/audio-utils';
 import { rightAngle } from '../utils/ruby2hruby';
 import { decorateRuby, formatBopomofo, formatPinyin } from '../utils/bopomofo-pinyin-utils';
-import { addStarWord, addToLRU, hasStarWord, removeStarWord } from '../utils/word-record-utils';
+import { addStarWord, addToLRU, hasStarWord, removeStarWord, writeLastLookup } from '../utils/word-record-utils';
 
 export type DictionaryLang = 'a' | 't' | 'h' | 'c';
 
@@ -249,6 +249,7 @@ export function DictionaryPage({ word, lang }: DictionaryPageProps) {
   useEffect(() => {
     if (!state.entry) return;
     addToLRU(queryWord, lang);
+    writeLastLookup(queryWord, lang);
   }, [state.entry, queryWord, lang]);
 
   useEffect(() => {

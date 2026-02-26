@@ -2,6 +2,8 @@ export type DictionaryLang = 'a' | 't' | 'h' | 'c';
 
 const STARRED_KEY_PREFIX = 'starred-';
 const LRU_KEY_PREFIX = 'lru-';
+const LAST_LANG_KEY = 'lang';
+const LAST_WORD_KEY = 'prev-id';
 const STARRED_SLASH = decodeURIComponent('%5C');
 const STARRED_SUFFIX = `${STARRED_SLASH}n`;
 
@@ -44,6 +46,11 @@ function normalizeWord(word: string): string {
     return '';
   }
   return next;
+}
+
+function normalizeLang(lang: string): DictionaryLang {
+  if (lang === 't' || lang === 'h' || lang === 'c') return lang;
+  return 'a';
 }
 
 export function getStarredStorageKey(lang: DictionaryLang): string {
@@ -191,4 +198,18 @@ export function addToLRU(rawWord: string, lang: DictionaryLang): void {
   words.unshift(word);
   if (words.length > 50) words = words.slice(0, 50);
   safeSetItem(key, JSON.stringify(words));
+}
+
+export function writeLastLookup(rawWord: string, lang: DictionaryLang): void {
+  const word = normalizeWord(rawWord);
+  if (!shouldRecordWord(word)) return;
+  safeSetItem(LAST_LANG_KEY, normalizeLang(lang));
+  safeSetItem(LAST_WORD_KEY, word);
+}
+
+export function readLastLookup(): { lang: DictionaryLang; word: string } | null {
+  const word = normalizeWord(safeGetItem(LAST_WORD_KEY) || '');
+  if (!shouldRecordWord(word)) return null;
+  const lang = normalizeLang(safeGetItem(LAST_LANG_KEY) || 'a');
+  return { lang, word };
 }
