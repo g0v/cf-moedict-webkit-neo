@@ -6,6 +6,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { prefetchDictionaryEntry } from '../utils/dictionary-cache';
 
 type Lang = 'a' | 't' | 'h' | 'c';
 
@@ -20,6 +21,9 @@ interface SuggestionItem {
 }
 
 const SEARCH_RESULT_LIMIT = 50;
+const PREFETCH_RESULT_LIMIT = 3;
+const PREFETCH_MIN_TERM_LENGTH = 2;
+const PREFETCH_DELAY_MS = 120;
 const MOBILE_BREAKPOINT_QUERY = '(max-width: 767px)';
 const INDEX_CACHE = new Map<Lang, string[]>();
 const INDEX_PROMISE_CACHE = new Map<Lang, Promise<string[]>>();
@@ -299,6 +303,24 @@ export function SearchBox({ currentLang }: SearchBoxProps) {
 			window.clearTimeout(timer);
 		};
 	}, [activeSearchLang, activeSearchTerm, hasActiveSearch]);
+
+	// 預先抓取前幾筆候選詞條，減少點選後等待時間
+	useEffect(() => {
+		if (!hasActiveSearch) return;
+		if (loadingSuggestions) return;
+		if (activeSearchTerm.length < PREFETCH_MIN_TERM_LENGTH) return;
+		if (suggestions.length === 0) return;
+
+		const timer = window.setTimeout(() => {
+			suggestions.slice(0, PREFETCH_RESULT_LIMIT).forEach((suggestion) => {
+				prefetchDictionaryEntry(suggestion.value, suggestion.lang);
+			});
+		}, PREFETCH_DELAY_MS);
+
+		return () => {
+			window.clearTimeout(timer);
+		};
+	}, [activeSearchTerm, hasActiveSearch, loadingSuggestions, suggestions]);
 
 	const syncRouteWithInput = useCallback(
 		(rawValue: string, replace: boolean) => {

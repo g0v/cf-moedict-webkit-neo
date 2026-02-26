@@ -6,6 +6,7 @@ import { getAudioUrl, playAudioUrl } from '../utils/audio-utils';
 import { rightAngle } from '../utils/ruby2hruby';
 import { decorateRuby, formatBopomofo, formatPinyin } from '../utils/bopomofo-pinyin-utils';
 import { addStarWord, addToLRU, hasStarWord, removeStarWord, writeLastLookup } from '../utils/word-record-utils';
+import { fetchDictionaryEntry, readCachedDictionaryEntry } from '../utils/dictionary-cache';
 
 export type DictionaryLang = 'a' | 't' | 'h' | 'c';
 
@@ -211,6 +212,28 @@ export function DictionaryPage({ word, lang }: DictionaryPageProps) {
       return;
     }
 
+    const applyResponse = (result: { ok: boolean; status: number; data: unknown }) => {
+      const payload = result.data as DictionaryAPIResponse | DictionaryErrorResponse;
+
+      if (result.ok) {
+        setState({ loading: false, entry: payload as DictionaryAPIResponse, terms: [], error: null });
+        return;
+      }
+
+      const terms = Array.isArray((payload as DictionaryErrorResponse).terms)
+        ? (payload as DictionaryErrorResponse).terms ?? []
+        : [];
+      const message = (payload as DictionaryErrorResponse).message ?? `查詢失敗 (${result.status})`;
+      setState({ loading: false, entry: null, terms, error: terms.length > 0 ? null : message });
+    };
+
+    const cached = readCachedDictionaryEntry(queryWord, lang);
+    if (cached) {
+      setPlayingAudioId(null);
+      applyResponse(cached);
+      return;
+    }
+
     const controller = new AbortController();
     setState((previous) => ({
       ...previous,
@@ -220,20 +243,10 @@ export function DictionaryPage({ word, lang }: DictionaryPageProps) {
     }));
     setPlayingAudioId(null);
 
-    const apiToken = `${langTokenPrefix}${queryWord}`;
-    fetch(`/api/${encodeURIComponent(apiToken)}.json`, { signal: controller.signal })
-      .then(async (response) => {
-        const data = (await response.json()) as DictionaryAPIResponse | DictionaryErrorResponse;
-        if (response.ok) {
-          setState({ loading: false, entry: data as DictionaryAPIResponse, terms: [], error: null });
-          return;
-        }
-
-        const terms = Array.isArray((data as DictionaryErrorResponse).terms)
-          ? (data as DictionaryErrorResponse).terms ?? []
-          : [];
-        const message = (data as DictionaryErrorResponse).message ?? `查詢失敗 (${response.status})`;
-        setState({ loading: false, entry: null, terms, error: terms.length > 0 ? null : message });
+    fetchDictionaryEntry(queryWord, lang, controller.signal)
+      .then((result) => {
+        if (controller.signal.aborted) return;
+        applyResponse(result);
       })
       .catch((error: unknown) => {
         if (controller.signal.aborted) return;
@@ -244,7 +257,7 @@ export function DictionaryPage({ word, lang }: DictionaryPageProps) {
     return () => {
       controller.abort();
     };
-  }, [langTokenPrefix, queryWord]);
+  }, [lang, queryWord]);
 
   useEffect(() => {
     if (!state.entry) return;
