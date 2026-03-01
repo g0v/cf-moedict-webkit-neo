@@ -1,4 +1,5 @@
 import { handleDictionaryAPI } from '../src/api/handleDictionaryAPI';
+import { handleListAPI } from '../src/api/handleListAPI';
 
 interface Env {
 	ASSET_BASE_URL?: string;
@@ -74,6 +75,18 @@ export default {
             ...corsHeaders,
           },
         });
+      }
+
+      // 分類詞彙列表 API（=成語、'=諺語、:=諺語、~=同實異名 等）
+      const listSegment = decodeURIComponent(url.pathname.replace('/api/', ''));
+      if (
+        listSegment.startsWith('=') ||
+        listSegment.startsWith("'=") ||
+        listSegment.startsWith(':=') ||
+        listSegment.startsWith('~=')
+      ) {
+        console.log('🔍 [Index] 處理列表 API 請求:', url.pathname);
+        return handleListAPI(request, url, env);
       }
 
       // 字典 JSON API 路由

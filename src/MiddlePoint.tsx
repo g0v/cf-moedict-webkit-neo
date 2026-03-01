@@ -10,7 +10,7 @@ import { DictionaryT } from './pages/Dictionary-t';
 import { DictionaryH } from './pages/Dictionary-h';
 import { DictionaryC } from './pages/Dictionary-c';
 import { StarredPage } from './pages/StarredPage';
-import { GroupIndex } from './pages/GroupIndex';
+import { ListView } from './pages/ListView';
 import { RadicalDetailView } from './pages/RadicalDetailView';
 
 type Lang = 'a' | 't' | 'h' | 'c';
@@ -77,7 +77,7 @@ export function MiddlePoint() {
     if (segment.startsWith(pattern.marker)) {
       const category = segment.slice(pattern.marker.length);
       if (category) {
-        return <GroupIndex lang={pattern.lang} category={category} />;
+        return <ListView lang={pattern.lang} category={category} />;
       }
     }
   }
