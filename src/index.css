@@ -54,3 +54,104 @@ button:focus-visible {
     background-color: #f9f9f9;
   }
 }
+
+/* ===== 筆順動畫 & 書體圖示 ===== */
+
+/* 原 _theme.scss: .iconic-circle, .iconic-color */
+.iconic-circle,
+.iconic-color {
+  border-radius: 4px;
+  background: black;
+  color: #fff;
+  display: inline-block;
+  font-size: 16px;
+  font-weight: normal;
+  width: 18px;
+  height: 18px;
+  line-height: 18px;
+  text-align: center;
+}
+
+/* 原 _theme.scss: .iconic-circle.stroke, .star */
+.iconic-circle.stroke,
+.star {
+  width: 32px;
+  height: 30px;
+  padding: 7px;
+  cursor: pointer !important;
+  z-index: 8;
+}
+.iconic-circle.stroke:hover {
+  background: #888 !important;
+}
+
+/* 語言別顏色（原 _theme.scss: body.lang-* .iconic-circle）*/
+body.lang-a .iconic-circle { background: #400; }
+body.lang-c .iconic-circle { background: #447; }
+body.lang-h .iconic-circle { background: #474; }
+body.lang-t .iconic-circle { background: #744; }
+
+/* 原 _strokes.scss: #strokes */
+#strokes {
+  display: inline-block;
+  clear: both;
+  min-height: 221px;
+}
+#strokes .word {
+  position: relative;
+  float: left;
+}
+#strokes .loader {
+  position: absolute;
+  margin: auto;
+  left: 0; top: 0; right: 0; bottom: 0;
+  width: 100%;
+  height: 100%;
+  background: #CCC;
+}
+#strokes .loader div {
+  height: 100%;
+  background: #FFF;
+}
+#strokes .loader i {
+  position: absolute;
+  top: 107.5px;
+  left: 107.5px;
+  color: #A33;
+}
+#strokes .loader i.icon-fixed-width {
+  margin-top: -0.5714em;
+  margin-left: -0.5714em;
+}
+#strokes .loader i.icon-fixed-width.icon-large {
+  margin-top: -0.714em;
+  margin-left: -0.714em;
+}
+
+/* 原 _result.scss: 筆順動畫 svg / canvas */
+#strokes svg {
+  border: 2px solid #a00;
+  background: white;
+  margin-left: 5px;
+}
+#strokes canvas {
+  margin-left: 5px;
+  box-shadow: hsl(0,0%,83%) 0 3px 3px;
+}
+
+/* 歷代書體按鈕區 */
+#historical-scripts {
+  display: inline-block;
+  margin-bottom: 8px;
+}
+.historical-scripts-area section {
+  clear: both;
+  margin-bottom: 12px;
+}
+.historical-scripts-area img {
+  display: inline-block;
+  width: 220px;
+  height: 220px;
+  margin-right: 4px;
+  background: #eee;
+}

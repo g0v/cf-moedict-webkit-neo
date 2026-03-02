@@ -1,5 +1,6 @@
 import { handleDictionaryAPI } from '../src/api/handleDictionaryAPI';
 import { handleListAPI } from '../src/api/handleListAPI';
+import { handleStrokeAPI } from '../src/api/handleStrokeAPI';
 
 interface Env {
 	ASSET_BASE_URL?: string;
@@ -75,6 +76,11 @@ export default {
             ...corsHeaders,
           },
         });
+      }
+
+      // 筆順 JSON 代理（/api/stroke-json/{codepoint}.json）
+      if (url.pathname.startsWith('/api/stroke-json/')) {
+        return handleStrokeAPI(request, url, corsHeaders);
       }
 
       // 分類詞彙列表 API（=成語、'=諺語、:=諺語、~=同實異名 等）

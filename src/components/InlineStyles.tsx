@@ -301,6 +301,25 @@ export function InlineStyles({ r2Endpoint }: InlineStylesProps) {
 			text-decoration: underline;
 		}
 
+		/* 偏好設定：主音標區塊跟隨 body[data-ruby-pref] */
+		.main-pronunciation .bpmf {
+			display: inline-block;
+		}
+		.main-pronunciation .pinyin {
+			display: inline-block;
+		}
+		body[data-ruby-pref='pinyin'] .main-pronunciation .bpmf,
+		body[data-ruby-pref='none'] .main-pronunciation .bpmf {
+			display: none;
+		}
+		body[data-ruby-pref='zhuyin'] .main-pronunciation .pinyin,
+		body[data-ruby-pref='none'] .main-pronunciation .pinyin {
+			display: none;
+		}
+		body[data-ruby-pref='none'] .main-pronunciation {
+			display: none;
+		}
+
 		/* 部首頁與 Tooltip 對齊原專案 */
 		.stroke-list .stroke-char {
 			margin-right: 6px;

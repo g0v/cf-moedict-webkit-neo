@@ -1,0 +1,240 @@
+/**
+ * 筆順動畫組件
+ * 復刻原專案 moedict-webkit 的筆順動畫功能
+ *
+ * 原始邏輯：
+ * - main.ls: strokeWords(), drawOutline(), strokeWord()
+ * - view.ls: Heteronym 組件中的 #historical-scripts 按鈕
+ * - index.html: <div id="strokes"> 位於 .results 頂部
+ */
+
+import { useCallback, useEffect, useRef, useState } from 'react';
+
+interface StrokeAnimationProps {
+	/** 要動畫的字詞（可為多字） */
+	title: string;
+	/** 是否顯示動畫 */
+	visible: boolean;
+	/** 語言代碼（影響歷代書體 API） */
+	lang?: string;
+}
+
+interface CharStrokeData {
+	tw_word: string;
+	strokes: Array<{ key: string; gif: string }>;
+}
+
+interface HistoricalEntry {
+	char: string;
+	data: CharStrokeData | null;
+}
+
+// 歷代書體類型（依原專案順序）
+const SCRIPT_TYPES = ['楷書', '篆書', '隸書', '行書', '草書', '金文'] as const;
+
+/** 動態載入外部腳本（確保不重複載入） */
+function loadScript(src: string): Promise<void> {
+	return new Promise((resolve, reject) => {
+		const existing = Array.from(document.querySelectorAll<HTMLScriptElement>('script')).find(
+			(s) => s.src === src || s.getAttribute('src') === src
+		);
+		if (existing) {
+			resolve();
+			return;
+		}
+		const script = document.createElement('script');
+		script.src = src;
+		script.onload = () => resolve();
+		script.onerror = () => reject(new Error(`Failed to load script: ${src}`));
+		document.head.appendChild(script);
+	});
+}
+
+/** 取 R2 endpoint（從 /api/config 或 fallback /assets） */
+async function fetchR2Endpoint(): Promise<string> {
+	try {
+		const res = await fetch('/api/config');
+		const data = (await res.json()) as { assetBaseUrl?: string };
+		return (data.assetBaseUrl || '/assets').replace(/\/$/, '');
+	} catch {
+		return '/assets';
+	}
+}
+
+export function StrokeAnimation({ title, visible, lang = 'a' }: StrokeAnimationProps) {
+	const containerRef = useRef<HTMLDivElement>(null);
+	const [historicalVisible, setHistoricalVisible] = useState(false);
+	const [historicalData, setHistoricalData] = useState<HistoricalEntry[]>([]);
+	const [loadingHistorical, setLoadingHistorical] = useState(false);
+	const [r2Endpoint, setR2Endpoint] = useState<string | null>(null);
+
+	// 取得 R2 endpoint
+	useEffect(() => {
+		fetchR2Endpoint().then(setR2Endpoint);
+	}, []);
+
+	// 當可見且 endpoint 就緒時，載入並執行筆順動畫
+	useEffect(() => {
+		if (!visible || !containerRef.current || r2Endpoint === null) return;
+
+		const container = containerRef.current;
+		// 清除舊內容（同原 $('#strokes').html('').show!）
+		container.innerHTML = '';
+
+		// 取字詞（去除英文括弧部分，同原 title - /[（(].*/）
+		const words = title.replace(/[（(].*/, '').trim();
+		if (!words) return;
+
+		let cancelled = false;
+
+		const run = async () => {
+			const basePath = r2Endpoint || '/assets';
+			try {
+				// 確保 jQuery 已載入
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				if (!(window as any).jQuery) {
+					await loadScript(`${basePath}/js/jquery-2.1.1.min.js`);
+				}
+				if (cancelled) return;
+
+				// 載入 strokeWords 相依套件（依序）
+				await loadScript(`${basePath}/js/raf.min.js`);
+				await loadScript(`${basePath}/js/gl-matrix-min.js`);
+				await loadScript(`${basePath}/js/sax.js`);
+				await loadScript(`${basePath}/js/jquery.strokeWords.js`);
+				if (cancelled) return;
+
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				const $ = (window as any).jQuery;
+				if (!$ || !$.fn || !$.fn.strokeWords) {
+					console.warn('[StrokeAnimation] jquery.strokeWords 未成功載入');
+					return;
+				}
+
+				// 執行筆順動畫（同原 $('#strokes').strokeWords(words, {url, dataType, -svg})）
+				// 透過本機 Worker 代理，解決 CORS 問題（/api/stroke-json/{cp}.json）
+				$(container).strokeWords(words, {
+					url: '/api/stroke-json/',
+					dataType: 'json',
+					svg: false,
+				});
+			} catch (err) {
+				if (!cancelled) {
+					console.warn('[StrokeAnimation] 載入失敗:', err);
+				}
+			}
+		};
+
+		run();
+
+		return () => {
+			cancelled = true;
+		};
+	}, [visible, title, r2Endpoint]);
+
+	// 當隱藏時清除動畫內容
+	useEffect(() => {
+		if (!visible && containerRef.current) {
+			containerRef.current.innerHTML = '';
+			setHistoricalVisible(false);
+			setHistoricalData([]);
+		}
+	}, [visible]);
+
+	// 歷代書體：依序 fetch 每個字的書體資料
+	const handleHistoricalClick = useCallback(async () => {
+		if (loadingHistorical) return;
+
+		// 清除 #strokes 內的 section（同原 $('#strokes section').remove!）
+		if (containerRef.current) {
+			const sections = containerRef.current.querySelectorAll('section');
+			sections.forEach((s) => s.remove());
+		}
+
+		const chars = Array.from(title.replace(/[（(].*/, '').trim());
+		if (!chars.length) return;
+
+		setLoadingHistorical(true);
+		setHistoricalData([]);
+
+		const results: HistoricalEntry[] = [];
+		for (const ch of chars) {
+			try {
+				const resp = await fetch(
+					`https://www.moedict.tw/api/web/word/${encodeURIComponent(ch)}`
+				);
+				const json = (await resp.json()) as { data?: CharStrokeData };
+				results.push({ char: ch, data: json.data ?? null });
+			} catch {
+				results.push({ char: ch, data: null });
+			}
+		}
+
+		setHistoricalData(results);
+		setHistoricalVisible(true);
+		setLoadingHistorical(false);
+	}, [title, loadingHistorical]);
+
+	if (!visible) return null;
+
+	return (
+		<div style={{ position: 'relative' }}>
+			{/* 歷代書體按鈕（同原 #historical-scripts，紅底白字） */}
+			<a
+				id="historical-scripts"
+				className="hidden-xs part-of-speech"
+				title={'字體e筆書寫：張炳煌教授\n字體選用：郭晉銓博士'}
+				onClick={handleHistoricalClick}
+				role="button"
+				tabIndex={0}
+				onKeyDown={(e) => {
+					if (e.key === 'Enter' || e.key === ' ') {
+						e.preventDefault();
+						handleHistoricalClick();
+					}
+				}}
+				style={{
+					cursor: 'pointer',
+					color: 'white',
+					display: 'inline-block',
+					marginBottom: '8px',
+				}}
+			>
+				{loadingHistorical ? '載入中…' : '歷代書體'}
+			</a>
+
+			{/* 筆順動畫容器（同原 <div id="strokes">） */}
+			<div ref={containerRef} id="strokes" lang={lang} />
+
+			{/* 歷代書體展示區：各書體一個 section，橫向展示各字 GIF */}
+			{historicalVisible && historicalData.length > 0 && (
+				<div className="historical-scripts-area">
+					{SCRIPT_TYPES.map((type) => (
+						<section key={type} style={{ clear: 'both', marginBottom: '8px' }}>
+							<span className="part-of-speech" style={{ display: 'block', marginBottom: '4px' }}>
+								{type}
+							</span>
+							{historicalData.map(({ char, data }) => {
+								const stroke = data?.strokes?.find((s) => s.key === type);
+								return (
+									<img
+										key={char}
+										src={stroke?.gif || ''}
+										alt={`${char} - ${type}`}
+										style={{
+											display: 'inline-block',
+											width: 220,
+											height: 220,
+											marginRight: 4,
+											background: stroke?.gif ? undefined : '#eee',
+										}}
+									/>
+								);
+							})}
+						</section>
+					))}
+				</div>
+			)}
+		</div>
+	);
+}

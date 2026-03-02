@@ -6,6 +6,7 @@
 
 import { Fragment, useCallback, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { toggleUserPrefPanel } from './user-pref';
 
 type Lang = 'a' | 't' | 'h' | 'c';
 
@@ -611,6 +612,11 @@ export function NavbarNormal({ currentLang }: NavbarNormalProps) {
 		navigate(path);
 	}, [navigate]);
 
+	const handlePrefClick = useCallback((e: React.MouseEvent<HTMLAnchorElement>) => {
+		e.preventDefault();
+		toggleUserPrefPanel();
+	}, []);
+
 	return (
 		<>
 			{/* 導航列背景 */}
@@ -696,7 +702,7 @@ export function NavbarNormal({ currentLang }: NavbarNormalProps) {
 
 					{/* 偏好設定按鈕 */}
 					<li id="btn-pref">
-						<a title="偏好設定" href="#">
+						<a title="偏好設定" href="#" onClick={handlePrefClick}>
 							<i className="icon-cogs"></i>
 						</a>
 					</li>

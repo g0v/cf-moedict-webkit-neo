@@ -3,6 +3,8 @@
  * 依原專案 decorate-ruby 流程移植。
  */
 
+import { convertPinyinByLang, isParallelPinyin, trsToBpmf } from './pinyin-preference-utils';
+
 export interface BopomofoPinyinData {
   ruby: string;
   youyin: string;
@@ -68,10 +70,6 @@ function buildRubyBases(titleHtml: string): string {
   }
 }
 
-function convertPinyin(yin: string): string {
-  return yin.replace(/-/g, '\u2011');
-}
-
 export function decorateRuby(params: {
   LANG: string;
   title?: string;
@@ -81,9 +79,10 @@ export function decorateRuby(params: {
   trs?: string;
 }): BopomofoPinyinData {
   const { LANG, title = '', bopomofo, py, pinyin = py, trs } = params;
+  const rawPinyin = pinyin || trs || '';
 
-  let processedPinyin = pinyin || trs || '';
-  let processedBopomofo = bopomofo || '';
+  let processedPinyin = rawPinyin;
+  let processedBopomofo = bopomofo || trsToBpmf(LANG, rawPinyin) || '';
 
   if (LANG !== 'c') {
     processedPinyin = processedPinyin.replace(/<[^>]*>/g, '').replace(/（.*）/, '');
@@ -149,12 +148,12 @@ export function decorateRuby(params: {
     .replace(/\/.*/, '')
     .replace(/<br>.*/, '');
 
-  const convertedP = convertPinyin(p);
+  const convertedP = convertPinyinByLang(LANG, p, false);
   const pArray = convertedP.replace(/[,.;，、；！。－—]\s?/g, ' ').split(' ');
   const originalPArray = p.replace(/[,.;，、；！。－—]\s?/g, ' ').split(' ');
 
   const pUpper: string[] = [];
-  const isParallel = false;
+  const isParallel = isParallelPinyin(LANG);
 
   for (let idx = 0; idx < pArray.length; idx += 1) {
     const yin = pArray[idx];

@@ -42,4 +42,13 @@
 - `searchbox.tsx` — 搜尋框
 - `sidebar.tsx` — 側邊欄
 - `ListView.tsx` — 列表視圖（已串接）
+- `StrokeAnimation.tsx` — 筆順動畫（已完成）：鉛筆按鈕、canvas 動畫、歷代書體
 - Pages: Dictionary-a/c/h/t, About, RadicalView, RadicalDetailView, StarredPage
+
+## 筆順動畫技術細節
+
+- 筆畫 JSON 資料 CDN: `https://829091573dd46381a321-9e8a43b8d3436eaf4353af683c892840.ssl.cf1.rackcdn.com/` (Rackspace, 有效)
+- `stroke-json.moedict.tw` DNS 已失效，改用直接 CDN URL
+- 歷代書體 API: `https://www.moedict.tw/api/web/word/{char}` 返回 `.data.strokes[].{key, gif}`
+- JS 相依套件（均已在 R2 assets）: jquery.strokeWords.js, raf.min.js, gl-matrix-min.js, sax.js
+- 鉛筆按鈕 CSS class: `iconic-circle stroke icon-pencil`，顏色由 `body.lang-{a|c|h|t}` 控制

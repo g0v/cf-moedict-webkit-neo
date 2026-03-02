@@ -9,6 +9,7 @@ import { NavbarNormal } from './navbar-normal';
 import { Sidebar } from './sidebar';
 import { AssetLoader } from './AssetLoader';
 import { InlineStyles } from './InlineStyles';
+import { UserPref } from './user-pref';
 
 type Lang = 'a' | 't' | 'h' | 'c';
 
@@ -40,6 +41,7 @@ export function Layout({ layout, children, currentLang, r2Endpoint }: LayoutProp
 				<div className="app-shell">
 					<NavbarNormal currentLang={currentLang} />
 					<Sidebar currentLang={currentLang} />
+					<UserPref />
 					<main id="main-content">
 						{children}
 					</main>
@@ -48,4 +50,3 @@ export function Layout({ layout, children, currentLang, r2Endpoint }: LayoutProp
 		</>
 	);
 }
-

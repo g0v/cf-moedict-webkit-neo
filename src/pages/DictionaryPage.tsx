@@ -5,8 +5,10 @@ import { cleanTextForTTS, speakText } from '../utils/tts-utils';
 import { getAudioUrl, playAudioUrl } from '../utils/audio-utils';
 import { rightAngle } from '../utils/ruby2hruby';
 import { decorateRuby, formatBopomofo, formatPinyin } from '../utils/bopomofo-pinyin-utils';
+import { convertPinyinByLang, isParallelPinyin, trsToBpmf } from '../utils/pinyin-preference-utils';
 import { addStarWord, addToLRU, hasStarWord, removeStarWord, writeLastLookup } from '../utils/word-record-utils';
 import { fetchDictionaryEntry, readCachedDictionaryEntry } from '../utils/dictionary-cache';
+import { StrokeAnimation } from '../components/StrokeAnimation';
 
 export type DictionaryLang = 'a' | 't' | 'h' | 'c';
 
@@ -203,7 +205,17 @@ export function DictionaryPage({ word, lang }: DictionaryPageProps) {
   });
   const [playingAudioId, setPlayingAudioId] = useState<string | null>(null);
   const [isStarred, setIsStarred] = useState(false);
+  const [strokesVisible, setStrokesVisible] = useState(false);
   const storageWord = useMemo(() => untag((state.entry?.title || queryWord || '').trim()), [state.entry?.title, queryWord]);
+
+  // 設定 body 語言 class（同原 $('body').addClass("lang-#LANG")）
+  useEffect(() => {
+    const langClass = `lang-${lang}`;
+    document.body.classList.add(langClass);
+    return () => {
+      document.body.classList.remove(langClass);
+    };
+  }, [lang]);
 
   useRadicalTooltip();
 
@@ -243,6 +255,7 @@ export function DictionaryPage({ word, lang }: DictionaryPageProps) {
       error: null,
     }));
     setPlayingAudioId(null);
+    setStrokesVisible(false);
 
     fetchDictionaryEntry(queryWord, lang, controller.signal)
       .then((result) => {
@@ -356,7 +369,14 @@ export function DictionaryPage({ word, lang }: DictionaryPageProps) {
 
   return (
     <div className="result" onClick={onContentClick} aria-busy={state.loading}>
+      {/* 筆順動畫區域（同原 index.html #strokes 位於 .results 頂部） */}
+      <StrokeAnimation title={title} visible={strokesVisible} lang={lang} />
+
       {heteronyms.map((heteronym, idx) => {
+        const rawPinyin = heteronym.pinyin || heteronym.trs || '';
+        const displayPinyin = convertPinyinByLang(lang, rawPinyin, false);
+        const displayBpmf = heteronym.bopomofo || (lang === 't' ? trsToBpmf(lang, rawPinyin) : '');
+        const parallelPinyin = isParallelPinyin(lang);
         const rubyData = decorateRuby({
           LANG: lang,
           title,
@@ -370,14 +390,40 @@ export function DictionaryPage({ word, lang }: DictionaryPageProps) {
 
         return (
           <div key={`${title}-${idx}`} className="entry" style={{ position: 'relative' }}>
-            {(entry.radical || entry.stroke_count || entry.non_radical_stroke_count) && (
-              <div className="radical">
-                {entry.radical && <RadicalGlyph char={entry.radical} lang={lang} />}
-                <span className="sym">+</span>
-                <span>{entry.non_radical_stroke_count ?? 0}</span>
-                <span className="count"> = {entry.stroke_count ?? ''}</span>
-              </div>
-            )}
+            {/* 部首＋筆畫＋筆順動畫按鈕（同原 $char div.radical） */}
+            <div className="radical">
+              {(entry.radical || entry.stroke_count || entry.non_radical_stroke_count) && (
+                <>
+                  {entry.radical && <RadicalGlyph char={entry.radical} lang={lang} />}
+                  <span className="count">
+                    <span className="sym">+</span>
+                    {entry.non_radical_stroke_count ?? 0}
+                  </span>
+                  <span className="count"> = {entry.stroke_count ?? ''}</span>
+                  {'\u00A0'}
+                </>
+              )}
+              {/* 紅底鉛筆按鈕（同原 a.iconic-circle.stroke.icon-pencil） */}
+              <a
+                className="iconic-circle stroke icon-pencil"
+                title="筆順動畫"
+                style={{ color: 'white' }}
+                role="button"
+                tabIndex={0}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setStrokesVisible((v) => !v);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setStrokesVisible((v) => !v);
+                  }
+                }}
+              />
+            </div>
             {idx === 0 && (
               <i
                 className={`star iconic-color ${isStarred ? 'icon-star' : 'icon-star-empty'}`}
@@ -451,30 +497,37 @@ export function DictionaryPage({ word, lang }: DictionaryPageProps) {
 
                 {rubyData.cnSpecific && rubyData.pinyin && rubyData.bopomofo && (
                   <small className="alternative cn-specific">
-                    <span className="pinyin" dangerouslySetInnerHTML={{ __html: formatPinyin(rubyData.pinyin) }} />
+                    <span
+                      className="pinyin"
+                      dangerouslySetInnerHTML={{ __html: formatPinyin(convertPinyinByLang(lang, rubyData.pinyin, false)) }}
+                    />
                     <span className="bopomofo" dangerouslySetInnerHTML={{ __html: formatBopomofo(rubyData.bopomofo) }} />
                   </small>
                 )}
 
                 <div className="main-pronunciation">
-                  {heteronym.bopomofo && (
-                    <span className="bopomofo" dangerouslySetInnerHTML={{ __html: formatBopomofo(heteronym.bopomofo) }} />
+                  {displayBpmf && (
+                    <span className="bpmf" dangerouslySetInnerHTML={{ __html: formatBopomofo(displayBpmf) }} />
                   )}
-                  {(heteronym.pinyin || heteronym.trs) && (
+                  {displayPinyin && (
                     <span
                       className="pinyin"
-                      dangerouslySetInnerHTML={{ __html: formatPinyin(heteronym.pinyin || heteronym.trs || '') }}
+                      dangerouslySetInnerHTML={{ __html: formatPinyin(displayPinyin) }}
                     />
                   )}
                 </div>
 
                 {(rubyData.bAlt || rubyData.pAlt) && (
                   <small className="alternative">
-                    {rubyData.pAlt && (
+                    {rubyData.pAlt && parallelPinyin && (
                       <span className="pinyin" dangerouslySetInnerHTML={{ __html: formatPinyin(rubyData.pAlt) }} />
                     )}
-                    {rubyData.bAlt && (
-                      <span className="bopomofo" dangerouslySetInnerHTML={{ __html: formatBopomofo(rubyData.bAlt) }} />
+                    {rubyData.bAlt && <span className="bopomofo" dangerouslySetInnerHTML={{ __html: formatBopomofo(rubyData.bAlt) }} />}
+                    {rubyData.pAlt && (
+                      <span
+                        className="pinyin"
+                        dangerouslySetInnerHTML={{ __html: formatPinyin(convertPinyinByLang(lang, rubyData.pAlt, false)) }}
+                      />
                     )}
                   </small>
                 )}
