@@ -474,19 +474,42 @@ function getStarredPath(lang: Lang): string {
 function DropdownSubmenu({
 	item,
 	lang,
-	handleLinkClick
+	handleLinkClick,
+	submenuKeyPrefix,
+	openSubmenus,
+	handleSubmenuToggle
 }: {
 	item: MenuNode;
 	lang: Lang;
 	handleLinkClick: (e: React.MouseEvent<HTMLAnchorElement>, path: string) => void;
+	submenuKeyPrefix: string;
+	openSubmenus: Record<string, boolean>;
+	handleSubmenuToggle: (e: React.MouseEvent<HTMLAnchorElement>, key: string) => void;
 }) {
+	const isOpen = Boolean(openSubmenus[submenuKeyPrefix]);
+
 	return (
-		<li className="dropdown-submenu">
-			<a href="#" className={`${lang} taxonomy`}>{item.label}</a>
+		<li className={`dropdown-submenu${isOpen ? ' open' : ''}`}>
+			<a
+				href="#"
+				className={`${lang} taxonomy`}
+				aria-expanded={isOpen}
+				onClick={(e) => handleSubmenuToggle(e, submenuKeyPrefix)}
+			>
+				{item.label}
+			</a>
 			<ul className="dropdown-menu">
 				{item.children.map((child, idx) =>
 					isMenuNode(child) ? (
-						<DropdownSubmenu key={idx} item={child} lang={lang} handleLinkClick={handleLinkClick} />
+						<DropdownSubmenu
+							key={idx}
+							item={child}
+							lang={lang}
+							handleLinkClick={handleLinkClick}
+							submenuKeyPrefix={`${submenuKeyPrefix}-${idx}`}
+							openSubmenus={openSubmenus}
+							handleSubmenuToggle={handleSubmenuToggle}
+						/>
 					) : (
 						<li key={idx} role="presentation">
 							<a
@@ -517,6 +540,7 @@ export function NavbarNormal({ currentLang }: NavbarNormalProps) {
 	const escAttr = (s: string) => (s || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;');
 	const [dropdownInitialized, setDropdownInitialized] = useState(false);
 	const [r2Endpoint, setR2Endpoint] = useState<string>('');
+	const [openSubmenus, setOpenSubmenus] = useState<Record<string, boolean>>({});
 
 	// 取得 R2 endpoint
 	useEffect(() => {
@@ -603,6 +627,10 @@ export function NavbarNormal({ currentLang }: NavbarNormalProps) {
 		}
 	}, [dropdownInitialized, r2Endpoint]);
 
+	useEffect(() => {
+		setOpenSubmenus({});
+	}, [location.pathname]);
+
 	const handleLinkClick = useCallback((e: React.MouseEvent<HTMLAnchorElement>, path: string) => {
 		// 允許外部連結和特殊按鍵行為
 		if (e.metaKey || e.altKey || e.ctrlKey || e.shiftKey || e.button !== 0) {
@@ -615,6 +643,15 @@ export function NavbarNormal({ currentLang }: NavbarNormalProps) {
 	const handlePrefClick = useCallback((e: React.MouseEvent<HTMLAnchorElement>) => {
 		e.preventDefault();
 		toggleUserPrefPanel();
+	}, []);
+
+	const handleSubmenuToggle = useCallback((e: React.MouseEvent<HTMLAnchorElement>, key: string) => {
+		e.preventDefault();
+		e.stopPropagation();
+		setOpenSubmenus((prev) => ({
+			...prev,
+			[key]: !prev[key]
+		}));
 	}, []);
 
 	return (
@@ -669,6 +706,9 @@ export function NavbarNormal({ currentLang }: NavbarNormalProps) {
 													item={page}
 													lang={option.key}
 													handleLinkClick={handleLinkClick}
+													submenuKeyPrefix={`${option.key}-${idx}`}
+													openSubmenus={openSubmenus}
+													handleSubmenuToggle={handleSubmenuToggle}
 												/>
 											) : (
 												<li key={`${option.key}-${idx}`} role="presentation">

@@ -102,23 +102,47 @@ export function InlineStyles({ r2Endpoint }: InlineStylesProps) {
 			.query-box { display: none; }
 		}
 
-		@media only screen and (max-width: 767px) {
-			#query-box.query-box {
-				right: auto !important;
-				width: 100% !important;
-				top: 40px !important;
-				height: 65px !important;
-				bottom: auto !important;
-				padding: 15px !important;
-				padding-bottom: 3px !important;
-				z-index: 11 !important;
-				border-right: none !important;
-			}
+			@media only screen and (max-width: 767px) {
+				#query-box.query-box {
+					right: auto !important;
+					width: 100% !important;
+					top: 40px !important;
+					height: 65px !important;
+					bottom: auto !important;
+					padding: 15px !important;
+					padding-bottom: 3px !important;
+					z-index: 11 !important;
+					border-right: none !important;
+				}
 
-			#main-content {
-				margin-left: 0;
+				#main-content {
+					margin-left: 0;
+				}
+
+				.navbar-nav .open .dropdown-menu {
+					width: 100vw !important;
+				}
+
+				/* 手機版分類索引：可展開項目在右側顯示白色向下箭頭 */
+				.navbar-inverse .navbar-nav .open .dropdown-menu .dropdown-submenu > a.taxonomy {
+					position: relative;
+					padding-right: 2em;
+				}
+				.navbar-inverse .navbar-nav .open .dropdown-menu .dropdown-submenu > a.taxonomy:before {
+					content: none !important;
+				}
+				.navbar-inverse .navbar-nav .open .dropdown-menu .dropdown-submenu > a.taxonomy:after {
+					content: "\\25BE";
+					position: absolute;
+					right: 1.6em;
+					top: 50%;
+					transform: translateY(-50%);
+					color: #999;
+					font-size: 0.9em;
+					line-height: 1;
+					pointer-events: none;
+				}
 			}
-		}
 
 		/* Autocomplete 選單樣式 */
 		.ui-autocomplete {
