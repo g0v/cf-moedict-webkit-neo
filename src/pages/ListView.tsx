@@ -6,6 +6,7 @@
 
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useRadicalTooltip } from '../hooks/useRadicalTooltip';
 
 type Lang = 'a' | 't' | 'h' | 'c';
 
@@ -29,6 +30,7 @@ export function ListView({ lang, category }: ListViewProps) {
   const [words, setWords] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  useRadicalTooltip();
 
   useEffect(() => {
     setLoading(true);
