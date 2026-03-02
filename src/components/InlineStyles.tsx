@@ -103,7 +103,7 @@ export function InlineStyles({ r2Endpoint }: InlineStylesProps) {
 		}
 
 		@media only screen and (max-width: 767px) {
-			.query-box {
+			#query-box.query-box {
 				right: auto !important;
 				width: 100% !important;
 				top: 40px !important;
@@ -111,7 +111,7 @@ export function InlineStyles({ r2Endpoint }: InlineStylesProps) {
 				bottom: auto !important;
 				padding: 15px !important;
 				padding-bottom: 3px !important;
-				z-index: 10 !important;
+				z-index: 11 !important;
 				border-right: none !important;
 			}
 
