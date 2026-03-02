@@ -2,7 +2,14 @@
 
 萌典（moedict）前端重構專案，使用 React + TypeScript + Vite，部署於 Cloudflare Workers。
 
-## 社群協作
+## 社群協作（最需要）
+
+目前最需要的協助是幫忙實測、發現 bug、提出 issue。  
+字典牽涉四種語系與多種複雜功能，很多問題必須靠實際跑流才會發現。  
+所以想參與協作，不一定要先建立完整開發環境；像啄木鳥一樣持續實測與提報錯誤，也非常有幫助。
+
+- 線上實測頁面：https://cf-moedict-webkit-neo.audreyt.workers.dev/
+- 錯誤回報頁面：https://github.com/g0v/cf-moedict-webkit-neo/issues
 
 ### 回報問題
 
