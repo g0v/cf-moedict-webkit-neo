@@ -35,5 +35,8 @@
 		"typescript-eslint": "^8.39.1",
 		"vite": "^7.1.2",
 		"wrangler": "^4.68.1"
+	},
+	"overrides": {
+		"undici": "^7.24.0"
 	}
 }
