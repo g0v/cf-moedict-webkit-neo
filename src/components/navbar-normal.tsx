@@ -764,6 +764,11 @@ export function NavbarNormal({ currentLang }: NavbarNormalProps) {
 						</ul>
 					</li>
 
+					{/* 手機版全文檢索（放在字詞紀錄簿左側） */}
+					<li className="navbar-fulltext-search-item-mobile hidden-sm hidden-md hidden-lg">
+						<FullTextSearch currentLang={resolvedLang} />
+					</li>
+
 					{/* 字詞紀錄簿按鈕 */}
 					<li id="btn-starred">
 						<a
