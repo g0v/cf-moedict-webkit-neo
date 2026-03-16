@@ -141,6 +141,13 @@ body {
 	line-height: 1.5;
 }
 
+.fulltext-search-highlight {
+	background: #fff59b;
+	color: inherit;
+	padding: 0 1px;
+	border-radius: 2px;
+}
+
 @media (max-width: 1024px) {
 	.fulltext-search {
 		width: 176px;

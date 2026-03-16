@@ -815,7 +815,7 @@ export function NavbarNormal({ currentLang }: NavbarNormalProps) {
 
 				{/* 右側區域 - 下載連結、搜尋框、社群連結 */}
 				<ul className="nav pull-right hidden-xs" style={{ display: 'flex' }}>
-					<li className="navbar-fulltext-search-item web-inline-only">
+					<li className="navbar-fulltext-search-item">
 						<FullTextSearch currentLang={resolvedLang} />
 					</li>
 

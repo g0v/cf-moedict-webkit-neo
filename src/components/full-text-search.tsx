@@ -59,6 +59,34 @@ function formatSearchPath(term: string, lang: Lang): string {
 	return `/${prefix}${term.trim()}`;
 }
 
+function escapeRegExp(value: string): string {
+	return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function renderHighlightedText(text: string, keyword: string): ReactNode {
+	const trimmedKeyword = keyword.trim();
+	if (!trimmedKeyword || text.length === 0) {
+		return text;
+	}
+
+	const matcher = new RegExp(`(${escapeRegExp(trimmedKeyword)})`, 'gi');
+	const segments = text.split(matcher);
+	if (segments.length <= 1) {
+		return text;
+	}
+
+	return segments.map((segment, index) => {
+		if (segment.toLocaleLowerCase() === trimmedKeyword.toLocaleLowerCase()) {
+			return (
+				<mark key={`${segment}-${index}`} className="fulltext-search-highlight">
+					{segment}
+				</mark>
+			);
+		}
+		return <span key={`${segment}-${index}`}>{segment}</span>;
+	});
+}
+
 export function FullTextSearch({ currentLang }: FullTextSearchProps) {
 	const navigate = useNavigate();
 	const location = useLocation();
@@ -276,8 +304,14 @@ export function FullTextSearch({ currentLang }: FullTextSearchProps) {
 							onMouseEnter={() => setActiveIndex(index)}
 							onClick={() => openResult(result)}
 						>
-							<span className="fulltext-search-result-title">{result.title}</span>
-							{result.snippet && <span className="fulltext-search-result-snippet">{result.snippet}</span>}
+							<span className="fulltext-search-result-title">
+								{renderHighlightedText(result.title, query)}
+							</span>
+							{result.snippet && (
+								<span className="fulltext-search-result-snippet">
+									{renderHighlightedText(result.snippet, query)}
+								</span>
+							)}
 						</button>
 					</li>
 				))}
