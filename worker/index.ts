@@ -117,11 +117,14 @@ function isViteInternalRequest(url: URL): boolean {
 
 function shouldRenderHtmlShell(request: Request, url: URL): boolean {
   const { pathname } = url;
+  console.log('🔍 [Index] 判斷是否需要渲染 HTML 殼:', pathname);
   if (request.method !== 'GET' && request.method !== 'HEAD') return false;
   if (pathname.startsWith('/api/')) return false;
+  if (pathname.endsWith('.json')) return false;
   if (pathname.startsWith('/assets/')) return false;
   if (isViteInternalRequest(url)) return false;
   if (/\.[a-zA-Z0-9]+$/.test(pathname) && pathname !== '/about.html' && pathname !== '/index.html') return false;
+  console.log('🔍 [Index] 需要渲染 HTML 殼:', pathname);
   return true;
 }
 
@@ -245,7 +248,7 @@ export default {
     }
 
 
-    if (url.pathname.startsWith('/api/')) {
+    if (url.pathname.startsWith('/api/') || url.pathname.endsWith('.json')) {
       console.log('🔍 [Index] 處理 API 請求:', url.pathname);
       const origin = request.headers.get('Origin');
       const corsHeaders = {

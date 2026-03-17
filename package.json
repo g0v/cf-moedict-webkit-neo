@@ -10,7 +10,7 @@
 		"dev": "vite",
 		"build": "tsc -b && vite build",
 		"lint": "eslint .",
-		"preview": "npm run build && vite preview",
+		"preview": "npm run build && npx wrangler dev",
 		"deploy": "npm run build && npx wrangler deploy",
 		"cf-typegen": "wrangler types"
 	},
