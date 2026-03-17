@@ -4,6 +4,7 @@
 	"version": "0.0.0",
 	"type": "module",
 	"scripts": {
+		"generate-c-index": "node commands/generateCIndex.js",
 		"predev": "npm run build-search-index",
 		"prebuild": "npm run build-search-index",
 		"build-search-index": "node scripts/build-search-index.mjs",
