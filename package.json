@@ -11,6 +11,7 @@
 		"dev": "vite",
 		"build": "tsc -b && vite build",
 		"lint": "eslint .",
+		"smoke:sub-routes": "node scripts/smoke-sub-routes.mjs",
 		"preview": "npm run build && npx wrangler dev",
 		"deploy": "npm run build && npx wrangler deploy",
 		"cf-typegen": "wrangler types"
