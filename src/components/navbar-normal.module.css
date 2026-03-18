@@ -1,0 +1,60 @@
+.dropdownMenu.open {
+  display: flex;
+}
+
+.dropdownMenu {
+  display: none;
+  flex-direction: column;
+  width: fit-content;
+  min-width: 160px;
+  padding: 5px 0;
+  background-color: white;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.175);
+  list-style: none;
+  position: absolute;
+  z-index: 1000;
+  border-radius: 4px;
+}
+
+.dropdownMenu a {
+  padding: 3px 20px;
+  padding-right: 28px;
+  white-space: nowrap;
+  display: block;
+  text-decoration: none !important;
+  color: #333 !important;
+}
+
+.dropdownMenu a:hover {
+  background-color: #f5f5f5;
+}
+
+.dropdownSubmenu {
+  position: relative;
+}
+
+.dropdownSubmenu > a::after {
+  content: '▶';
+  font-size: 10px;
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.dropdownSubmenu > .dropdownMenu {
+  display: none;
+  position: fixed;
+}
+
+.dropdownSubmenu.pinned {
+  margin: -1px;
+  border: 1px solid #74b2e2;
+}
+
+.dropdownSubmenu.hover > .dropdownMenu,
+.dropdownSubmenu.pinned > .dropdownMenu
+{
+  display: block;
+}

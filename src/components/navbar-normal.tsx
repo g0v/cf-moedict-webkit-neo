@@ -4,12 +4,13 @@
  * 使用 React Router 進行路由
  */
 
-import { Fragment, useCallback, useEffect, useState } from 'react';
+import { Fragment, useCallback, useRef, type MouseEventHandler } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { toggleUserPrefPanel } from './user-pref';
 import { computeLangSwitchPathAsync, LANG_PREFIX } from '../utils/xref-switch-utils';
 import { readLRUWords } from '../utils/word-record-utils';
 import { FullTextSearch } from './full-text-search';
+import styled from './navbar-normal.module.css'
 
 type Lang = 'a' | 't' | 'h' | 'c';
 
@@ -486,29 +487,57 @@ function DropdownSubmenu({
 	lang,
 	handleLinkClick,
 	submenuKeyPrefix,
-	openSubmenus,
-	handleSubmenuToggle
 }: {
 	item: MenuNode;
 	lang: Lang;
 	handleLinkClick: (e: React.MouseEvent<HTMLAnchorElement>, path: string) => void;
 	submenuKeyPrefix: string;
-	openSubmenus: Record<string, boolean>;
-	handleSubmenuToggle: (e: React.MouseEvent<HTMLAnchorElement>, key: string) => void;
 }) {
-	const isOpen = Boolean(openSubmenus[submenuKeyPrefix]);
+	const rootRef = useRef<HTMLLIElement>(null);
+
+	const enterDropdown: MouseEventHandler<HTMLLIElement> = (e) => {
+		const parent = e.currentTarget.parentElement;
+		const innerDropdownMenu = e.currentTarget.querySelector<HTMLUListElement>(`.${styled.dropdownMenu}`);
+		if (!innerDropdownMenu || !parent) return
+		const currentSiblings = Array.from(e.currentTarget.parentElement?.children ?? [])
+		currentSiblings.filter(el => el !== e.currentTarget).forEach(el => el.classList.remove(styled.pinned))
+		e.currentTarget.classList.add(styled.hover);
+
+		const parentRect = parent.getBoundingClientRect()
+
+		innerDropdownMenu.style.left = `${parentRect.left + parentRect.width}px`
+		innerDropdownMenu.style.top = `${parentRect.top}px`
+
+		const currentTargetRect = e.currentTarget.getBoundingClientRect()
+		const innerDropdownMenuRect = innerDropdownMenu.getBoundingClientRect()
+
+		if (currentTargetRect.bottom > innerDropdownMenuRect.bottom) {
+			innerDropdownMenu.style.top = `${currentTargetRect.bottom - innerDropdownMenuRect.height}px`
+		}
+	}
+
+	const leaveDropdown: MouseEventHandler<HTMLLIElement> = (e) => {
+		e.currentTarget.classList.remove(styled.hover);
+	}
+
+	const pinDropdown: MouseEventHandler<HTMLLIElement> = (e) => {
+		e.preventDefault()
+		e.stopPropagation()
+		const currentSiblings = Array.from(e.currentTarget.parentElement?.children ?? [])
+		currentSiblings.filter(el => el !== e.currentTarget).forEach(el => el.classList.remove(styled.pinned))
+		e.currentTarget.classList.toggle(styled.pinned)
+		e.currentTarget.classList.remove(styled.hover)
+	}
 
 	return (
-		<li className={`dropdown-submenu${isOpen ? ' open' : ''}`}>
+		<li ref={rootRef} className={styled.dropdownSubmenu} onMouseEnter={enterDropdown} onMouseLeave={leaveDropdown} onClick={pinDropdown}>
 			<a
 				href="#"
 				className={`${lang} taxonomy`}
-				aria-expanded={isOpen}
-				onClick={(e) => handleSubmenuToggle(e, submenuKeyPrefix)}
 			>
 				{item.label}
 			</a>
-			<ul className="dropdown-menu">
+			<ul className={styled.dropdownMenu}>
 				{item.children.map((child, idx) =>
 					isMenuNode(child) ? (
 						<DropdownSubmenu
@@ -517,8 +546,6 @@ function DropdownSubmenu({
 							lang={lang}
 							handleLinkClick={handleLinkClick}
 							submenuKeyPrefix={`${submenuKeyPrefix}-${idx}`}
-							openSubmenus={openSubmenus}
-							handleSubmenuToggle={handleSubmenuToggle}
 						/>
 					) : (
 						<li key={idx} role="presentation">
@@ -547,98 +574,6 @@ export function NavbarNormal({ currentLang }: NavbarNormalProps) {
 	const resolvedLang = currentLang || inferLangFromPath(location.pathname);
 	const starredPath = getStarredPath(resolvedLang);
 	const currentLangOption = LANG_OPTIONS.find(opt => opt.key === resolvedLang);
-	const [dropdownInitialized, setDropdownInitialized] = useState(false);
-	const [r2Endpoint, setR2Endpoint] = useState<string>('');
-	const [openSubmenus, setOpenSubmenus] = useState<Record<string, boolean>>({});
-
-	// 取得 R2 endpoint
-	useEffect(() => {
-		fetch('/api/config')
-			.then((res) => res.json())
-			.then((data: { assetBaseUrl?: string }) => {
-				if (data.assetBaseUrl) {
-					const endpoint = data.assetBaseUrl.replace(/\/$/, '');
-					setR2Endpoint(endpoint);
-				}
-			})
-			.catch(() => {
-				// 如果 API 失敗，使用 /assets 路徑（由 Worker 代理）
-				setR2Endpoint('');
-			});
-	}, []);
-
-	// 動態載入 Bootstrap Dropdown
-	useEffect(() => {
-		if (dropdownInitialized) return;
-		if (!r2Endpoint) {
-			// 等待 AssetLoader 載入 jQuery
-			const checkInterval = setInterval(() => {
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
-				if ((window as any).jQuery) {
-					clearInterval(checkInterval);
-					initDropdown();
-				}
-			}, 100);
-			return () => clearInterval(checkInterval);
-		}
-
-		const basePath = r2Endpoint || '/assets';
-
-		const loadScript = (src: string): Promise<void> => {
-			return new Promise((resolve, reject) => {
-				// 檢查是否已經載入
-				const existing = document.querySelector(`script[src="${src}"]`);
-				if (existing) {
-					resolve();
-					return;
-				}
-
-				const script = document.createElement('script');
-				script.src = src;
-				script.onload = () => resolve();
-				script.onerror = () => reject(new Error(`Failed to load: ${src}`));
-				document.head.appendChild(script);
-			});
-		};
-
-		const initDropdown = async () => {
-			try {
-				// 確保 jQuery 已載入
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
-				if (!(window as any).jQuery) {
-					await loadScript(`${basePath}/js/jquery-2.1.1.min.js`);
-				}
-				// 確保 Bootstrap dropdown 已載入
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
-				if (!(window as any).jQuery?.fn?.dropdown) {
-					await loadScript(`${basePath}/js/bootstrap/dropdown.js`);
-				}
-				// 初始化 dropdown
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
-				const $ = (window as any).jQuery;
-				if ($) {
-					$(() => {
-						try {
-							$('.dropdown-toggle').dropdown();
-						} catch (e) {
-							console.warn('Dropdown 初始化失敗:', e);
-						}
-					});
-				}
-				setDropdownInitialized(true);
-			} catch (e) {
-				console.warn('載入 Bootstrap Dropdown 失敗:', e);
-			}
-		};
-
-		if (r2Endpoint !== undefined) {
-			initDropdown();
-		}
-	}, [dropdownInitialized, r2Endpoint]);
-
-	useEffect(() => {
-		setOpenSubmenus({});
-	}, [location.pathname]);
 
 	const handleLinkClick = useCallback((e: React.MouseEvent<HTMLAnchorElement>, path: string) => {
 		// 允許外部連結和特殊按鍵行為
@@ -680,14 +615,19 @@ export function NavbarNormal({ currentLang }: NavbarNormalProps) {
 		});
 	}, [resolvedLang, location.pathname, navigate]);
 
-	const handleSubmenuToggle = useCallback((e: React.MouseEvent<HTMLAnchorElement>, key: string) => {
-		e.preventDefault();
-		e.stopPropagation();
-		setOpenSubmenus((prev) => ({
-			...prev,
-			[key]: !prev[key]
-		}));
-	}, []);
+	const handleMenuToggle: MouseEventHandler<HTMLAnchorElement> = (e) => {
+		e.preventDefault()
+		const dropdownMenu = e.currentTarget.nextElementSibling;
+		if (!dropdownMenu) return
+		dropdownMenu.classList.toggle(styled.open);
+
+		if (!dropdownMenu.classList.contains(styled.open)) {
+			dropdownMenu.querySelectorAll(`.${styled.dropdownSubmenu}`).forEach(el => {
+				el.classList.remove(styled.pinned)
+				el.classList.remove(styled.hover)
+			});
+		}
+	}
 
 	return (
 		<>
@@ -705,8 +645,8 @@ export function NavbarNormal({ currentLang }: NavbarNormalProps) {
 
 				<ul className="nav navbar-nav">
 					{/* 辭典下拉選單 */}
-					<li className="dropdown">
-						<a href="#" data-toggle="dropdown" className="dropdown-toggle">
+					<li>
+						<a href="#" onClick={handleMenuToggle}>
 							<i className="icon-book">&nbsp;</i>
 							<span
 								style={{ margin: 0, padding: 0 }}
@@ -717,7 +657,7 @@ export function NavbarNormal({ currentLang }: NavbarNormalProps) {
 							</span>
 							<b className="caret"></b>
 						</a>
-						<ul role="navigation" className="dropdown-menu">
+						<ul role="navigation" className={`main ${styled.dropdownMenu}`}>
 							{LANG_OPTIONS.map(option => {
 								const specialPages = LANG_SPECIAL_PAGES[option.key] || [];
 								return (
@@ -742,8 +682,6 @@ export function NavbarNormal({ currentLang }: NavbarNormalProps) {
 													lang={option.key}
 													handleLinkClick={handleLinkClick}
 													submenuKeyPrefix={`${option.key}-${idx}`}
-													openSubmenus={openSubmenus}
-													handleSubmenuToggle={handleSubmenuToggle}
 												/>
 											) : (
 												<li key={`${option.key}-${idx}`} role="presentation">
