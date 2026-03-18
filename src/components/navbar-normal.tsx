@@ -493,8 +493,6 @@ function DropdownSubmenu({
 	handleLinkClick: (e: React.MouseEvent<HTMLAnchorElement>, path: string) => void;
 	submenuKeyPrefix: string;
 }) {
-	const rootRef = useRef<HTMLLIElement>(null);
-
 	const enterDropdown: MouseEventHandler<HTMLLIElement> = (e) => {
 		const parent = e.currentTarget.parentElement;
 		const innerDropdownMenu = e.currentTarget.querySelector<HTMLUListElement>(`.${styled.dropdownMenu}`);
@@ -530,7 +528,7 @@ function DropdownSubmenu({
 	}
 
 	return (
-		<li ref={rootRef} className={styled.dropdownSubmenu} onMouseEnter={enterDropdown} onMouseLeave={leaveDropdown} onClick={pinDropdown}>
+		<li className={styled.dropdownSubmenu} onMouseEnter={enterDropdown} onMouseLeave={leaveDropdown} onClick={pinDropdown}>
 			<a
 				href="#"
 				className={`${lang} taxonomy`}
