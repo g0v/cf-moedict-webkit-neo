@@ -657,7 +657,7 @@ export function NavbarNormal({ currentLang }: NavbarNormalProps) {
 							</span>
 							<b className="caret"></b>
 						</a>
-						<ul role="navigation" className={`main ${styled.dropdownMenu}`}>
+						<ul role="navigation" className={`${styled.dropdownMenuRoot}`}>
 							{LANG_OPTIONS.map(option => {
 								const specialPages = LANG_SPECIAL_PAGES[option.key] || [];
 								return (
