@@ -4,7 +4,7 @@
  * 使用 React Router 進行路由
  */
 
-import { Fragment, useCallback, useEffect, useState, type MouseEventHandler } from 'react';
+import { Fragment, useCallback, useEffect, useRef, useState, type MouseEventHandler } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { toggleUserPrefPanel } from './user-pref';
 import { computeLangSwitchPathAsync, LANG_PREFIX } from '../utils/xref-switch-utils';
@@ -569,11 +569,25 @@ function DropdownSubmenu({
 export function NavbarNormal({ currentLang }: NavbarNormalProps) {
 	const location = useLocation();
 	const navigate = useNavigate();
+	const dropdownMenuRootRef = useRef<HTMLUListElement | null>(null);
 	const resolvedLang = currentLang || inferLangFromPath(location.pathname);
 	const starredPath = getStarredPath(resolvedLang);
 	const currentLangOption = LANG_OPTIONS.find(opt => opt.key === resolvedLang);
 	const [dropdownInitialized, setDropdownInitialized] = useState(false);
 	const [r2Endpoint, setR2Endpoint] = useState<string>('');
+
+	const closeDictionaryDropdown = useCallback(() => {
+		const dropdownMenuRoot = dropdownMenuRootRef.current;
+		if (!dropdownMenuRoot) return;
+		dropdownMenuRoot.classList.remove(styled.open);
+		dropdownMenuRoot.querySelectorAll(`.${styled.open}`).forEach((el) => {
+			el.classList.remove(styled.open);
+		});
+		dropdownMenuRoot.querySelectorAll(`.${styled.dropdownSubmenu}`).forEach((el) => {
+			el.classList.remove(styled.pinned);
+			el.classList.remove(styled.hover);
+		});
+	}, []);
 
 	// 取得 R2 endpoint（wrangler vars.ASSET_BASE_URL → /api/config.assetBaseUrl）
 	useEffect(() => {
@@ -666,8 +680,9 @@ export function NavbarNormal({ currentLang }: NavbarNormalProps) {
 			return;
 		}
 		e.preventDefault();
+		closeDictionaryDropdown();
 		navigate(path);
-	}, [navigate]);
+	}, [closeDictionaryDropdown, navigate]);
 
 	const handlePrefClick = useCallback((e: React.MouseEvent<HTMLAnchorElement>) => {
 		e.preventDefault();
@@ -682,6 +697,7 @@ export function NavbarNormal({ currentLang }: NavbarNormalProps) {
 	const handleLangOptionClick = useCallback((e: React.MouseEvent<HTMLAnchorElement>, toLang: Lang) => {
 		if (e.metaKey || e.altKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
 		e.preventDefault();
+		closeDictionaryDropdown();
 
 		const fromLang = resolvedLang;
 		const fromWord = extractWordFromPath(location.pathname, fromLang);
@@ -698,7 +714,7 @@ export function NavbarNormal({ currentLang }: NavbarNormalProps) {
 		void computeLangSwitchPathAsync(fromLang, toLang, fromWord).then((targetPath) => {
 			navigate(targetPath);
 		});
-	}, [resolvedLang, location.pathname, navigate]);
+	}, [closeDictionaryDropdown, resolvedLang, location.pathname, navigate]);
 
 	const handleMenuToggle: MouseEventHandler<HTMLAnchorElement> = (e) => {
 		e.preventDefault()
@@ -742,7 +758,7 @@ export function NavbarNormal({ currentLang }: NavbarNormalProps) {
 							</span>
 							<b className="caret"></b>
 						</a>
-						<ul role="navigation" className={`${styled.dropdownMenuRoot}`}>
+						<ul role="navigation" className={`${styled.dropdownMenuRoot}`} ref={dropdownMenuRootRef}>
 							{LANG_OPTIONS.map(option => {
 								const specialPages = LANG_SPECIAL_PAGES[option.key] || [];
 								return (
