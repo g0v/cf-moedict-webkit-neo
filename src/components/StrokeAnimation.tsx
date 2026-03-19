@@ -50,7 +50,7 @@ function loadScript(src: string): Promise<void> {
 	});
 }
 
-/** 取 R2 endpoint（從 /api/config 或 fallback /assets） */
+/** 取 R2 endpoint（wrangler vars.ASSET_BASE_URL → /api/config.assetBaseUrl；失敗則 /assets） */
 async function fetchR2Endpoint(): Promise<string> {
 	try {
 		const res = await fetch('/api/config');

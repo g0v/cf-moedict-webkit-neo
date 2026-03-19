@@ -32,7 +32,7 @@ const INDEX_FALLBACK_ORDER: Record<Lang, Lang[]> = {
 	a: ['a'],
 	t: ['t'],
 	h: ['h'],
-	c: ['c', 'a'],
+	c: ['c'],
 };
 
 /**

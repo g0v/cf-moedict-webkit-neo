@@ -135,6 +135,7 @@ export function AssetLoader({ r2Endpoint, onCriticalStylesReady }: AssetLoaderPr
 
 			if (!endpoint) {
 				try {
+					// wrangler vars.ASSET_BASE_URL → /api/config.assetBaseUrl
 					const res = await fetch('/api/config');
 					const data: { assetBaseUrl?: string } = await res.json();
 					if (data.assetBaseUrl) {
@@ -170,7 +171,6 @@ export function AssetLoader({ r2Endpoint, onCriticalStylesReady }: AssetLoaderPr
 			try {
 				await loadScript(`${basePath}/js/es5-shim.js`, 'es5-shim');
 				await loadScript(`${basePath}/js/es5-sham.js`, 'es5-sham');
-				await loadScript(`${basePath}/js/deps.js`, 'deps');
 			} catch (err) {
 				console.warn('載入 JS 資源失敗:', err);
 			}

@@ -3,12 +3,16 @@ import { lookupDictionaryEntry } from '../src/api/handleDictionaryAPI';
 import { handleListAPI } from '../src/api/handleListAPI';
 import { handleStrokeAPI } from '../src/api/handleStrokeAPI';
 import { escapeHeadContent, resolveHeadByPath } from '../src/ssr/head';
+import { handleImageGeneration } from '../src/utils/image-generation';
 
 interface Env {
+	/** wrangler vars：靜態資源公開端；見 /api/config.assetBaseUrl、/assets/* 代理 */
 	ASSET_BASE_URL?: string;
+	/** wrangler vars：僅注入 /api/config.dictionaryBaseUrl；目前無前端使用 */
 	DICTIONARY_BASE_URL?: string;
 	DICTIONARY: R2Bucket;
   ASSETS?: Fetcher | R2Bucket;
+  FONTS: R2Bucket;
 }
 
 type DictionaryLang = 'a' | 't' | 'h' | 'c';
@@ -117,11 +121,14 @@ function isViteInternalRequest(url: URL): boolean {
 
 function shouldRenderHtmlShell(request: Request, url: URL): boolean {
   const { pathname } = url;
+  console.log('🔍 [Index] 判斷是否需要渲染 HTML 殼:', pathname);
   if (request.method !== 'GET' && request.method !== 'HEAD') return false;
   if (pathname.startsWith('/api/')) return false;
+  if (pathname.endsWith('.json')) return false;
   if (pathname.startsWith('/assets/')) return false;
   if (isViteInternalRequest(url)) return false;
   if (/\.[a-zA-Z0-9]+$/.test(pathname) && pathname !== '/about.html' && pathname !== '/index.html') return false;
+  console.log('🔍 [Index] 需要渲染 HTML 殼:', pathname);
   return true;
 }
 
@@ -245,7 +252,7 @@ export default {
     }
 
 
-    if (url.pathname.startsWith('/api/')) {
+    if (url.pathname.startsWith('/api/') || url.pathname.endsWith('.json')) {
       console.log('🔍 [Index] 處理 API 請求:', url.pathname);
       const origin = request.headers.get('Origin');
       const corsHeaders = {
@@ -254,7 +261,7 @@ export default {
         'Access-Control-Allow-Headers': 'Content-Type',
       };
 
-      // 提供配置資訊 API
+      // 提供配置資訊 API（vars → JSON；ASSET 前端有讀取，DICTIONARY 目前僅回傳未使用）
       if (url.pathname === '/api/config') {
         console.log('🔍 [Index] 提供配置資訊');
         return Response.json({
@@ -399,7 +406,7 @@ export default {
       return staticResponse;
     }
 
-    // ASSETS 找不到時，才回退到 R2 代理舊版靜態資源（字體、圖片等）
+    // ASSETS 找不到時，才回退到 R2 代理舊版靜態資源（字體、圖片等）；URL 來自 vars.ASSET_BASE_URL
     if (env.ASSET_BASE_URL && url.pathname.startsWith('/assets/')) {
       const assetPath = url.pathname.replace('/assets/', '');
       const assetUrl = `${env.ASSET_BASE_URL}/${assetPath}${url.search}`;
@@ -439,7 +446,12 @@ export default {
       });
     }
 
-    if (staticResponse) return staticResponse;
+    if (staticResponse && staticResponse.status !== 404) return staticResponse;
+
+    const isPngRequest = url.pathname.endsWith('.png');
+    if (isPngRequest && (!staticResponse || staticResponse.status === 404)) {
+      return await handleImageGeneration(url, { FONTS: env.FONTS });
+    }
 
 		return new Response(null, { status: 404 });
   },

@@ -8,12 +8,19 @@
 	"main": "worker/index.ts",
 	"compatibility_date": "2025-11-05",
 	"assets": {
-		"not_found_handling": "single-page-application"
+		"not_found_handling": "single-page-application",
+		"run_worker_first": ["/api/*", "/*.png", "/*.json", "/translation-data/cfdict.xml", "!/manifest.json"]
 	},
 	"observability": {
 		"enabled": true
 	},
 	"r2_buckets": [
+		{
+			"binding": "FONTS",
+			"bucket_name": "<your-fonts-bucket>",
+			"preview_bucket_name": "<your-fonts-preview>",
+			"remote: true
+		},
 		{
 			"binding": "MOEDICT_ASSETS",
 			"bucket_name": "<your-assets-bucket>",
@@ -28,7 +35,9 @@
 		}
 	],
 	"vars": {
+		// ASSET_BASE_URL：有使用。Worker 用於 (1) /api/config 的 assetBaseUrl (2) /assets/* 在 ASSETS 綁定找不到時代理到 R2。前端多處透過 /api/config 載入靜態資源基底路徑。
 		"ASSET_BASE_URL": "https://<your-pub-id>.r2.dev",
+		// DICTIONARY_BASE_URL：目前僅由 /api/config 回傳 dictionaryBaseUrl；程式碼庫內尚無讀取該欄位。字典 JSON 實際由 Worker 綁定 DICTIONARY R2（/api/*.json 等）提供，非此公開 URL 直連。
 		"DICTIONARY_BASE_URL": "https://<your-pub-id>.r2.dev"
 	}
 	/**

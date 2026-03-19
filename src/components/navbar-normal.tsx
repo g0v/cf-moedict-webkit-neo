@@ -572,6 +572,98 @@ export function NavbarNormal({ currentLang }: NavbarNormalProps) {
 	const resolvedLang = currentLang || inferLangFromPath(location.pathname);
 	const starredPath = getStarredPath(resolvedLang);
 	const currentLangOption = LANG_OPTIONS.find(opt => opt.key === resolvedLang);
+	const [dropdownInitialized, setDropdownInitialized] = useState(false);
+	const [r2Endpoint, setR2Endpoint] = useState<string>('');
+	const [openSubmenus, setOpenSubmenus] = useState<Record<string, boolean>>({});
+
+	// 取得 R2 endpoint（wrangler vars.ASSET_BASE_URL → /api/config.assetBaseUrl）
+	useEffect(() => {
+		fetch('/api/config')
+			.then((res) => res.json())
+			.then((data: { assetBaseUrl?: string }) => {
+				if (data.assetBaseUrl) {
+					const endpoint = data.assetBaseUrl.replace(/\/$/, '');
+					setR2Endpoint(endpoint);
+				}
+			})
+			.catch(() => {
+				// 如果 API 失敗，使用 /assets 路徑（由 Worker 代理）
+				setR2Endpoint('');
+			});
+	}, []);
+
+	// 動態載入 Bootstrap Dropdown
+	useEffect(() => {
+		if (dropdownInitialized) return;
+		if (!r2Endpoint) {
+			// 等待 AssetLoader 載入 jQuery
+			const checkInterval = setInterval(() => {
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				if ((window as any).jQuery) {
+					clearInterval(checkInterval);
+					initDropdown();
+				}
+			}, 100);
+			return () => clearInterval(checkInterval);
+		}
+
+		const basePath = r2Endpoint || '/assets';
+
+		const loadScript = (src: string): Promise<void> => {
+			return new Promise((resolve, reject) => {
+				// 檢查是否已經載入
+				const existing = document.querySelector(`script[src="${src}"]`);
+				if (existing) {
+					resolve();
+					return;
+				}
+
+				const script = document.createElement('script');
+				script.src = src;
+				script.onload = () => resolve();
+				script.onerror = () => reject(new Error(`Failed to load: ${src}`));
+				document.head.appendChild(script);
+			});
+		};
+
+		const initDropdown = async () => {
+			try {
+				// 確保 jQuery 已載入
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				if (!(window as any).jQuery) {
+					await loadScript(`${basePath}/js/jquery-2.1.1.min.js`);
+				}
+				// 確保 Bootstrap dropdown 已載入
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				if (!(window as any).jQuery?.fn?.dropdown) {
+					await loadScript(`${basePath}/js/bootstrap/dropdown.js`);
+				}
+				// 初始化 dropdown
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				const $ = (window as any).jQuery;
+				if ($) {
+					$(() => {
+						try {
+							$('.dropdown-toggle').dropdown();
+						} catch (e) {
+							console.warn('Dropdown 初始化失敗:', e);
+						}
+					});
+				}
+				setDropdownInitialized(true);
+			} catch (e) {
+				console.warn('載入 Bootstrap Dropdown 失敗:', e);
+			}
+		};
+
+		if (r2Endpoint !== undefined) {
+			initDropdown();
+		}
+	}, [dropdownInitialized, r2Endpoint]);
+
+	useEffect(() => {
+		setOpenSubmenus({});
+	}, [location.pathname]);
 
 	const handleLinkClick = useCallback((e: React.MouseEvent<HTMLAnchorElement>, path: string) => {
 		// 允許外部連結和特殊按鍵行為
@@ -700,6 +792,11 @@ export function NavbarNormal({ currentLang }: NavbarNormalProps) {
 						</ul>
 					</li>
 
+					{/* 手機版全文檢索（放在字詞紀錄簿左側） */}
+					<li className="navbar-fulltext-search-item-mobile hidden-sm hidden-md hidden-lg">
+						<FullTextSearch currentLang={resolvedLang} />
+					</li>
+
 					{/* 字詞紀錄簿按鈕 */}
 					<li id="btn-starred">
 						<a
@@ -751,7 +848,7 @@ export function NavbarNormal({ currentLang }: NavbarNormalProps) {
 
 				{/* 右側區域 - 下載連結、搜尋框、社群連結 */}
 				<ul className="nav pull-right hidden-xs" style={{ display: 'flex' }}>
-					<li className="navbar-fulltext-search-item web-inline-only">
+					<li className="navbar-fulltext-search-item">
 						<FullTextSearch currentLang={resolvedLang} />
 					</li>
 

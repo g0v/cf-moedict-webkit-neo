@@ -4,13 +4,15 @@
 	"version": "0.0.0",
 	"type": "module",
 	"scripts": {
+		"generate-c-index": "node commands/generateCIndex.js",
 		"predev": "npm run build-search-index",
 		"prebuild": "npm run build-search-index",
 		"build-search-index": "node scripts/build-search-index.mjs",
 		"dev": "vite",
 		"build": "tsc -b && vite build",
 		"lint": "eslint .",
-		"preview": "npm run build && vite preview",
+		"smoke:sub-routes": "node scripts/smoke-sub-routes.mjs",
+		"preview": "npm run build && npx wrangler dev",
 		"deploy": "npm run build && npx wrangler deploy",
 		"cf-typegen": "wrangler types"
 	},
@@ -35,5 +37,8 @@
 		"typescript-eslint": "^8.39.1",
 		"vite": "^7.1.2",
 		"wrangler": "^4.68.1"
+	},
+	"overrides": {
+		"undici": "^7.24.0"
 	}
 }
