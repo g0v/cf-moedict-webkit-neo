@@ -4,12 +4,13 @@
  * 使用 React Router 進行路由
  */
 
-import { Fragment, useCallback, useEffect, useState } from 'react';
+import { Fragment, useCallback, useRef, type MouseEventHandler } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { toggleUserPrefPanel } from './user-pref';
 import { computeLangSwitchPathAsync, LANG_PREFIX } from '../utils/xref-switch-utils';
 import { readLRUWords } from '../utils/word-record-utils';
 import { FullTextSearch } from './full-text-search';
+import styled from './navbar-normal.module.css'
 
 type Lang = 'a' | 't' | 'h' | 'c';
 
@@ -486,29 +487,55 @@ function DropdownSubmenu({
 	lang,
 	handleLinkClick,
 	submenuKeyPrefix,
-	openSubmenus,
-	handleSubmenuToggle
 }: {
 	item: MenuNode;
 	lang: Lang;
 	handleLinkClick: (e: React.MouseEvent<HTMLAnchorElement>, path: string) => void;
 	submenuKeyPrefix: string;
-	openSubmenus: Record<string, boolean>;
-	handleSubmenuToggle: (e: React.MouseEvent<HTMLAnchorElement>, key: string) => void;
 }) {
-	const isOpen = Boolean(openSubmenus[submenuKeyPrefix]);
+	const enterDropdown: MouseEventHandler<HTMLLIElement> = (e) => {
+		const parent = e.currentTarget.parentElement;
+		const innerDropdownMenu = e.currentTarget.querySelector<HTMLUListElement>(`.${styled.dropdownMenu}`);
+		if (!innerDropdownMenu || !parent) return
+		const currentSiblings = Array.from(e.currentTarget.parentElement?.children ?? [])
+		currentSiblings.filter(el => el !== e.currentTarget).forEach(el => el.classList.remove(styled.pinned))
+		e.currentTarget.classList.add(styled.hover);
+
+		const parentRect = parent.getBoundingClientRect()
+
+		innerDropdownMenu.style.left = `${parentRect.left + parentRect.width}px`
+		innerDropdownMenu.style.top = `${parentRect.top}px`
+
+		const currentTargetRect = e.currentTarget.getBoundingClientRect()
+		const innerDropdownMenuRect = innerDropdownMenu.getBoundingClientRect()
+
+		if (currentTargetRect.bottom > innerDropdownMenuRect.bottom) {
+			innerDropdownMenu.style.top = `${currentTargetRect.bottom - innerDropdownMenuRect.height}px`
+		}
+	}
+
+	const leaveDropdown: MouseEventHandler<HTMLLIElement> = (e) => {
+		e.currentTarget.classList.remove(styled.hover);
+	}
+
+	const pinDropdown: MouseEventHandler<HTMLLIElement> = (e) => {
+		e.preventDefault()
+		e.stopPropagation()
+		const currentSiblings = Array.from(e.currentTarget.parentElement?.children ?? [])
+		currentSiblings.filter(el => el !== e.currentTarget).forEach(el => el.classList.remove(styled.pinned))
+		e.currentTarget.classList.toggle(styled.pinned)
+		e.currentTarget.classList.remove(styled.hover)
+	}
 
 	return (
-		<li className={`dropdown-submenu${isOpen ? ' open' : ''}`}>
+		<li className={styled.dropdownSubmenu} onMouseEnter={enterDropdown} onMouseLeave={leaveDropdown} onClick={pinDropdown}>
 			<a
 				href="#"
 				className={`${lang} taxonomy`}
-				aria-expanded={isOpen}
-				onClick={(e) => handleSubmenuToggle(e, submenuKeyPrefix)}
 			>
 				{item.label}
 			</a>
-			<ul className="dropdown-menu">
+			<ul className={styled.dropdownMenu}>
 				{item.children.map((child, idx) =>
 					isMenuNode(child) ? (
 						<DropdownSubmenu
@@ -517,8 +544,6 @@ function DropdownSubmenu({
 							lang={lang}
 							handleLinkClick={handleLinkClick}
 							submenuKeyPrefix={`${submenuKeyPrefix}-${idx}`}
-							openSubmenus={openSubmenus}
-							handleSubmenuToggle={handleSubmenuToggle}
 						/>
 					) : (
 						<li key={idx} role="presentation">
@@ -680,14 +705,19 @@ export function NavbarNormal({ currentLang }: NavbarNormalProps) {
 		});
 	}, [resolvedLang, location.pathname, navigate]);
 
-	const handleSubmenuToggle = useCallback((e: React.MouseEvent<HTMLAnchorElement>, key: string) => {
-		e.preventDefault();
-		e.stopPropagation();
-		setOpenSubmenus((prev) => ({
-			...prev,
-			[key]: !prev[key]
-		}));
-	}, []);
+	const handleMenuToggle: MouseEventHandler<HTMLAnchorElement> = (e) => {
+		e.preventDefault()
+		const dropdownMenu = e.currentTarget.nextElementSibling;
+		if (!dropdownMenu) return
+		dropdownMenu.classList.toggle(styled.open);
+
+		if (!dropdownMenu.classList.contains(styled.open)) {
+			dropdownMenu.querySelectorAll(`.${styled.dropdownSubmenu}`).forEach(el => {
+				el.classList.remove(styled.pinned)
+				el.classList.remove(styled.hover)
+			});
+		}
+	}
 
 	return (
 		<>
@@ -705,8 +735,8 @@ export function NavbarNormal({ currentLang }: NavbarNormalProps) {
 
 				<ul className="nav navbar-nav">
 					{/* 辭典下拉選單 */}
-					<li className="dropdown">
-						<a href="#" data-toggle="dropdown" className="dropdown-toggle">
+					<li>
+						<a href="#" onClick={handleMenuToggle}>
 							<i className="icon-book">&nbsp;</i>
 							<span
 								style={{ margin: 0, padding: 0 }}
@@ -717,7 +747,7 @@ export function NavbarNormal({ currentLang }: NavbarNormalProps) {
 							</span>
 							<b className="caret"></b>
 						</a>
-						<ul role="navigation" className="dropdown-menu">
+						<ul role="navigation" className={`${styled.dropdownMenuRoot}`}>
 							{LANG_OPTIONS.map(option => {
 								const specialPages = LANG_SPECIAL_PAGES[option.key] || [];
 								return (
@@ -742,8 +772,6 @@ export function NavbarNormal({ currentLang }: NavbarNormalProps) {
 													lang={option.key}
 													handleLinkClick={handleLinkClick}
 													submenuKeyPrefix={`${option.key}-${idx}`}
-													openSubmenus={openSubmenus}
-													handleSubmenuToggle={handleSubmenuToggle}
 												/>
 											) : (
 												<li key={`${option.key}-${idx}`} role="presentation">
