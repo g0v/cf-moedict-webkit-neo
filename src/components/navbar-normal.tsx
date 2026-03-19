@@ -4,7 +4,7 @@
  * 使用 React Router 進行路由
  */
 
-import { Fragment, useCallback, useRef, type MouseEventHandler } from 'react';
+import { Fragment, useCallback, useEffect, useState, type MouseEventHandler } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { toggleUserPrefPanel } from './user-pref';
 import { computeLangSwitchPathAsync, LANG_PREFIX } from '../utils/xref-switch-utils';
@@ -574,7 +574,6 @@ export function NavbarNormal({ currentLang }: NavbarNormalProps) {
 	const currentLangOption = LANG_OPTIONS.find(opt => opt.key === resolvedLang);
 	const [dropdownInitialized, setDropdownInitialized] = useState(false);
 	const [r2Endpoint, setR2Endpoint] = useState<string>('');
-	const [openSubmenus, setOpenSubmenus] = useState<Record<string, boolean>>({});
 
 	// 取得 R2 endpoint（wrangler vars.ASSET_BASE_URL → /api/config.assetBaseUrl）
 	useEffect(() => {
@@ -660,10 +659,6 @@ export function NavbarNormal({ currentLang }: NavbarNormalProps) {
 			initDropdown();
 		}
 	}, [dropdownInitialized, r2Endpoint]);
-
-	useEffect(() => {
-		setOpenSubmenus({});
-	}, [location.pathname]);
 
 	const handleLinkClick = useCallback((e: React.MouseEvent<HTMLAnchorElement>, path: string) => {
 		// 允許外部連結和特殊按鍵行為
