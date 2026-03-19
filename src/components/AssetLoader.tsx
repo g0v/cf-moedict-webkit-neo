@@ -135,6 +135,7 @@ export function AssetLoader({ r2Endpoint, onCriticalStylesReady }: AssetLoaderPr
 
 			if (!endpoint) {
 				try {
+					// wrangler vars.ASSET_BASE_URL → /api/config.assetBaseUrl
 					const res = await fetch('/api/config');
 					const data: { assetBaseUrl?: string } = await res.json();
 					if (data.assetBaseUrl) {

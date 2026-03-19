@@ -16,6 +16,7 @@ function NormalLayout() {
   const [r2Endpoint, setR2Endpoint] = useState<string>('');
 
   useEffect(() => {
+    // wrangler vars.ASSET_BASE_URL → /api/config.assetBaseUrl
     fetch('/api/config')
       .then((res) => res.json())
       .then((data: { assetBaseUrl?: string }) => {
@@ -43,6 +44,7 @@ function AboutLayout() {
   const [r2Endpoint, setR2Endpoint] = useState<string>('');
 
   useEffect(() => {
+    // wrangler vars.ASSET_BASE_URL → /api/config.assetBaseUrl
     fetch('/api/config')
       .then((res) => res.json())
       .then((data: { assetBaseUrl?: string }) => {

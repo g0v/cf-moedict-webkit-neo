@@ -551,7 +551,7 @@ export function NavbarNormal({ currentLang }: NavbarNormalProps) {
 	const [r2Endpoint, setR2Endpoint] = useState<string>('');
 	const [openSubmenus, setOpenSubmenus] = useState<Record<string, boolean>>({});
 
-	// 取得 R2 endpoint
+	// 取得 R2 endpoint（wrangler vars.ASSET_BASE_URL → /api/config.assetBaseUrl）
 	useEffect(() => {
 		fetch('/api/config')
 			.then((res) => res.json())

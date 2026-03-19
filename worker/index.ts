@@ -5,7 +5,9 @@ import { handleStrokeAPI } from '../src/api/handleStrokeAPI';
 import { escapeHeadContent, resolveHeadByPath } from '../src/ssr/head';
 
 interface Env {
+	/** wrangler vars：靜態資源公開端；見 /api/config.assetBaseUrl、/assets/* 代理 */
 	ASSET_BASE_URL?: string;
+	/** wrangler vars：僅注入 /api/config.dictionaryBaseUrl；目前無前端使用 */
 	DICTIONARY_BASE_URL?: string;
 	DICTIONARY: R2Bucket;
   ASSETS?: Fetcher | R2Bucket;
@@ -257,7 +259,7 @@ export default {
         'Access-Control-Allow-Headers': 'Content-Type',
       };
 
-      // 提供配置資訊 API
+      // 提供配置資訊 API（vars → JSON；ASSET 前端有讀取，DICTIONARY 目前僅回傳未使用）
       if (url.pathname === '/api/config') {
         console.log('🔍 [Index] 提供配置資訊');
         return Response.json({
@@ -402,7 +404,7 @@ export default {
       return staticResponse;
     }
 
-    // ASSETS 找不到時，才回退到 R2 代理舊版靜態資源（字體、圖片等）
+    // ASSETS 找不到時，才回退到 R2 代理舊版靜態資源（字體、圖片等）；URL 來自 vars.ASSET_BASE_URL
     if (env.ASSET_BASE_URL && url.pathname.startsWith('/assets/')) {
       const assetPath = url.pathname.replace('/assets/', '');
       const assetUrl = `${env.ASSET_BASE_URL}/${assetPath}${url.search}`;

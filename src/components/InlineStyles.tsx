@@ -25,6 +25,7 @@ export function InlineStyles({ r2Endpoint, onReady }: InlineStylesProps) {
 
 	useEffect(() => {
 		if (!endpoint) {
+			// wrangler vars.ASSET_BASE_URL → /api/config.assetBaseUrl
 			fetch('/api/config')
 				.then((res) => res.json())
 				.then((data: { assetBaseUrl?: string }) => {

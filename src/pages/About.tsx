@@ -43,6 +43,7 @@ export function About({ assetBaseUrl }: AboutProps) {
 			setR2Endpoint(endpoint);
 			loadExternalStyles(endpoint);
 		} else {
+			// wrangler vars.ASSET_BASE_URL → /api/config.assetBaseUrl
 			fetch('/api/config')
 				.then((res) => res.json())
 				.then((data: { assetBaseUrl?: string }) => {
