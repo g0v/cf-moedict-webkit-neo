@@ -30,6 +30,6 @@ dist-ssr
 .env*
 !.env.example
 
-wrangler.jsonc
+# wrangler.jsonc
 public/search-index
 data/dictionary/search-index

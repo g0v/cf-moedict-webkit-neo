@@ -99,28 +99,27 @@ rclone sync data/dictionary/ r2:<your-dictionary-bucket>/ \
 - 全文檢索索引現在會產生在 `data/dictionary/search-index/`，並由 Worker 透過 `/api/search-index/*.json` 從 `DICTIONARY` bucket 讀取。
 - 因此部署前除了字典資料本體，也必須把 `search-index/` 一起上傳到 `DICTIONARY` bucket；若漏傳，右上角全文搜尋會失效。
 
-### 5. 建立 `wrangler.jsonc`
+### 5. 設定 `wrangler.jsonc`
 
-本 repo 的範本檔名是 `wrangler.jsonc.examaple`（注意拼字）。
+專案根目錄已附帶 `wrangler.jsonc`，clone 後**不必**再從範本複製。預設已對應 g0v 萌典慣用的 bucket 名稱與公開網域；若你要用**自己的** R2 與網域，請只編輯該檔內：
 
-```bash
-cp wrangler.jsonc.examaple wrangler.jsonc
-```
+1. `r2_buckets[*].bucket_name` 與 `preview_bucket_name`（含 `FONTS`、`ASSETS`、`DICTIONARY`）
+2. `vars.ASSET_BASE_URL`
+3. `vars.DICTIONARY_BASE_URL`
 
-接著修改以下欄位：
-
-1. `r2_buckets[*].bucket_name`
-2. `r2_buckets[*].preview_bucket_name`
-3. `vars.ASSET_BASE_URL`
-4. `vars.DICTIONARY_BASE_URL`
-
-範例：
+範例（僅示意需替換的欄位；完整結構以 repo 內檔案為準）：
 
 ```jsonc
 {
   "r2_buckets": [
     {
-      "binding": "MOEDICT_ASSETS",
+      "binding": "FONTS",
+      "bucket_name": "<your-fonts-bucket>",
+      "preview_bucket_name": "<your-fonts-bucket-preview>",
+      "remote": true
+    },
+    {
+      "binding": "ASSETS",
       "bucket_name": "<your-assets-bucket>",
       "preview_bucket_name": "<your-assets-bucket-preview>",
       "remote": true

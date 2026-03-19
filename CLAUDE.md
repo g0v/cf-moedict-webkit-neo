@@ -37,15 +37,11 @@ npm run lint      # ESLint 檢查
 
 ## 環境設定
 
-複製範本並填入自己的 R2 端點：
+專案已版本化管理 `wrangler.jsonc`，無須從範本複製。若使用自有 R2 bucket 或公開網域，請直接編輯該檔：
 
-```bash
-cp wrangler.jsonc.example wrangler.jsonc
-```
-
-`wrangler.jsonc` 需設定：
-- `vars.ASSET_BASE_URL`: CSS/JS/圖片/字體的 R2 公開端點
-- `vars.DICTIONARY_BASE_URL`: 字典資料的 R2 公開端點
+- `r2_buckets`: 各 `binding`（`FONTS`、`ASSETS`、`DICTIONARY`）對應的 bucket 名稱
+- `vars.ASSET_BASE_URL`: CSS/JS/圖片/字體的公開基底 URL
+- `vars.DICTIONARY_BASE_URL`: `/api/config` 回傳的字典基底 URL（實際 JSON 多由 Worker 綁定 `DICTIONARY` R2 提供）
 
 ## R2 Buckets
 
@@ -65,5 +61,4 @@ cp wrangler.jsonc.example wrangler.jsonc
 
 ## 注意事項
 
-- `wrangler.jsonc` 已加入 `.gitignore`（含敏感端點），請用 `wrangler.jsonc.example` 為範本
 - 字典頁面依語言分為 Dictionary-a（All）、Dictionary-c（漢語）、Dictionary-h（閩南語）、Dictionary-t（客語）
