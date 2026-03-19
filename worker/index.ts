@@ -3,6 +3,7 @@ import { lookupDictionaryEntry } from '../src/api/handleDictionaryAPI';
 import { handleListAPI } from '../src/api/handleListAPI';
 import { handleStrokeAPI } from '../src/api/handleStrokeAPI';
 import { escapeHeadContent, resolveHeadByPath } from '../src/ssr/head';
+import { handleImageGeneration } from '../src/utils/image-generation';
 
 interface Env {
 	/** wrangler vars：靜態資源公開端；見 /api/config.assetBaseUrl、/assets/* 代理 */
@@ -11,6 +12,7 @@ interface Env {
 	DICTIONARY_BASE_URL?: string;
 	DICTIONARY: R2Bucket;
   ASSETS?: Fetcher | R2Bucket;
+  FONTS: R2Bucket;
 }
 
 type DictionaryLang = 'a' | 't' | 'h' | 'c';
@@ -444,7 +446,12 @@ export default {
       });
     }
 
-    if (staticResponse) return staticResponse;
+    if (staticResponse && staticResponse.status !== 404) return staticResponse;
+
+    const isPngRequest = url.pathname.endsWith('.png');
+    if (isPngRequest && (!staticResponse || staticResponse.status === 404)) {
+      return await handleImageGeneration(url, { FONTS: env.FONTS });
+    }
 
 		return new Response(null, { status: 404 });
   },
