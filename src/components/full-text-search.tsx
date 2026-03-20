@@ -331,7 +331,7 @@ export function FullTextSearch({ currentLang }: FullTextSearchProps) {
 				id="nav-fulltext-search"
 				type="search"
 				className="fulltext-search-input"
-				placeholder="全文檢索"
+				placeholder="多語檢索"
 				autoComplete="off"
 				spellCheck={false}
 				value={query}
