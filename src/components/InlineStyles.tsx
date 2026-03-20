@@ -86,12 +86,9 @@ export function InlineStyles({ r2Endpoint, onReady }: InlineStylesProps) {
 			margin-left: 0;
 		}
 
-		/* 部首頁的內容區域也需要 margin-left */
 		.result {
 			padding: 20px;
-			max-width: 1200px;
-			margin-left: 0;
-			margin-right: auto;
+			margin: 16px;
 		}
 
 		@media only screen and (max-width: 767px) {

@@ -67,7 +67,7 @@ export function RadicalDetailView({ lang, radical }: RadicalDetailViewProps) {
 
   if (state.loading) {
     return (
-      <div className="result" style={{ marginTop: '50px' }}>
+      <div className="result">
         <h1 className="title" style={{ marginTop: '0' }}>{cleanRadical || '?'} 部</h1>
         <div className="entry">
           <div className="entry-item">
@@ -80,7 +80,7 @@ export function RadicalDetailView({ lang, radical }: RadicalDetailViewProps) {
 
   if (state.error) {
     return (
-      <div className="result" style={{ marginTop: '50px' }}>
+      <div className="result">
         <h1 className="title" style={{ marginTop: '0' }}>{cleanRadical || '?'} 部</h1>
         <div className="entry">
           <div className="entry-item">
@@ -92,7 +92,7 @@ export function RadicalDetailView({ lang, radical }: RadicalDetailViewProps) {
   }
 
   return (
-    <div className="result" style={{ marginTop: '50px' }}>
+    <div className="result">
       <h1 className="title" style={{ marginTop: '0' }}>{cleanRadical} 部</h1>
       <p>
         <a

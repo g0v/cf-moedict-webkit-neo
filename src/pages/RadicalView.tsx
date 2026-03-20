@@ -55,7 +55,7 @@ export function RadicalView({ lang }: RadicalViewProps) {
 
   if (state.loading) {
     return (
-      <div className="result" style={{ marginTop: '50px' }}>
+      <div className="result">
         <h1 className="title" style={{ marginTop: '0' }}>部首表</h1>
         <div className="entry">
           <div className="entry-item">
@@ -68,7 +68,7 @@ export function RadicalView({ lang }: RadicalViewProps) {
 
   if (state.error) {
     return (
-      <div className="result" style={{ marginTop: '50px' }}>
+      <div className="result">
         <h1 className="title" style={{ marginTop: '0' }}>部首表</h1>
         <div className="entry">
           <div className="entry-item">
@@ -83,7 +83,7 @@ export function RadicalView({ lang }: RadicalViewProps) {
   const tooltipPrefix = lang === 'c' ? '~@' : '@';
 
   return (
-    <div className="result" style={{ marginTop: '50px' }}>
+    <div className="result">
       <h1 className="title" style={{ marginTop: '0' }}>部首表</h1>
       <div className="entry">
         <div className="entry-item list">
