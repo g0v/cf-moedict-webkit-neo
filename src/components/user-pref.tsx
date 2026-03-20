@@ -133,38 +133,27 @@ function PrefList({
 		return options.find((option) => !option.divider)?.value || '';
 	}, [options, value]);
 
-	const activeLabel = useMemo(() => {
-		const matched = options.find((option) => option.value === activeValue);
-		return matched?.label || '';
-	}, [activeValue, options]);
-
 	return (
 		<li className="btn-group" id={`pref-${name}`}>
-			<label>{label}</label>
-			<button className="btn btn-default btn-sm dropdown-toggle" type="button" data-toggle="dropdown">
-				{activeLabel}&nbsp;<span className="caret" />
-			</button>
-			<ul className="dropdown-menu">
+			<label htmlFor={`pref-select-${name}`}>{label}</label>
+			<select
+				id={`pref-select-${name}`}
+				className="form-control input-sm"
+				value={activeValue}
+				onChange={(event) => onChange(event.target.value)}
+			>
 				{options.map((option) =>
 					option.divider ? (
-						<li key={`${name}-${option.value}`} className="divider" role="presentation" />
+						<option key={`${name}-divider`} disabled>
+							---------
+						</option>
 					) : (
-						<li key={`${name}-${option.value}`}>
-							<a
-								href="#"
-								style={{ cursor: 'pointer' }}
-								className={option.value === activeValue ? 'active' : undefined}
-								onClick={(event) => {
-									event.preventDefault();
-									onChange(option.value);
-								}}
-							>
-								{option.label}
-							</a>
-						</li>
+						<option key={`${name}-${option.value}`} value={option.value}>
+							{option.label}
+						</option>
 					)
 				)}
-			</ul>
+			</select>
 		</li>
 	);
 }
