@@ -219,9 +219,7 @@ export default {
     }
 
     // 特殊路由：App Store 下載圖片（從 R2 ASSETS 讀取）
-    if (url.pathname === '/images/Download_on_the_App_Store_Badge_HK_TW_135x40.png' ||
-      url.pathname === 'assets/images/g0v-icon-invert.png' ||
-      url.pathname === 'assets/images/right-graphite@2x.png'
+    if (url.pathname === '/images/Download_on_the_App_Store_Badge_HK_TW_135x40.png'
     ) {
       console.log('🔍 [Index] 處理圖片請求:', url.pathname);
       const bucket = env.ASSETS;
