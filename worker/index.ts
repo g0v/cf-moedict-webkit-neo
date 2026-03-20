@@ -218,6 +218,24 @@ export default {
       });
     }
 
+    // 特殊路由：App Store 下載圖片（從 R2 ASSETS 讀取）
+    if (url.pathname === '/images/Download_on_the_App_Store_Badge_HK_TW_135x40.png') {
+      const bucket = env.ASSETS;
+      const key = 'Download_on_the_App_Store_Badge_HK_TW_135x40.png';
+      const obj = await (bucket as R2Bucket).get(key);
+      if (!obj) {
+        return new Response('Not Found', { status: 404 });
+      }
+      const headers = new Headers();
+      obj.writeHttpMetadata(headers);
+      headers.set('Content-Type', 'image/png');
+      headers.set('Cache-Control', 'public, max-age=86400');
+      headers.set('etag', obj.httpEtag);
+      if (request.method === 'HEAD') {
+        return new Response(null, { status: 200, headers });
+      }
+      return new Response(obj.body, { status: 200, headers });
+    }
     // 特殊路由：Manifest AppCache（從 R2 ASSETS 讀取）
     if (url.pathname === '/manifest.appcache') {
       const bucket = env.ASSETS;
