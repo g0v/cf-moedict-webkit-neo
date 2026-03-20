@@ -208,7 +208,8 @@ export function StrokeAnimation({ title, visible, lang = 'a' }: StrokeAnimationP
 			sections.forEach((s) => s.remove());
 		}
 
-		const chars = Array.from(title.replace(/[（(].*/, '').trim());
+		const chars = Array.from(extractStrokeWords(title).trim());
+		
 		if (!chars.length) return;
 
 		setLoadingHistorical(true);
@@ -218,7 +219,7 @@ export function StrokeAnimation({ title, visible, lang = 'a' }: StrokeAnimationP
 		for (const ch of chars) {
 			try {
 				const resp = await fetch(
-					`https://www.moedict.tw/api/web/word/${encodeURIComponent(ch)}`
+					`https://bs.chinese-linguipedia.org/api/web/word/${encodeURIComponent(ch)}`
 				);
 				if (runId !== historicalRunIdRef.current) return;
 				const json = (await resp.json()) as { data?: CharStrokeData };
