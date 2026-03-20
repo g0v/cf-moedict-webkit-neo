@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type MouseEvent as ReactMouseEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { clearLRUWords, readLRUWords, readStarredWords } from '../utils/word-record-utils';
+import { clearLRUWords, clearStarredWords, readLRUWords, readStarredWords } from '../utils/word-record-utils';
 import { useRadicalTooltip } from '../hooks/useRadicalTooltip';
 
 type Lang = 'a' | 't' | 'h' | 'c';
@@ -69,12 +69,28 @@ export function StarredPage({ lang }: StarredPageProps) {
     setRecentWords([]);
   }, [lang]);
 
+  const handleClearStarred = useCallback(() => {
+    if (!window.confirm('確定要清除收藏字詞？')) return;
+    clearStarredWords(lang);
+    setStarredWords([]);
+  }, [lang]);
+
   return (
     <div className="result">
       <h1 className="title">字詞紀錄簿</h1>
 
       <div className="starred-section">
-        <h3>收藏字詞</h3>
+        <h3>
+          收藏字詞
+          <input
+            id="btn-clear-starred"
+            type="button"
+            className="btn-default btn btn-tiny"
+            value="清除"
+            style={{ marginLeft: '10px', display: starredWords.length > 0 ? '' : 'none' }}
+            onClick={handleClearStarred}
+          />
+        </h3>
         <div className="word-list">
           {starredWords.length === 0 ? (
             <p className="bg-info">（請按詞條右方的 <i className="icon-star-empty"></i> 按鈕，即可將字詞加到這裡。）</p>

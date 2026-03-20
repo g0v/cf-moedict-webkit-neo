@@ -156,6 +156,10 @@ export function clearLRUWords(lang: DictionaryLang): void {
   safeRemoveItem(getLRUStorageKey(lang));
 }
 
+export function clearStarredWords(lang: DictionaryLang): void {
+  safeRemoveItem(getStarredStorageKey(lang));
+}
+
 export function shouldRecordWord(rawWord: string): boolean {
   const word = normalizeWord(rawWord);
   if (!word) return false;
