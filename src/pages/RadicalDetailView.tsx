@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type MouseEvent } from 'react';
+import { useEffect, useMemo, useState, type JSX, type MouseEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useRadicalTooltip } from '../hooks/useRadicalTooltip';
 import { fetchRadicalRows, type RadicalLang } from '../utils/radical-page-utils';
@@ -65,30 +65,38 @@ export function RadicalDetailView({ lang, radical }: RadicalDetailViewProps) {
   const backTooltip = lang === 'c' ? '~@' : '@';
   const charPrefix = lang === 'c' ? '/~' : '/';
 
+  let resultContent: JSX.Element | null = null;
   if (state.loading) {
-    return (
-      <div className="result">
-        <h1 className="title" style={{ marginTop: '0' }}>{cleanRadical || '?'} 部</h1>
-        <div className="entry">
-          <div className="entry-item">
-            <div className="def">載入中…</div>
+    resultContent = <div className="def">載入中…</div>
+  } else if (state.error) {
+    resultContent = <div className="def">{state.error}</div>
+  } else {
+    resultContent = 
+      <div className="entry-item list">
+        {state.rows.map((row, stroke) => (
+          <div key={stroke} style={{ margin: '8px 0' }}>
+            <span className="stroke-count" style={{ marginRight: '8px' }}>{stroke}</span>
+            <span className="stroke-list">
+              {row.map((char) => {
+                const to = `${charPrefix}${char}`;
+                return (
+                  <a
+                    key={`${stroke}-${char}`}
+                    className="stroke-char"
+                    href={to}
+                    data-radical-id={`entry:${to}`}
+                    style={{ marginRight: '6px' }}
+                    onClick={(event) => onNavigate(event, to)}
+                  >
+                    {char}
+                  </a>
+                );
+              })}
+            </span>
+            <hr style={{ margin: '0', padding: '0', height: '0' }} />
           </div>
-        </div>
+        ))}
       </div>
-    );
-  }
-
-  if (state.error) {
-    return (
-      <div className="result">
-        <h1 className="title" style={{ marginTop: '0' }}>{cleanRadical || '?'} 部</h1>
-        <div className="entry">
-          <div className="entry-item">
-            <div className="def">{state.error}</div>
-          </div>
-        </div>
-      </div>
-    );
   }
 
   return (
@@ -105,31 +113,7 @@ export function RadicalDetailView({ lang, radical }: RadicalDetailViewProps) {
         </a>
       </p>
       <div className="entry">
-        <div className="entry-item list">
-          {state.rows.map((row, stroke) => (
-            <div key={stroke} style={{ margin: '8px 0' }}>
-              <span className="stroke-count" style={{ marginRight: '8px' }}>{stroke}</span>
-              <span className="stroke-list">
-                {row.map((char) => {
-                  const to = `${charPrefix}${char}`;
-                  return (
-                    <a
-                      key={`${stroke}-${char}`}
-                      className="stroke-char"
-                      href={to}
-                      data-radical-id={`entry:${to}`}
-                      style={{ marginRight: '6px' }}
-                      onClick={(event) => onNavigate(event, to)}
-                    >
-                      {char}
-                    </a>
-                  );
-                })}
-              </span>
-              <hr style={{ margin: '0', padding: '0', height: '0' }} />
-            </div>
-          ))}
-        </div>
+        {resultContent}
       </div>
     </div>
   );
