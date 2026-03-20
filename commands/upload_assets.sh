@@ -6,7 +6,7 @@
 set -e  # 遇到錯誤時退出
 
 BUCKET="r2:moedict-assets-preview"
-ASSETS_DIR="../data/assets"
+ASSETS_DIR="./data/assets"
 
 echo "🚀 開始同步前端資產到 R2..."
 

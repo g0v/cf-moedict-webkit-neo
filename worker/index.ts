@@ -218,6 +218,25 @@ export default {
       });
     }
 
+    // 特殊路由：Manifest AppCache（從 R2 ASSETS 讀取）
+    if (url.pathname === '/manifest.appcache') {
+      const bucket = env.ASSETS;
+      const key = 'manifest.appcache';
+      const obj = await (bucket as R2Bucket).get(key);
+      if (!obj) {
+        return new Response('Not Found', { status: 404 });
+      }
+      const headers = new Headers();
+      obj.writeHttpMetadata(headers);
+      headers.set('Content-Type', 'text/cache-manifest; charset=utf-8');
+      headers.set('Cache-Control', 'public, max-age=86400');
+      headers.set('etag', obj.httpEtag);
+      if (request.method === 'HEAD') {
+        return new Response(null, { status: 200, headers });
+      }
+      return new Response(obj.body, { status: 200, headers });
+    }
+
     // 特殊路由：CFDict XML（從字典 R2 讀取）
     if (url.pathname === '/translation-data/cfdict.xml') {
       const origin = request.headers.get('Origin');
