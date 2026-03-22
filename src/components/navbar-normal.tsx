@@ -726,7 +726,16 @@ export function NavbarNormal({ currentLang }: NavbarNormalProps) {
 						<a
 							title="字詞紀錄簿"
 							href={starredPath}
-							onClick={(e) => handleLinkClick(e, starredPath)}
+							onClick={(e) => {
+								if (e.metaKey || e.altKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+								e.preventDefault();
+								closeDictionaryDropdown();
+								if (location.pathname === starredPath) {
+									navigate(-1);
+								} else {
+									navigate(starredPath);
+								}
+							}}
 						>
 							<i className="icon-bookmark-empty"></i>
 						</a>
