@@ -430,6 +430,14 @@ export function SearchBox({ currentLang }: SearchBoxProps) {
 				return;
 			}
 
+			if (event.key === 'Escape') {
+				event.preventDefault();
+				setShowMobileResults(false);
+				setIsContainerActive(false);
+				inputRef.current?.blur();
+				return;
+			}
+
 			if (event.key === 'Enter' || event.key === ' ') {
 				event.preventDefault();
 				handleSelectSuggestion(suggestion);
