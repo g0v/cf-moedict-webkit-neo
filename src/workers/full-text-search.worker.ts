@@ -154,9 +154,16 @@ function buildSnippet(result: FuseResult<SearchDoc>): string {
 }
 
 async function loadSearchState(lang: Lang): Promise<SearchState> {
-	const response = await fetch(`/api/search-index/${lang}.json`, {
+	// Try /api/ path first (Cloudflare Worker), fall back to direct path (Capacitor offline)
+	let response = await fetch(`/api/search-index/${lang}.json`, {
 		headers: { Accept: 'application/json' },
 	});
+
+	if (!response.ok) {
+		response = await fetch(`/search-index/${lang}.json`, {
+			headers: { Accept: 'application/json' },
+		});
+	}
 
 	if (!response.ok) {
 		throw new Error(`全文索引讀取失敗：${response.status}`);
