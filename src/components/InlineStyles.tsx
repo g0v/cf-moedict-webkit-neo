@@ -58,12 +58,13 @@ export function InlineStyles({ r2Endpoint, onReady }: InlineStylesProps) {
 				__html: `
 		/* 修正導航列壓版問題 */
 		body {
-			padding-top: 50px; /* 為固定導航列留出空間 */
+			padding-top: calc(50px + env(safe-area-inset-top)); /* 為固定導航列 + iOS safe area 留出空間 */
 		}
 
 		/* 確保導航列背景正確顯示 */
 		.nav-bg {
-			height: 50px;
+			height: calc(50px + env(safe-area-inset-top));
+			padding-top: env(safe-area-inset-top);
 			position: fixed;
 			top: 0;
 			left: 0;
@@ -74,6 +75,7 @@ export function InlineStyles({ r2Endpoint, onReady }: InlineStylesProps) {
 		/* 確保導航列在背景之上 */
 		.navbar-fixed-top {
 			z-index: 1030;
+			top: env(safe-area-inset-top);
 		}
 
 		/* 確保主內容區域不會被左側欄遮擋 */

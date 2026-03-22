@@ -1,3 +1,6 @@
+// Offline API handler must be imported before any fetch calls
+import './offline-api.ts'
+
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
