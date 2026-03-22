@@ -154,12 +154,19 @@ function buildSnippet(result: FuseResult<SearchDoc>): string {
 }
 
 async function loadSearchState(lang: Lang): Promise<SearchState> {
-	// Try /api/ path first (Cloudflare Worker), fall back to direct path (Capacitor offline)
-	let response = await fetch(`/api/search-index/${lang}.json`, {
-		headers: { Accept: 'application/json' },
-	});
+	// Try /api/ path first (Cloudflare Worker).
+	// In Capacitor iOS, fetch() throws TypeError("Load failed") for
+	// non-existent paths, so we catch and fall back to the direct path.
+	let response: Response;
+	try {
+		response = await fetch(`/api/search-index/${lang}.json`, {
+			headers: { Accept: 'application/json' },
+		});
+	} catch {
+		response = null!;
+	}
 
-	if (!response.ok) {
+	if (!response?.ok) {
 		response = await fetch(`/search-index/${lang}.json`, {
 			headers: { Accept: 'application/json' },
 		});

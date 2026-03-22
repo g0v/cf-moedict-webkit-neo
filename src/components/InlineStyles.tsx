@@ -105,7 +105,7 @@ export function InlineStyles({ r2Endpoint, onReady }: InlineStylesProps) {
 			width: 260px;
 			position: fixed;
 			border-right: 1px solid hsl(360, 1%, 83%);
-			top: 45px;
+			top: calc(45px + env(safe-area-inset-top));
 			bottom: 0;
 			z-index: 9;
 			padding: 20px;
@@ -121,7 +121,7 @@ export function InlineStyles({ r2Endpoint, onReady }: InlineStylesProps) {
 				#query-box.query-box {
 					right: auto !important;
 					width: 100% !important;
-					top: 40px !important;
+					top: calc(40px + env(safe-area-inset-top)) !important;
 					height: 65px !important;
 					bottom: auto !important;
 					padding: 15px !important;
