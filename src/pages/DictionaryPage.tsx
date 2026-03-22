@@ -737,6 +737,13 @@ export function DictionaryPage({ word, lang }: DictionaryPageProps) {
             )}
 
 
+            {heteronym.alt && (
+              <div className="cn-specific" lang="zh-Hans">
+                <span className="xref part-of-speech">简</span>
+                <span className="xref">{untag(heteronym.alt)}</span>
+              </div>
+            )}
+
             {Array.from(groups.entries()).map(([type, items], groupIdx) => {
               const posTags = splitPartOfSpeech(type);
               return (
@@ -747,11 +754,15 @@ export function DictionaryPage({ word, lang }: DictionaryPageProps) {
                     </span>
                   ))}
                   <ol className={posTags.length > 0 ? 'margin-modified' : undefined}>
-                    {items.map((def, defIdx) => (
+                    {items.map((def, defIdx) => {
+                      const parallelIdx = def.def ? def.def.indexOf('∥') : -1;
+                      const mainDef = parallelIdx >= 0 ? def.def!.slice(0, parallelIdx) : def.def;
+                      const afterParallel = parallelIdx >= 0 ? def.def!.slice(parallelIdx) : null;
+                      return (
                       <li key={`${type}-${defIdx}`}>
-                        {def.def ? (
+                        {mainDef ? (
                           <p className="definition">
-                            <span className="def" dangerouslySetInnerHTML={{ __html: def.def }} />
+                            <span className="def" dangerouslySetInnerHTML={{ __html: mainDef }} />
                           </p>
                         ) : null}
                         {toStringArray(def.example).map((text, exampleIdx) => (
@@ -813,8 +824,12 @@ export function DictionaryPage({ word, lang }: DictionaryPageProps) {
                             <span>{untag(toStringArray(def.antonyms).join('、').replace(/,/g, '、'))}</span>
                           </div>
                         )}
+                        {afterParallel && (
+                          <div style={{ margin: '0 0 22px -44px' }} dangerouslySetInnerHTML={{ __html: afterParallel }} />
+                        )}
                       </li>
-                    ))}
+                      );
+                    })}
                   </ol>
                 </div>
               );

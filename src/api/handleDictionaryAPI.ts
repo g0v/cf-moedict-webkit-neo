@@ -467,6 +467,7 @@ function decodeLangPart(lang: DictionaryLang, part = ''): string {
   );
   part = part.replace(/`([^~]+)~/g, '<a href=\\"' + h + '$1\\">$1</a>');
 
+  part = part.replace(/([\u4e00-\u9fff])\u20DD/g, '<span class=\\"regional part-of-speech\\">$1</span> ');
   part = part.replace(/([)）])/g, '$1\u200B');
   part = part.replace(/\.\/##/g, './#');
   return part;
