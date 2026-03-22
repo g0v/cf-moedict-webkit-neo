@@ -202,6 +202,7 @@ export function SearchBox({ currentLang }: SearchBoxProps) {
 	const suggestionRefs = useRef<Array<HTMLAnchorElement | null>>([]);
 	const requestIdRef = useRef(0);
 	const blurTimerRef = useRef<number | null>(null);
+	const isComposingRef = useRef(false);
 	const [searchValue, setSearchValue] = useState('');
 	const [suggestions, setSuggestions] = useState<SuggestionItem[]>([]);
 	const [loadingSuggestions, setLoadingSuggestions] = useState(false);
@@ -345,6 +346,16 @@ export function SearchBox({ currentLang }: SearchBoxProps) {
 		[syncRouteWithInput]
 	);
 
+	// 處理輸入法開始
+	const handleInputCompositionStart = useCallback(() => {
+		isComposingRef.current = true;
+	}, []);
+
+	// 處理輸入法結束
+	const handleInputCompositionEnd = useCallback(() => {
+		isComposingRef.current = false;
+	}, []);
+
 	// container 取得 focus（任何子元素 focus 都算）
 	const handleContainerFocus = useCallback(() => {
 		if (blurTimerRef.current !== null) {
@@ -430,6 +441,10 @@ export function SearchBox({ currentLang }: SearchBoxProps) {
 	// 輸入框鍵盤事件
 	const handleInputKeyDown = useCallback(
 		(e: React.KeyboardEvent<HTMLInputElement>) => {
+			const nativeEvent = e.nativeEvent as KeyboardEvent;
+			const isImeNavigating = isComposingRef.current || nativeEvent.isComposing || nativeEvent.keyCode === 229;
+			if (isImeNavigating) return;
+
 			if (e.key === 'ArrowDown' && !isMobileViewport) {
 				if (!loadingSuggestions && suggestions.length > 0) {
 					e.preventDefault();
@@ -480,6 +495,8 @@ export function SearchBox({ currentLang }: SearchBoxProps) {
 					placeholder="請輸入欲查詢的字詞"
 					value={searchValue}
 					onChange={handleInputChange}
+					onCompositionStart={handleInputCompositionStart}
+					onCompositionEnd={handleInputCompositionEnd}
 					onKeyDown={handleInputKeyDown}
 				/>
 			</form>
