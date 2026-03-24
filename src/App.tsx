@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { BrowserRouter, Routes, Route, useLocation, Outlet, Navigate } from 'react-router-dom'
 import { About } from './pages/About'
+import { Privacy } from './pages/Privacy'
 import { RadicalView } from './pages/RadicalView'
 import { MiddlePoint } from './MiddlePoint'
 import { DictionaryA } from './pages/Dictionary-a'
@@ -138,6 +139,9 @@ function App() {
       <HeadManager />
       <URLDecoder />
       <Routes>
+        {/* Privacy 頁面：獨立顯示，無導覽列 */}
+        <Route path="/privacy" element={<Privacy />} />
+
         {/* About 頁面使用 about layout */}
         <Route element={<AboutLayout />}>
           <Route path="/about" element={<About />} />
