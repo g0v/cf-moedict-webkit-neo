@@ -104,7 +104,7 @@ XMLHttpRequest.prototype.open = function (
 };
 
 // Monkey-patch fetch to intercept /api/ requests
-window.fetch = async function (input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+(window as any).fetch = async function (input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   let url: string;
   if (typeof input === 'string') {
     url = input;
