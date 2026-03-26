@@ -317,6 +317,7 @@ export function SearchBox({ currentLang }: SearchBoxProps) {
 		(rawValue: string, replace: boolean) => {
 			const resolved = resolveSearchInput(rawValue, resolvedLang);
 			if (!resolved) return;
+			if (hasLegacyPatternOperators(resolved.term)) return;
 
 			const nextPath = formatSearchTerm(resolved.term, resolved.lang);
 			if (nextPath === location.pathname) return;
@@ -388,6 +389,7 @@ export function SearchBox({ currentLang }: SearchBoxProps) {
 			e.preventDefault();
 			const resolved = resolveSearchInput(searchValue, resolvedLang);
 			if (!resolved) return;
+			if (hasLegacyPatternOperators(resolved.term)) return;
 			const path = formatSearchTerm(resolved.term, resolved.lang);
 			navigate(path);
 		},
