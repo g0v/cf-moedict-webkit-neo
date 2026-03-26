@@ -82,6 +82,10 @@ function safeDecode(value: string): string {
 	}
 }
 
+function isSafariUserAgent(userAgent: string): boolean {
+	return /Safari/i.test(userAgent) && !/(Chrome|CriOS|Chromium|Android|FxiOS|EdgiOS)/i.test(userAgent);
+}
+
 /**
  * 從路徑提取搜尋詞
  */
@@ -200,6 +204,10 @@ export function SearchBox({ currentLang }: SearchBoxProps) {
 	});
 	const [showMobileResults, setShowMobileResults] = useState(false);
 	const [isContainerActive, setIsContainerActive] = useState(false);
+	const isSafariBrowser = useMemo(() => {
+		if (typeof navigator === 'undefined') return false;
+		return isSafariUserAgent(navigator.userAgent);
+	}, []);
 	const resolvedLang = currentLang || inferLangFromPath(location.pathname);
 
 	// 從路由更新輸入框值
@@ -437,6 +445,19 @@ export function SearchBox({ currentLang }: SearchBoxProps) {
 		[focusSuggestionByIndex, handleSelectSuggestion, suggestions.length]
 	);
 
+	const handleMobileTogglePointerDown = useCallback(
+		(event: React.PointerEvent<HTMLButtonElement>) => {
+			if (!isSafariBrowser) return;
+			event.preventDefault();
+			if (blurTimerRef.current !== null) {
+				window.clearTimeout(blurTimerRef.current);
+				blurTimerRef.current = null;
+			}
+			setIsContainerActive(true);
+		},
+		[isSafariBrowser]
+	);
+
 	// 輸入框鍵盤事件
 	const handleInputKeyDown = useCallback(
 		(e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -504,6 +525,7 @@ export function SearchBox({ currentLang }: SearchBoxProps) {
 					type="button"
 					className="mobile-search-toggle"
 					aria-expanded={showMobileResults}
+					onPointerDown={handleMobileTogglePointerDown}
 					onClick={() => setShowMobileResults((prev) => !prev)}
 				>
 					<span className="mobile-search-toggle-arrow" aria-hidden="true">
