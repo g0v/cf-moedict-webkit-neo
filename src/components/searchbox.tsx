@@ -7,7 +7,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { prefetchDictionaryEntry } from '../utils/dictionary-cache';
-import { removeBopomofo } from '../utils/bopomofo-pinyin-utils'
+import { removeBopomofo } from '../utils/bopomofo-pinyin-utils';
+import { collectLegacyMatchedTerms, hasLegacyPatternOperators } from '../utils/legacy-search-utils';
 
 type Lang = 'a' | 't' | 'h' | 'c';
 
@@ -179,19 +180,6 @@ async function loadIndexByLang(lang: Lang): Promise<string[]> {
 	return [];
 }
 
-function collectMatchedTerms(list: string[], keyword: string, limit: number): string[] {
-	const cleanKeyword = keyword.trim();
-	if (!cleanKeyword) return [];
-
-	const matched: string[] = [];
-	for (const term of list) {
-		if (!term.includes(cleanKeyword)) continue;
-		matched.push(term);
-		if (matched.length >= limit) break;
-	}
-	return matched;
-}
-
 /**
  * 搜尋框組件
  */
@@ -251,6 +239,7 @@ export function SearchBox({ currentLang }: SearchBoxProps) {
 	const activeSearchLang = activeSearch?.lang ?? resolvedLang;
 	const activeSearchTerm = activeSearch?.term ?? '';
 	const hasActiveSearch = activeSearchTerm.length > 0;
+	const usesPatternSearch = hasLegacyPatternOperators(activeSearchTerm);
 
 	// Search 字詞變更時，手機結果面板預設收合
 	useEffect(() => {
@@ -281,7 +270,7 @@ export function SearchBox({ currentLang }: SearchBoxProps) {
 			loadIndexByLang(activeSearchLang)
 				.then((indexTerms) => {
 					if (requestId !== requestIdRef.current) return;
-					const matchedTerms = collectMatchedTerms(indexTerms, activeSearchTerm, SEARCH_RESULT_LIMIT);
+					const matchedTerms = collectLegacyMatchedTerms(indexTerms, activeSearchTerm, SEARCH_RESULT_LIMIT);
 					setSuggestions(
 						matchedTerms.map((term) => ({
 							label: term,
@@ -518,7 +507,9 @@ export function SearchBox({ currentLang }: SearchBoxProps) {
 					<span className="mobile-search-toggle-arrow" aria-hidden="true">
 						{showMobileResults ? '↓' : '→'}
 					</span>
-					<span className="mobile-search-toggle-label">列出所有含有「{activeSearchTerm}」的詞</span>
+					<span className="mobile-search-toggle-label">
+						{usesPatternSearch ? `列出符合「${activeSearchTerm}」的詞` : `列出所有含有「${activeSearchTerm}」的詞`}
+					</span>
 				</button>
 			)}
 			{shouldRenderResultList && (
