@@ -403,7 +403,7 @@ export function About({ assetBaseUrl }: AboutProps) {
 
 			{/* GitHub 連結 */}
 			{R2_ENDPOINT && (
-				<a target="_blank" href="https://github.com/audreyt/moedict-webkit" rel="noopener noreferrer">
+				<a target="_blank" href="https://github.com/g0v/moedict.tw" rel="noopener noreferrer">
 					<img
 						style={{ zIndex: 1000, position: 'absolute', top: '0px', right: 0, border: 0 }}
 						src="/assets/images/right-graphite@2x.png"
