@@ -12,6 +12,8 @@ function escapeRegex(text: string): string {
 export function normalizeLegacySearchKeyword(keyword: string): string {
 	return keyword
 		.replace(/\*/g, '%')
+		// iOS/Safari 可能將連續三個句點自動替換成單一省略號字元（…）
+		.replace(/…/g, '...')
 		.replace(/[-—]/g, '－')
 		.replace(/[,﹐]/g, '，')
 		.replace(/[;﹔]/g, '；')
@@ -19,7 +21,8 @@ export function normalizeLegacySearchKeyword(keyword: string): string {
 }
 
 export function hasLegacyPatternOperators(keyword: string): boolean {
-	return /[%?._^$*]/.test(keyword);
+	const normalizedKeyword = normalizeLegacySearchKeyword(keyword);
+	return /[%?._^$*]/.test(normalizedKeyword);
 }
 
 function buildLegacySearchMatcher(keyword: string): ((word: string) => boolean) | null {
