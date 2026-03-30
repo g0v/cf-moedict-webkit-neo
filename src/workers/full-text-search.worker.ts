@@ -153,28 +153,13 @@ function buildSnippet(result: FuseResult<SearchDoc>): string {
 	return trimSnippet(content, matchStart - 18, matchEnd + 42);
 }
 
-const CACHE_NAME = 'moedict-search-index-v1';
-
-async function fetchSearchIndex(lang: Lang): Promise<Response> {
-	const url = `/api/search-index/${lang}.json`;
-
-	// Check Cache API for a persisted copy first
-	const cache = await caches.open(CACHE_NAME).catch(() => null);
-	const cached = await cache?.match(url);
-	if (cached) {
-		// Revalidate in the background so the cache stays fresh
-		fetch(url, { headers: { Accept: 'application/json' } })
-			.then((res) => { if (res.ok) cache?.put(url, res); })
-			.catch(() => {});
-		return cached;
-	}
-
+async function loadSearchState(lang: Lang): Promise<SearchState> {
 	// Try /api/ path first (Cloudflare Worker).
 	// In Capacitor iOS, fetch() throws TypeError("Load failed") for
 	// non-existent paths, so we catch and fall back to the direct path.
 	let response: Response;
 	try {
-		response = await fetch(url, {
+		response = await fetch(`/api/search-index/${lang}.json`, {
 			headers: { Accept: 'application/json' },
 		});
 	} catch {
@@ -190,15 +175,6 @@ async function fetchSearchIndex(lang: Lang): Promise<Response> {
 	if (!response.ok) {
 		throw new Error(`全文索引讀取失敗：${response.status}`);
 	}
-
-	// Store in Cache API for future sessions
-	await cache?.put(url, response.clone()).catch(() => {});
-
-	return response;
-}
-
-async function loadSearchState(lang: Lang): Promise<SearchState> {
-	const response = await fetchSearchIndex(lang);
 	const docs = (await response.json()) as SearchDoc[];
 	return {
 		docs,
