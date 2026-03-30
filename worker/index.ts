@@ -363,7 +363,7 @@ export default {
           status: 200,
           headers: {
             'Content-Type': 'application/json; charset=utf-8',
-            'Cache-Control': 'public, max-age=3600',
+            'Cache-Control': 'public, max-age=604800, stale-while-revalidate=86400',
             ...corsHeaders,
           },
         });
