@@ -246,6 +246,40 @@ function clamp(value: number, min: number, max: number): number {
   return value;
 }
 
+type TooltipVerticalPlacement = 'above' | 'below';
+
+function resolveTooltipTop(
+  anchorRect: DOMRect,
+  tooltipHeight: number,
+  preferredPlacement?: TooltipVerticalPlacement,
+): { top: number; placement: TooltipVerticalPlacement } {
+  const gap = 12;
+  const viewportHeight = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0);
+  const spaceBelow = viewportHeight - anchorRect.bottom;
+  const spaceAbove = anchorRect.top;
+  const canPlaceBelow = spaceBelow >= tooltipHeight + gap;
+  const canPlaceAbove = spaceAbove >= tooltipHeight + gap;
+
+  if (preferredPlacement === 'below' && canPlaceBelow) {
+    return { top: anchorRect.bottom + gap, placement: 'below' };
+  }
+  if (preferredPlacement === 'above' && canPlaceAbove) {
+    return { top: anchorRect.top - tooltipHeight - gap, placement: 'above' };
+  }
+
+  if (canPlaceBelow) {
+    return { top: anchorRect.bottom + gap, placement: 'below' };
+  }
+  if (canPlaceAbove) {
+    return { top: anchorRect.top - tooltipHeight - gap, placement: 'above' };
+  }
+
+  if (spaceAbove > spaceBelow) {
+    return { top: anchorRect.top - tooltipHeight - gap, placement: 'above' };
+  }
+  return { top: anchorRect.bottom + gap, placement: 'below' };
+}
+
 export function useRadicalTooltip(): void {
   useEffect(() => {
     // 觸控裝置不顯示 tooltip（無法關閉）
@@ -298,7 +332,12 @@ export function useRadicalTooltip(): void {
       return element;
     };
 
-    const positionTooltip = (anchor: HTMLAnchorElement) => {
+    const positionTooltip = (
+      anchor: HTMLAnchorElement,
+      options?: {
+        preferredPlacement?: TooltipVerticalPlacement;
+      },
+    ): TooltipVerticalPlacement => {
       const element = createTooltip();
       const rect = anchor.getBoundingClientRect();
       const scrollX = window.pageXOffset || document.documentElement.scrollLeft || 0;
@@ -317,10 +356,12 @@ export function useRadicalTooltip(): void {
       if (maxY < minY) maxY = minY;
 
       const desiredX = scrollX + rect.left + rect.width / 2 - tooltipWidth / 2;
-      const desiredY = scrollY + rect.bottom + 12;
+      const vertical = resolveTooltipTop(rect, tooltipHeight, options?.preferredPlacement);
+      const desiredY = scrollY + vertical.top;
 
       element.style.left = `${clamp(desiredX, minX, maxX)}px`;
       element.style.top = `${clamp(desiredY, minY, maxY)}px`;
+      return vertical.placement;
     };
 
     const showTooltip = async (anchor: HTMLAnchorElement, rawId: string) => {
@@ -332,7 +373,9 @@ export function useRadicalTooltip(): void {
       const element = createTooltip();
       element.innerHTML = LOADING_HTML;
       element.style.display = 'block';
-      positionTooltip(anchor);
+      // 先以預估高度決定上/下方向，但實際位置仍用「載入中」真實高度計算。
+      const loadingPlacement = resolveTooltipTop(anchor.getBoundingClientRect(), 220).placement;
+      positionTooltip(anchor, { preferredPlacement: loadingPlacement });
 
       const cacheKey = id;
       let html = cache.get(cacheKey);
@@ -357,7 +400,7 @@ export function useRadicalTooltip(): void {
       tooltipEl.innerHTML = html || EMPTY_HTML;
       tooltipEl.style.display = 'block';
       if (currentAnchor) {
-        positionTooltip(currentAnchor);
+        positionTooltip(currentAnchor, { preferredPlacement: loadingPlacement });
       }
     };
 
