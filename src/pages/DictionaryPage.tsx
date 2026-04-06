@@ -268,8 +268,7 @@ function isSingleCharTerm(input: string): boolean {
 function normalizeXrefWord(word: string): string {
   return String(word || '')
     .trim()
-    .replace(/^`+/, '')
-    .replace(/~+$/, '');
+    .replace(/[`~]/g, '');
 }
 
 interface HakkaReading {
