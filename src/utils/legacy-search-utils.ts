@@ -71,11 +71,7 @@ function buildLegacySearchMatcher(keyword: string): ((word: string) => boolean) 
 	}
 }
 
-export function collectLegacyMatchedTerms(list: string[], keyword: string, limit: number): string[] {
-	if (limit <= 0) {
-		return [];
-	}
-
+export function collectLegacyMatchedTerms(list: string[], keyword: string): string[] {
 	const matcher = buildLegacySearchMatcher(keyword);
 	if (!matcher) {
 		return [];
@@ -85,9 +81,6 @@ export function collectLegacyMatchedTerms(list: string[], keyword: string, limit
 	for (const term of list) {
 		if (!matcher(term)) continue;
 		matched.push(term);
-		if (matched.length >= limit) {
-			break;
-		}
 	}
 
 	return matched;

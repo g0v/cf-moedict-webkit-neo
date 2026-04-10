@@ -22,7 +22,6 @@ interface SuggestionItem {
 	lang: Lang;
 }
 
-const SEARCH_RESULT_LIMIT = 50;
 const PREFETCH_RESULT_LIMIT = 3;
 const PREFETCH_MIN_TERM_LENGTH = 2;
 const PREFETCH_DELAY_MS = 120;
@@ -278,7 +277,7 @@ export function SearchBox({ currentLang }: SearchBoxProps) {
 			loadIndexByLang(activeSearchLang)
 				.then((indexTerms) => {
 					if (requestId !== requestIdRef.current) return;
-					const matchedTerms = collectLegacyMatchedTerms(indexTerms, activeSearchTerm, SEARCH_RESULT_LIMIT);
+					const matchedTerms = collectLegacyMatchedTerms(indexTerms, activeSearchTerm);
 					setSuggestions(
 						matchedTerms.map((term) => ({
 							label: term,
