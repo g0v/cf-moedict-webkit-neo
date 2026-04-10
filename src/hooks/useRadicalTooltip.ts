@@ -248,6 +248,18 @@ function clamp(value: number, min: number, max: number): number {
 
 type TooltipVerticalPlacement = 'above' | 'below';
 
+function isTouchCapablePlatform(): boolean {
+  if (typeof window === 'undefined') return false;
+
+  // 任何可觸控能力都視為觸控平台，避免 tooltip 在行動/混合裝置卡住無法關閉。
+  const hasTouchEvent = 'ontouchstart' in window;
+  const maxTouchPoints = typeof navigator !== 'undefined' ? navigator.maxTouchPoints || 0 : 0;
+  const hasAnyCoarsePointer = window.matchMedia?.('(any-pointer: coarse)').matches ?? false;
+  const hasCoarsePointer = window.matchMedia?.('(pointer: coarse)').matches ?? false;
+
+  return hasTouchEvent || maxTouchPoints > 0 || hasAnyCoarsePointer || hasCoarsePointer;
+}
+
 function resolveTooltipTop(
   anchorRect: DOMRect,
   tooltipHeight: number,
@@ -283,7 +295,7 @@ function resolveTooltipTop(
 export function useRadicalTooltip(): void {
   useEffect(() => {
     // 觸控裝置不顯示 tooltip（無法關閉）
-    if (typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches) {
+    if (isTouchCapablePlatform()) {
       return;
     }
 
