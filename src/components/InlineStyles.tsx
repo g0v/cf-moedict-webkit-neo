@@ -378,6 +378,7 @@ export function InlineStyles({ r2Endpoint, onReady }: InlineStylesProps) {
 		}
 		.ui-tooltip {
 			max-width: 360px;
+			overflow: auto !important;
 			padding: 8px 12px;
 		}
 			.ui-tooltip .title .h1,
