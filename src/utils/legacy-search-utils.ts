@@ -25,6 +25,21 @@ export function hasLegacyPatternOperators(keyword: string): boolean {
 	return /[%?._^$*]/.test(normalizedKeyword);
 }
 
+function getPlainSearchPriorityNeedle(keyword: string): string | null {
+	const normalizedKeyword = normalizeLegacySearchKeyword(keyword);
+	if (!normalizedKeyword.trim()) {
+		return null;
+	}
+	if (normalizedKeyword !== normalizedKeyword.trim()) {
+		return null;
+	}
+	if (/[%?._^$*]/.test(normalizedKeyword)) {
+		return null;
+	}
+
+	return normalizedKeyword.replace(/\s/g, '');
+}
+
 function buildLegacySearchMatcher(keyword: string): ((word: string) => boolean) | null {
 	const normalizedKeyword = normalizeLegacySearchKeyword(keyword);
 	if (!normalizedKeyword.trim()) {
@@ -77,11 +92,31 @@ export function collectLegacyMatchedTerms(list: string[], keyword: string): stri
 		return [];
 	}
 
-	const matched: string[] = [];
-	for (const term of list) {
-		if (!matcher(term)) continue;
-		matched.push(term);
+	const priorityNeedle = getPlainSearchPriorityNeedle(keyword);
+	if (!priorityNeedle) {
+		const matched: string[] = [];
+		for (const term of list) {
+			if (!matcher(term)) continue;
+			matched.push(term);
+		}
+		return matched;
 	}
 
-	return matched;
+	const exactMatches: string[] = [];
+	const prefixMatches: string[] = [];
+	const containsMatches: string[] = [];
+	for (const term of list) {
+		if (!matcher(term)) continue;
+		if (term === priorityNeedle) {
+			exactMatches.push(term);
+			continue;
+		}
+		if (term.startsWith(priorityNeedle)) {
+			prefixMatches.push(term);
+			continue;
+		}
+		containsMatches.push(term);
+	}
+
+	return [...exactMatches, ...prefixMatches, ...containsMatches];
 }
