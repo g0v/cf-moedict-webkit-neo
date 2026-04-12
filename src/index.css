@@ -172,13 +172,19 @@ body {
 }
 
 @media (max-width: 767px) {
-	.navbar-fulltext-search-item-mobile {
+	/* Always show the settings (gear) button on mobile */
+	body #btn-pref {
+		display: block !important;
+	}
+
+	/* Search bar: position between gear and bookmark.
+	   Use .nav > .class to beat .nav > li { position: relative } (0,0,2,0 > 0,0,1,1) */
+	.nav > .navbar-fulltext-search-item-mobile {
 		position: absolute;
 		top: -5px;
-		left: 9.5em;
-		right: 3.25em;
+		left: 11em;
+		right: 3.5em;
 		margin: 0;
-		display: block;
 	}
 
 	.navbar-fulltext-search-item-mobile .fulltext-search {
@@ -201,9 +207,29 @@ body {
 
 	.navbar-fulltext-search-item-mobile .fulltext-search-panel {
 		width: min(300px, calc(100vw - 12px));
-		max-width: calc(100vw - 12px);
-		right: -40px;
+		right: auto;
+		left: calc(-11em + 6px);
+	}
+}
+
+/* Very narrow screens: collapse search to icon size */
+@media (max-width: 380px) {
+	.nav > .navbar-fulltext-search-item-mobile {
 		left: auto;
+		right: 3.75em;
+		width: 2.25em;
+	}
+
+	.navbar-fulltext-search-item-mobile .fulltext-search-input::placeholder {
+		color: transparent;
+	}
+
+	.navbar-fulltext-search-item-mobile .fulltext-search-panel {
+		position: fixed;
+		top: 45px;
+		left: 6px;
+		right: 6px;
+		width: auto;
 	}
 }
 
