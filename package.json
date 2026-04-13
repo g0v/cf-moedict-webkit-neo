@@ -5,9 +5,10 @@
 	"type": "module",
 	"scripts": {
 		"generate-c-index": "node commands/generateCIndex.js",
-		"predev": "npm run build-search-index",
-		"prebuild": "npm run build-search-index",
+		"predev": "npm run build-search-index && npm run build-pinyin-lookup",
+		"prebuild": "npm run build-search-index && npm run build-pinyin-lookup",
 		"build-search-index": "node scripts/build-search-index.mjs",
+		"build-pinyin-lookup": "node scripts/build-pinyin-lookup.mjs",
 		"dev": "vite",
 		"build": "tsc -b && vite build",
 		"lint": "eslint .",
