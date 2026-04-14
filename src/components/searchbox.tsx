@@ -28,6 +28,11 @@ const PREFETCH_DELAY_MS = 120;
 const MOBILE_BREAKPOINT_QUERY = '(max-width: 767px)';
 const INDEX_CACHE = new Map<Lang, string[]>();
 const INDEX_PROMISE_CACHE = new Map<Lang, Promise<string[]>>();
+const TAIWANESE_PINYIN_CACHE = new Map<string, string[]>();
+const TAIWANESE_PINYIN_PROMISE_CACHE = new Map<string, Promise<string[]>>();
+const TAIWANESE_PINYIN_CACHE_MAX_ENTRIES = 400;
+const TAIWANESE_PINYIN_TYPES = new Set(['TL', 'DT', 'POJ']);
+const TAIWANESE_ROMAN_INPUT_RE = /^(?=.*[A-Za-z])[A-Za-z0-9\s\-']+$/;
 const INDEX_FALLBACK_ORDER: Record<Lang, Lang[]> = {
 	a: ['a'],
 	t: ['t'],
@@ -78,6 +83,49 @@ function safeDecode(value: string): string {
 		return decodeURIComponent(value);
 	} catch {
 		return value;
+	}
+}
+
+function readTaiwanesePinyinType(): string {
+	if (typeof window === 'undefined') {
+		return 'TL';
+	}
+
+	try {
+		const raw = window.localStorage.getItem('pinyin_t') || 'TL';
+		return TAIWANESE_PINYIN_TYPES.has(raw) ? raw : 'TL';
+	} catch {
+		return 'TL';
+	}
+}
+
+function isTaiwaneseRomanizedInput(input: string): boolean {
+	return TAIWANESE_ROMAN_INPUT_RE.test(input);
+}
+
+function normalizeTaiwaneseLookupTerm(input: string): string {
+	return String(input ?? '')
+		.toLowerCase()
+		.normalize('NFD')
+		.replace(/\p{Mark}/gu, '')
+		.replace(/ⁿ/g, 'nn')
+		.replace(/ɑ/g, 'a')
+		.replace(/[^a-z]/g, '');
+}
+
+function touchTaiwanesePinyinCache(key: string, list: string[]): void {
+	if (TAIWANESE_PINYIN_CACHE.has(key)) {
+		TAIWANESE_PINYIN_CACHE.delete(key);
+	}
+	TAIWANESE_PINYIN_CACHE.set(key, list);
+
+	if (TAIWANESE_PINYIN_CACHE.size <= TAIWANESE_PINYIN_CACHE_MAX_ENTRIES) {
+		return;
+	}
+
+	const oldestKey = TAIWANESE_PINYIN_CACHE.keys().next().value;
+	if (oldestKey) {
+		TAIWANESE_PINYIN_CACHE.delete(oldestKey);
 	}
 }
 
@@ -183,6 +231,47 @@ async function loadIndexByLang(lang: Lang): Promise<string[]> {
 	return [];
 }
 
+async function fetchTaiwanesePinyinSuggestions(term: string, type: string): Promise<string[]> {
+	const normalizedTerm = normalizeTaiwaneseLookupTerm(term);
+	const cacheKey = `${type}:${normalizedTerm}`;
+	const cached = TAIWANESE_PINYIN_CACHE.get(cacheKey);
+	if (cached) {
+		touchTaiwanesePinyinCache(cacheKey, cached);
+		return cached;
+	}
+
+	const pending = TAIWANESE_PINYIN_PROMISE_CACHE.get(cacheKey);
+	if (pending) {
+		return pending;
+	}
+
+	const request = fetch(`/api/lookup/pinyin/t/${encodeURIComponent(type)}/${encodeURIComponent(term)}.json`, {
+		headers: { Accept: 'application/json' },
+	})
+		.then(async (response) => {
+			if (!response.ok) {
+				throw new Error(`羅馬字索引讀取失敗: ${response.status}`);
+			}
+
+			const data = (await response.json()) as unknown;
+			if (!Array.isArray(data)) {
+				return [];
+			}
+
+			return data.filter((item): item is string => typeof item === 'string' && item.trim().length > 0);
+		})
+		.then((list) => {
+			touchTaiwanesePinyinCache(cacheKey, list);
+			return list;
+		})
+		.finally(() => {
+			TAIWANESE_PINYIN_PROMISE_CACHE.delete(cacheKey);
+		});
+
+	TAIWANESE_PINYIN_PROMISE_CACHE.set(cacheKey, request);
+	return request;
+}
+
 /**
  * 搜尋框組件
  */
@@ -246,6 +335,10 @@ export function SearchBox({ currentLang }: SearchBoxProps) {
 	const activeSearchLang = activeSearch?.lang ?? resolvedLang;
 	const activeSearchTerm = activeSearch?.term ?? '';
 	const hasActiveSearch = activeSearchTerm.length > 0;
+	const activeTaiwanesePinyinType = useMemo(() => readTaiwanesePinyinType(), []);
+	const isTaiwaneseRomanSearch = useMemo(() => {
+		return activeSearchLang === 't' && hasActiveSearch && isTaiwaneseRomanizedInput(activeSearchTerm);
+	}, [activeSearchLang, activeSearchTerm, hasActiveSearch]);
 	const usesPatternSearch = hasLegacyPatternOperators(activeSearchTerm);
 
 	// Search 字詞變更時，手機結果面板預設收合
@@ -274,10 +367,13 @@ export function SearchBox({ currentLang }: SearchBoxProps) {
 		setLoadingSuggestions(true);
 
 		const timer = window.setTimeout(() => {
-			loadIndexByLang(activeSearchLang)
-				.then((indexTerms) => {
+			const suggestionRequest = isTaiwaneseRomanSearch
+				? fetchTaiwanesePinyinSuggestions(activeSearchTerm, activeTaiwanesePinyinType)
+				: loadIndexByLang(activeSearchLang).then((indexTerms) => collectLegacyMatchedTerms(indexTerms, activeSearchTerm));
+
+			suggestionRequest
+				.then((matchedTerms) => {
 					if (requestId !== requestIdRef.current) return;
-					const matchedTerms = collectLegacyMatchedTerms(indexTerms, activeSearchTerm);
 					setSuggestions(
 						matchedTerms.map((term) => ({
 							label: term,
@@ -300,7 +396,7 @@ export function SearchBox({ currentLang }: SearchBoxProps) {
 		return () => {
 			window.clearTimeout(timer);
 		};
-	}, [activeSearchLang, activeSearchTerm, hasActiveSearch]);
+	}, [activeSearchLang, activeSearchTerm, activeTaiwanesePinyinType, hasActiveSearch, isTaiwaneseRomanSearch]);
 
 	// 預先抓取前幾筆候選詞條，減少點選後等待時間
 	useEffect(() => {
@@ -325,6 +421,7 @@ export function SearchBox({ currentLang }: SearchBoxProps) {
 			const resolved = resolveSearchInput(rawValue, resolvedLang);
 			if (!resolved) return;
 			if (hasLegacyPatternOperators(resolved.term)) return;
+			if (resolved.lang === 't' && isTaiwaneseRomanizedInput(resolved.term)) return;
 
 			const nextPath = formatSearchTerm(resolved.term, resolved.lang);
 			if (nextPath === location.pathname) return;
@@ -397,6 +494,7 @@ export function SearchBox({ currentLang }: SearchBoxProps) {
 			const resolved = resolveSearchInput(searchValue, resolvedLang);
 			if (!resolved) return;
 			if (hasLegacyPatternOperators(resolved.term)) return;
+			if (resolved.lang === 't' && isTaiwaneseRomanizedInput(resolved.term)) return;
 			const path = formatSearchTerm(resolved.term, resolved.lang);
 			navigate(path);
 		},

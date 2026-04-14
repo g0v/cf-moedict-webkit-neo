@@ -1,6 +1,7 @@
 import { handleDictionaryAPI } from '../src/api/handleDictionaryAPI';
 import { lookupDictionaryEntry } from '../src/api/handleDictionaryAPI';
 import { handleListAPI } from '../src/api/handleListAPI';
+import { handleLookupAPI } from '../src/api/handleLookupAPI';
 import { handleStrokeAPI } from '../src/api/handleStrokeAPI';
 import { escapeHeadContent, resolveHeadByPath } from '../src/ssr/head';
 import { handleImageGeneration } from '../src/utils/image-generation';
@@ -216,6 +217,12 @@ export default {
           'Access-Control-Max-Age': '86400',
         },
       });
+    }
+
+    // lookup API（台語羅馬拼音索引 / 舊站 trs 相容）
+    const lookupResponse = await handleLookupAPI(request, url, env);
+    if (lookupResponse) {
+      return lookupResponse;
     }
 
     // 特殊路由：App Store 下載圖片（從 R2 ASSETS 讀取）
