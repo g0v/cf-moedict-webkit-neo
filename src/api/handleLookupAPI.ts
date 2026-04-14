@@ -13,7 +13,7 @@ interface LookupEnv {
 }
 
 const LOOKUP_LANG_SET = new Set<LookupLang>(['a', 't', 'h', 'c']);
-const LOOKUP_CORS_ALLOWLIST = new Set(['https://moedict.tw', 'https://old.moedict.tw', 'http://old.moedict.tw']);
+const LOOKUP_CORS_ALLOWLIST = new Set(['https://moedict.tw', 'https://old.moedict.tw', 'http://old.moedict.tw', 'https://www.moedict.org', 'http://www.moedict.org', 'https://moedict.org', 'http://moedict.org']);
 const PINYIN_CACHE_CONTROL = 'public, max-age=300, stale-while-revalidate=1800';
 const TRS_CACHE_CONTROL = 'public, max-age=300, stale-while-revalidate=1800';
 
