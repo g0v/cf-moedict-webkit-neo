@@ -28,6 +28,9 @@ const PREFETCH_DELAY_MS = 120;
 const MOBILE_BREAKPOINT_QUERY = '(max-width: 767px)';
 const INDEX_CACHE = new Map<Lang, string[]>();
 const INDEX_PROMISE_CACHE = new Map<Lang, Promise<string[]>>();
+const TAIWANESE_PINYIN_CACHE = new Map<string, string[]>();
+const TAIWANESE_PINYIN_PROMISE_CACHE = new Map<string, Promise<string[]>>();
+const TAIWANESE_PINYIN_CACHE_MAX_ENTRIES = 400;
 const TAIWANESE_PINYIN_TYPES = new Set(['TL', 'DT', 'POJ']);
 const TAIWANESE_ROMAN_INPUT_RE = /^(?=.*[A-Za-z])[A-Za-z0-9\s\-']+$/;
 const INDEX_FALLBACK_ORDER: Record<Lang, Lang[]> = {
@@ -98,6 +101,32 @@ function readTaiwanesePinyinType(): string {
 
 function isTaiwaneseRomanizedInput(input: string): boolean {
 	return TAIWANESE_ROMAN_INPUT_RE.test(input);
+}
+
+function normalizeTaiwaneseLookupTerm(input: string): string {
+	return String(input ?? '')
+		.toLowerCase()
+		.normalize('NFD')
+		.replace(/\p{Mark}/gu, '')
+		.replace(/ⁿ/g, 'nn')
+		.replace(/ɑ/g, 'a')
+		.replace(/[^a-z]/g, '');
+}
+
+function touchTaiwanesePinyinCache(key: string, list: string[]): void {
+	if (TAIWANESE_PINYIN_CACHE.has(key)) {
+		TAIWANESE_PINYIN_CACHE.delete(key);
+	}
+	TAIWANESE_PINYIN_CACHE.set(key, list);
+
+	if (TAIWANESE_PINYIN_CACHE.size <= TAIWANESE_PINYIN_CACHE_MAX_ENTRIES) {
+		return;
+	}
+
+	const oldestKey = TAIWANESE_PINYIN_CACHE.keys().next().value;
+	if (oldestKey) {
+		TAIWANESE_PINYIN_CACHE.delete(oldestKey);
+	}
 }
 
 function isSafariUserAgent(userAgent: string): boolean {
@@ -203,20 +232,44 @@ async function loadIndexByLang(lang: Lang): Promise<string[]> {
 }
 
 async function fetchTaiwanesePinyinSuggestions(term: string, type: string): Promise<string[]> {
-	const response = await fetch(`/api/lookup/pinyin/t/${encodeURIComponent(type)}/${encodeURIComponent(term)}.json`, {
+	const normalizedTerm = normalizeTaiwaneseLookupTerm(term);
+	const cacheKey = `${type}:${normalizedTerm}`;
+	const cached = TAIWANESE_PINYIN_CACHE.get(cacheKey);
+	if (cached) {
+		touchTaiwanesePinyinCache(cacheKey, cached);
+		return cached;
+	}
+
+	const pending = TAIWANESE_PINYIN_PROMISE_CACHE.get(cacheKey);
+	if (pending) {
+		return pending;
+	}
+
+	const request = fetch(`/api/lookup/pinyin/t/${encodeURIComponent(type)}/${encodeURIComponent(term)}.json`, {
 		headers: { Accept: 'application/json' },
-	});
+	})
+		.then(async (response) => {
+			if (!response.ok) {
+				throw new Error(`羅馬字索引讀取失敗: ${response.status}`);
+			}
 
-	if (!response.ok) {
-		throw new Error(`羅馬字索引讀取失敗: ${response.status}`);
-	}
+			const data = (await response.json()) as unknown;
+			if (!Array.isArray(data)) {
+				return [];
+			}
 
-	const data = (await response.json()) as unknown;
-	if (!Array.isArray(data)) {
-		return [];
-	}
+			return data.filter((item): item is string => typeof item === 'string' && item.trim().length > 0);
+		})
+		.then((list) => {
+			touchTaiwanesePinyinCache(cacheKey, list);
+			return list;
+		})
+		.finally(() => {
+			TAIWANESE_PINYIN_PROMISE_CACHE.delete(cacheKey);
+		});
 
-	return data.filter((item): item is string => typeof item === 'string' && item.trim().length > 0);
+	TAIWANESE_PINYIN_PROMISE_CACHE.set(cacheKey, request);
+	return request;
 }
 
 /**
