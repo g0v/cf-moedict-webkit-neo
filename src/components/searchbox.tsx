@@ -392,6 +392,20 @@ function filterPositionalRomanizationTerms(terms: string[], exactCharacterSets: 
 	});
 }
 
+function shouldKeepHanYuRomanizationTerm(term: string, lang: Lang, indexSet: Set<string>): boolean {
+	if (indexSet.has(term)) {
+		return true;
+	}
+
+	// Cross-strait index.json intentionally omits single-character entries such as 「愛」,
+	// but the dictionary route can still resolve them. Keep those exact HanYu hits.
+	if (lang === 'c' && Array.from(term).length === 1) {
+		return true;
+	}
+
+	return false;
+}
+
 async function fetchLegacyHanYuRomanizationTerms(keyword: string, lang: Lang): Promise<string[]> {
 	const lookupBase = getLegacyHanYuPinyinLookupBase(lang);
 	if (!lookupBase) {
@@ -579,7 +593,9 @@ export function SearchBox({ currentLang }: SearchBoxProps) {
 						indexTermsPromise,
 					]);
 					const indexSet = getIndexSetForLang(activeSearchLang);
-					matchedTerms = romanizationTerms.filter((term) => indexSet.has(term));
+					matchedTerms = romanizationTerms.filter((term) =>
+						shouldKeepHanYuRomanizationTerm(term, activeSearchLang, indexSet)
+					);
 					if (matchedTerms.length === 0) {
 						matchedTerms = collectLegacyMatchedTerms(indexTerms, activeSearchTerm);
 					}
