@@ -9,6 +9,7 @@
  */
 
 import { handleDictionaryAPI } from './api/handleDictionaryAPI.ts';
+import { handleLookupAPI } from './api/handleLookupAPI.ts';
 
 if (typeof window !== 'undefined' && (window as any).Capacitor) {
 
@@ -59,6 +60,12 @@ async function handleOfflineApiRequest(url: string, init?: RequestInit): Promise
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
+  }
+
+  if (pathname.startsWith('/api/lookup/pinyin/') || pathname.startsWith('/lookup/trs/')) {
+    const request = new Request(parsedUrl.href, init);
+    const response = await handleLookupAPI(request, parsedUrl, offlineEnv);
+    if (response) return response;
   }
 
   if (pathname.startsWith('/api/stroke-json/')) {

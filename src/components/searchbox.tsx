@@ -33,6 +33,11 @@ const TAIWANESE_PINYIN_PROMISE_CACHE = new Map<string, Promise<string[]>>();
 const TAIWANESE_PINYIN_CACHE_MAX_ENTRIES = 400;
 const TAIWANESE_PINYIN_TYPES = new Set(['TL', 'DT', 'POJ']);
 const TAIWANESE_ROMAN_INPUT_RE = /^(?=.*[A-Za-z])[A-Za-z0-9\s\-']+$/;
+const HAKKA_PINYIN_CACHE = new Map<string, string[]>();
+const HAKKA_PINYIN_PROMISE_CACHE = new Map<string, Promise<string[]>>();
+const HAKKA_PINYIN_CACHE_MAX_ENTRIES = 400;
+const HAKKA_PINYIN_TYPES = new Set(['TH', 'PFS']);
+const HAKKA_ROMAN_INPUT_RE = /^(?=.*\p{Script=Latin})[\p{Script=Latin}\p{Mark}0-9\s\-']+$/u;
 const INDEX_SET_CACHE = new Map<Lang, Set<string>>();
 const INDEX_FALLBACK_ORDER: Record<Lang, Lang[]> = {
 	a: ['a'],
@@ -109,8 +114,25 @@ function readTaiwanesePinyinType(): string {
 	}
 }
 
+function readHakkaPinyinType(): string {
+	if (typeof window === 'undefined') {
+		return 'TH';
+	}
+
+	try {
+		const raw = window.localStorage.getItem('pinyin_h') || 'TH';
+		return HAKKA_PINYIN_TYPES.has(raw) ? raw : 'TH';
+	} catch {
+		return 'TH';
+	}
+}
+
 function isTaiwaneseRomanizedInput(input: string): boolean {
 	return TAIWANESE_ROMAN_INPUT_RE.test(input);
+}
+
+function isHakkaRomanizedInput(input: string): boolean {
+	return HAKKA_ROMAN_INPUT_RE.test(input);
 }
 
 function normalizeTaiwaneseLookupTerm(input: string): string {
@@ -136,6 +158,32 @@ function touchTaiwanesePinyinCache(key: string, list: string[]): void {
 	const oldestKey = TAIWANESE_PINYIN_CACHE.keys().next().value;
 	if (oldestKey) {
 		TAIWANESE_PINYIN_CACHE.delete(oldestKey);
+	}
+}
+
+function normalizeHakkaLookupTerm(input: string): string {
+	return String(input ?? '')
+		.toLowerCase()
+		.normalize('NFD')
+		.replace(/\p{Mark}/gu, '')
+		.replace(/ⁿ/g, 'nn')
+		.replace(/ɑ/g, 'a')
+		.replace(/[^a-z]/g, '');
+}
+
+function touchHakkaPinyinCache(key: string, list: string[]): void {
+	if (HAKKA_PINYIN_CACHE.has(key)) {
+		HAKKA_PINYIN_CACHE.delete(key);
+	}
+	HAKKA_PINYIN_CACHE.set(key, list);
+
+	if (HAKKA_PINYIN_CACHE.size <= HAKKA_PINYIN_CACHE_MAX_ENTRIES) {
+		return;
+	}
+
+	const oldestKey = HAKKA_PINYIN_CACHE.keys().next().value;
+	if (oldestKey) {
+		HAKKA_PINYIN_CACHE.delete(oldestKey);
 	}
 }
 
@@ -283,6 +331,47 @@ async function fetchTaiwanesePinyinSuggestions(term: string, type: string): Prom
 		});
 
 	TAIWANESE_PINYIN_PROMISE_CACHE.set(cacheKey, request);
+	return request;
+}
+
+async function fetchHakkaPinyinSuggestions(term: string, type: string): Promise<string[]> {
+	const normalizedTerm = normalizeHakkaLookupTerm(term);
+	const cacheKey = `${type}:${normalizedTerm}`;
+	const cached = HAKKA_PINYIN_CACHE.get(cacheKey);
+	if (cached) {
+		touchHakkaPinyinCache(cacheKey, cached);
+		return cached;
+	}
+
+	const pending = HAKKA_PINYIN_PROMISE_CACHE.get(cacheKey);
+	if (pending) {
+		return pending;
+	}
+
+	const request = fetch(`/api/lookup/pinyin/h/${encodeURIComponent(type)}/${encodeURIComponent(term)}.json`, {
+		headers: { Accept: 'application/json' },
+	})
+		.then(async (response) => {
+			if (!response.ok) {
+				throw new Error(`客語拼音索引讀取失敗: ${response.status}`);
+			}
+
+			const data = (await response.json()) as unknown;
+			if (!Array.isArray(data)) {
+				return [];
+			}
+
+			return data.filter((item): item is string => typeof item === 'string' && item.trim().length > 0);
+		})
+		.then((list) => {
+			touchHakkaPinyinCache(cacheKey, list);
+			return list;
+		})
+		.finally(() => {
+			HAKKA_PINYIN_PROMISE_CACHE.delete(cacheKey);
+		});
+
+	HAKKA_PINYIN_PROMISE_CACHE.set(cacheKey, request);
 	return request;
 }
 
@@ -547,8 +636,12 @@ export function SearchBox({ currentLang }: SearchBoxProps) {
 	const activeSearchTerm = activeSearch?.term ?? '';
 	const hasActiveSearch = activeSearchTerm.length > 0;
 	const activeTaiwanesePinyinType = useMemo(() => readTaiwanesePinyinType(), []);
+	const activeHakkaPinyinType = useMemo(() => readHakkaPinyinType(), []);
 	const isTaiwaneseRomanSearch = useMemo(() => {
 		return activeSearchLang === 't' && hasActiveSearch && isTaiwaneseRomanizedInput(activeSearchTerm);
+	}, [activeSearchLang, activeSearchTerm, hasActiveSearch]);
+	const isHakkaRomanSearch = useMemo(() => {
+		return activeSearchLang === 'h' && hasActiveSearch && isHakkaRomanizedInput(activeSearchTerm);
 	}, [activeSearchLang, activeSearchTerm, hasActiveSearch]);
 	const usesPatternSearch = hasLegacyPatternOperators(activeSearchTerm);
 	const usesHanYuRomanizationLookup = isHanYuRomanizationQuery(activeSearchTerm, activeSearchLang);
@@ -585,6 +678,8 @@ export function SearchBox({ currentLang }: SearchBoxProps) {
 
 				if (isTaiwaneseRomanSearch) {
 					matchedTerms = await fetchTaiwanesePinyinSuggestions(activeSearchTerm, activeTaiwanesePinyinType);
+				} else if (isHakkaRomanSearch) {
+					matchedTerms = await fetchHakkaPinyinSuggestions(activeSearchTerm, activeHakkaPinyinType);
 				} else if (usesHanYuRomanizationLookup) {
 					const [romanizationTerms, indexTerms] = await Promise.all([
 						fetchHanYuRomanizationTerms(activeSearchTerm, activeSearchLang),
@@ -630,7 +725,7 @@ export function SearchBox({ currentLang }: SearchBoxProps) {
 		return () => {
 			window.clearTimeout(timer);
 		};
-	}, [activeSearchLang, activeSearchTerm, activeTaiwanesePinyinType, hasActiveSearch, isTaiwaneseRomanSearch, usesHanYuRomanizationLookup]);
+	}, [activeHakkaPinyinType, activeSearchLang, activeSearchTerm, activeTaiwanesePinyinType, hasActiveSearch, isHakkaRomanSearch, isTaiwaneseRomanSearch, usesHanYuRomanizationLookup]);
 
 	// 預先抓取前幾筆候選詞條，減少點選後等待時間
 	useEffect(() => {
@@ -656,6 +751,7 @@ export function SearchBox({ currentLang }: SearchBoxProps) {
 			if (!resolved) return;
 			if (hasLegacyPatternOperators(resolved.term)) return;
 			if (resolved.lang === 't' && isTaiwaneseRomanizedInput(resolved.term)) return;
+			if (resolved.lang === 'h' && isHakkaRomanizedInput(resolved.term)) return;
 			if (isHanYuRomanizationQuery(resolved.term, resolved.lang)) return;
 
 			const nextPath = formatSearchTerm(resolved.term, resolved.lang);
@@ -730,6 +826,7 @@ export function SearchBox({ currentLang }: SearchBoxProps) {
 			if (!resolved) return;
 			if (hasLegacyPatternOperators(resolved.term)) return;
 			if (resolved.lang === 't' && isTaiwaneseRomanizedInput(resolved.term)) return;
+			if (resolved.lang === 'h' && isHakkaRomanizedInput(resolved.term)) return;
 			if (isHanYuRomanizationQuery(resolved.term, resolved.lang)) return;
 			const path = formatSearchTerm(resolved.term, resolved.lang);
 			navigate(path);

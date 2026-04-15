@@ -2,9 +2,16 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 
 const ROOT_DIR = path.resolve(import.meta.dirname, '..');
-const SOURCE_DIR = path.join(ROOT_DIR, 'data', 'dictionary', 'ptck');
-const OUTPUT_ROOT = path.join(ROOT_DIR, 'data', 'dictionary', 'lookup', 'pinyin', 't');
-const PINYIN_TYPES = ['TL', 'DT', 'POJ'];
+const DICTIONARY_DIR = path.join(ROOT_DIR, 'data', 'dictionary');
+const OUTPUT_ROOT = path.join(DICTIONARY_DIR, 'lookup', 'pinyin');
+
+const TAIWANESE_SOURCE_DIR = path.join(DICTIONARY_DIR, 'ptck');
+const TAIWANESE_TYPES = ['TL', 'DT', 'POJ'];
+
+const HAKKA_SOURCE_DIR = path.join(DICTIONARY_DIR, 'phck');
+const HAKKA_TYPES = ['TH', 'PFS'];
+const HAKKA_DIALECT_MARKER_RE = /([四海大平安南])[\u20DE\u20DF](\S+)/g;
+const HAKKA_SYLLABLE_RE = /[A-Za-z\u00C0-\u024F\u1E00-\u1EFF\u0300-\u036F]+[¹²³⁴⁵]+/g;
 
 function normalizeTitle(input) {
 	return String(input ?? '')
@@ -33,6 +40,102 @@ function extractTitle(packedKey, entry) {
 	const fromEntry = normalizeTitle(entry?.t);
 	if (fromEntry) return fromEntry;
 	return normalizeTitle(decodePackedKey(packedKey));
+}
+
+function sortDocs(termDocs) {
+	return Array.from(termDocs.entries())
+		.map(([title, [firstPos, frequency]]) => ({ title, firstPos, frequency }))
+		.sort((left, right) => {
+			return (
+				left.title.length - right.title.length ||
+				left.firstPos - right.firstPos ||
+				right.frequency - left.frequency ||
+				left.title.localeCompare(right.title, 'zh-Hant')
+			);
+		})
+		.map((row) => row.title);
+}
+
+function insertIndex(index, title, terms) {
+	const posMap = new Map();
+	const freqMap = new Map();
+
+	for (const [position, term] of terms.entries()) {
+		const normalized = normalizeLookupTerm(term);
+		if (!normalized) continue;
+
+		if (!posMap.has(normalized)) {
+			posMap.set(normalized, position);
+		}
+		freqMap.set(normalized, (freqMap.get(normalized) ?? 0) + 1);
+	}
+
+	for (const [term, frequency] of freqMap.entries()) {
+		let docs = index.get(term);
+		if (!docs) {
+			docs = new Map();
+			index.set(term, docs);
+		}
+
+		const existing = docs.get(title);
+		if (!existing) {
+			docs.set(title, [posMap.get(term) ?? 0, frequency]);
+			continue;
+		}
+
+		existing[1] += frequency;
+	}
+}
+
+async function getBucketFiles(sourceDir) {
+	const files = await fs.readdir(sourceDir);
+	return files
+		.filter((name) => /^\d+\.txt$/.test(name))
+		.sort((left, right) => Number.parseInt(left, 10) - Number.parseInt(right, 10));
+}
+
+async function resetOutputDir(dir) {
+	await fs.rm(dir, { recursive: true, force: true });
+	await fs.mkdir(dir, { recursive: true });
+}
+
+async function ensureOutputDirs(lang, types) {
+	const langRoot = path.join(OUTPUT_ROOT, lang);
+	await resetOutputDir(langRoot);
+	for (const type of types) {
+		await fs.mkdir(path.join(langRoot, type), { recursive: true });
+	}
+}
+
+async function writeIndexes(lang, types, indexByType) {
+	for (const type of types) {
+		const typeDir = path.join(OUTPUT_ROOT, lang, type);
+		const typeIndex = indexByType.get(type);
+		let count = 0;
+
+		for (const [term, docs] of typeIndex.entries()) {
+			const filePath = path.join(typeDir, `${encodeURIComponent(term)}.json`);
+			const payload = JSON.stringify(sortDocs(docs));
+			await fs.writeFile(filePath, payload);
+			count += 1;
+		}
+
+		console.log(`[build-pinyin-lookup] wrote ${lang}/${type}: ${count} terms`);
+	}
+}
+
+async function writeHakkaLookupMaps(indexByType) {
+	const hakkaRoot = path.join(OUTPUT_ROOT, 'h');
+	await resetOutputDir(hakkaRoot);
+
+	for (const type of HAKKA_TYPES) {
+		const typeIndex = indexByType.get(type);
+		const payload = Object.fromEntries(
+			Array.from(typeIndex.entries()).map(([term, docs]) => [term, sortDocs(docs)])
+		);
+		await fs.writeFile(path.join(hakkaRoot, `${type}.json`), `${JSON.stringify(payload)}\n`);
+		console.log(`[build-pinyin-lookup] wrote h/${type}: ${Object.keys(payload).length} terms`);
+	}
 }
 
 function extractTlRawTokens(romanization) {
@@ -74,38 +177,7 @@ function convertTlTokenToPoj(rawToken) {
 		.replace(/([ie])r/g, '$1');
 }
 
-function insertIndex(index, title, terms) {
-	const posMap = new Map();
-	const freqMap = new Map();
-
-	for (const [position, term] of terms.entries()) {
-		const normalized = normalizeLookupTerm(term);
-		if (!normalized) continue;
-
-		if (!posMap.has(normalized)) {
-			posMap.set(normalized, position);
-		}
-		freqMap.set(normalized, (freqMap.get(normalized) ?? 0) + 1);
-	}
-
-	for (const [term, frequency] of freqMap.entries()) {
-		let docs = index.get(term);
-		if (!docs) {
-			docs = new Map();
-			index.set(term, docs);
-		}
-
-		const existing = docs.get(title);
-		if (!existing) {
-			docs.set(title, [posMap.get(term) ?? 0, frequency]);
-			continue;
-		}
-
-		existing[1] += frequency;
-	}
-}
-
-function collectTermsByType(trsValue) {
+function collectTaiwaneseTermsByType(trsValue) {
 	const tlRawTokens = extractTlRawTokens(trsValue);
 
 	const tl = [];
@@ -126,61 +198,123 @@ function collectTermsByType(trsValue) {
 	return { TL: tl, DT: dt, POJ: poj };
 }
 
-function sortDocs(termDocs) {
-	return Array.from(termDocs.entries())
-		.map(([title, [firstPos, frequency]]) => ({ title, firstPos, frequency }))
-		.sort((left, right) => {
-			return (
-				left.title.length - right.title.length ||
-				left.firstPos - right.firstPos ||
-				right.frequency - left.frequency ||
-				left.title.localeCompare(right.title, 'zh-Hant')
-			);
-		})
-		.map((row) => row.title);
-}
+const PFS_TONE_MARK_MAP = {
+	'\u00B2\u2074': '\u0302',
+	'\u00B9\u00B9': '\u0300',
+	'\u00B3\u00B9': '\u0301',
+	'\u2075\u2075': '',
+	'\u00B2': '',
+	'\u2075': '\u030D',
+};
 
-async function getBucketFiles(sourceDir) {
-	const files = await fs.readdir(sourceDir);
-	return files
-		.filter((name) => /^\d+\.txt$/.test(name))
-		.sort((left, right) => Number.parseInt(left, 10) - Number.parseInt(right, 10));
-}
+function toneToPfs(segment) {
+	const parts = segment.split(/([\u00B9\u00B2\u00B3\u2074\u2075]+)/);
+	if (parts.length < 2) return segment;
+	const syllable = parts[0];
+	const tone = parts[1];
+	const mark = PFS_TONE_MARK_MAP[tone];
+	if (mark === undefined) return segment;
 
-async function ensureOutputDirs() {
-	await fs.rm(OUTPUT_ROOT, { recursive: true, force: true });
-	for (const type of PINYIN_TYPES) {
-		await fs.mkdir(path.join(OUTPUT_ROOT, type), { recursive: true });
-	}
-}
-
-async function writeIndexes(indexByType) {
-	for (const type of PINYIN_TYPES) {
-		const typeDir = path.join(OUTPUT_ROOT, type);
-		const typeIndex = indexByType.get(type);
-		let count = 0;
-
-		for (const [term, docs] of typeIndex.entries()) {
-			const filePath = path.join(typeDir, `${encodeURIComponent(term)}.json`);
-			const payload = JSON.stringify(sortDocs(docs));
-			await fs.writeFile(filePath, payload);
-			count += 1;
+	const vowels = ['o', 'e', 'a', 'u', 'i', '\u1E73', 'n', 'm'];
+	for (const vowel of vowels) {
+		const pos = syllable.indexOf(vowel);
+		if (pos >= 0) {
+			const before = syllable.slice(0, pos + 1);
+			const after = syllable.slice(pos + 1);
+			return `${before}${mark}${after}`;
 		}
-
-		console.log(`[build-pinyin-lookup] wrote t/${type}: ${count} terms`);
 	}
+	return segment;
 }
 
-async function main() {
-	const bucketFiles = await getBucketFiles(SOURCE_DIR);
-	if (bucketFiles.length === 0) {
-		throw new Error(`找不到台語詞典資料：${SOURCE_DIR}`);
+function thToPfs(input) {
+	const normalized = String(input ?? '')
+		.replace(/t/g, 'th')
+		.replace(/p/g, 'ph')
+		.replace(/k/g, 'kh')
+		.replace(/c/g, 'chh')
+		.replace(/b/g, 'p')
+		.replace(/d/g, 't')
+		.replace(/g/g, 'k')
+		.replace(/nk/g, 'ng')
+		.replace(/j/g, 'ch')
+		.replace(/q/g, 'chh')
+		.replace(/x/g, 's')
+		.replace(/z/g, 'ch')
+		.replace(/ii/g, '\u1E73')
+		.replace(/ua/g, 'oa')
+		.replace(/ue/g, 'oe')
+		.replace(/\bi/g, 'y')
+		.replace(/\by(\b|[ptk])h?/g, 'yi$1')
+		.replace(/(i[ptk])h/g, '$1')
+		.replace(/y([mn])/g, 'yi$1');
+
+	return toneToPfs(normalized);
+}
+
+function parseHakkaDialectReadings(rawPinyin) {
+	const source = String(rawPinyin ?? '');
+	if (!source) {
+		return [];
 	}
 
-	const indexByType = new Map(PINYIN_TYPES.map((type) => [type, new Map()]));
+	const readings = [];
+	let match = HAKKA_DIALECT_MARKER_RE.exec(source);
+	while (match) {
+		const dialect = match[1] || '';
+		const reading = match[2] || '';
+		if (dialect && reading) {
+			readings.push({ dialect, reading });
+		}
+		match = HAKKA_DIALECT_MARKER_RE.exec(source);
+	}
+	HAKKA_DIALECT_MARKER_RE.lastIndex = 0;
+	return readings;
+}
+
+function extractHakkaSyllables(reading) {
+	const matches = String(reading ?? '').match(HAKKA_SYLLABLE_RE);
+	if (matches && matches.length > 0) {
+		return matches;
+	}
+
+	const fallback = normalizeLookupTerm(reading);
+	return fallback ? [reading] : [];
+}
+
+function buildFirstSyllableTerms(tokens) {
+	const first = normalizeLookupTerm(tokens[0]);
+	return first ? [first] : [];
+}
+
+function collectHakkaTermsByType(rawPinyin) {
+	const th = [];
+	const pfs = [];
+
+	for (const { dialect, reading } of parseHakkaDialectReadings(rawPinyin)) {
+		const syllables = extractHakkaSyllables(reading);
+		if (syllables.length === 0) continue;
+
+		th.push(...buildFirstSyllableTerms(syllables));
+
+		if (dialect === '四') {
+			pfs.push(...buildFirstSyllableTerms(syllables.map((syllable) => thToPfs(syllable))));
+		}
+	}
+
+	return { TH: th, PFS: pfs };
+}
+
+async function buildTaiwaneseLookupIndex() {
+	const bucketFiles = await getBucketFiles(TAIWANESE_SOURCE_DIR);
+	if (bucketFiles.length === 0) {
+		throw new Error(`找不到台語詞典資料：${TAIWANESE_SOURCE_DIR}`);
+	}
+
+	const indexByType = new Map(TAIWANESE_TYPES.map((type) => [type, new Map()]));
 
 	for (const bucketFile of bucketFiles) {
-		const bucketPath = path.join(SOURCE_DIR, bucketFile);
+		const bucketPath = path.join(TAIWANESE_SOURCE_DIR, bucketFile);
 		const bucketRaw = await fs.readFile(bucketPath, 'utf8');
 		const bucket = JSON.parse(bucketRaw);
 
@@ -193,16 +327,54 @@ async function main() {
 				const trs = heteronym?.T;
 				if (typeof trs !== 'string' || trs.trim().length === 0) continue;
 
-				const termsByType = collectTermsByType(trs);
-				for (const type of PINYIN_TYPES) {
+				const termsByType = collectTaiwaneseTermsByType(trs);
+				for (const type of TAIWANESE_TYPES) {
 					insertIndex(indexByType.get(type), title, termsByType[type]);
 				}
 			}
 		}
 	}
 
-	await ensureOutputDirs();
-	await writeIndexes(indexByType);
+	await ensureOutputDirs('t', TAIWANESE_TYPES);
+	await writeIndexes('t', TAIWANESE_TYPES, indexByType);
+}
+
+async function buildHakkaLookupIndex() {
+	const bucketFiles = await getBucketFiles(HAKKA_SOURCE_DIR);
+	if (bucketFiles.length === 0) {
+		throw new Error(`找不到客語詞典資料：${HAKKA_SOURCE_DIR}`);
+	}
+
+	const indexByType = new Map(HAKKA_TYPES.map((type) => [type, new Map()]));
+
+	for (const bucketFile of bucketFiles) {
+		const bucketPath = path.join(HAKKA_SOURCE_DIR, bucketFile);
+		const bucketRaw = await fs.readFile(bucketPath, 'utf8');
+		const bucket = JSON.parse(bucketRaw);
+
+		for (const [packedKey, entry] of Object.entries(bucket)) {
+			const title = extractTitle(packedKey, entry);
+			if (!title) continue;
+
+			const heteronyms = Array.isArray(entry?.h) ? entry.h : [];
+			for (const heteronym of heteronyms) {
+				const rawPinyin = heteronym?.p;
+				if (typeof rawPinyin !== 'string' || rawPinyin.trim().length === 0) continue;
+
+				const termsByType = collectHakkaTermsByType(rawPinyin);
+				for (const type of HAKKA_TYPES) {
+					insertIndex(indexByType.get(type), title, termsByType[type]);
+				}
+			}
+		}
+	}
+
+	await writeHakkaLookupMaps(indexByType);
+}
+
+async function main() {
+	await buildTaiwaneseLookupIndex();
+	await buildHakkaLookupIndex();
 }
 
 main().catch((error) => {
