@@ -366,6 +366,32 @@ function intersectRomanizationResults(resultGroups: string[][]): string[] {
 	return firstGroup.filter((term) => remainingSets.every((group) => group.has(term)));
 }
 
+function buildExactCharacterSets(resultGroups: string[][]): Set<string>[] {
+	return resultGroups.map(
+		(group) => new Set(group.filter((term) => Array.from(term).length === 1))
+	);
+}
+
+function filterPositionalRomanizationTerms(terms: string[], exactCharacterSets: Set<string>[]): string[] {
+	if (exactCharacterSets.length === 0) {
+		return terms;
+	}
+
+	return terms.filter((term) => {
+		const chars = Array.from(term);
+		if (chars.length < exactCharacterSets.length) {
+			return false;
+		}
+
+		return exactCharacterSets.every((charSet, index) => {
+			if (charSet.size === 0) {
+				return true;
+			}
+			return charSet.has(chars[index]);
+		});
+	});
+}
+
 async function fetchLegacyHanYuRomanizationTerms(keyword: string, lang: Lang): Promise<string[]> {
 	const lookupBase = getLegacyHanYuPinyinLookupBase(lang);
 	if (!lookupBase) {
@@ -400,7 +426,12 @@ async function fetchLegacyHanYuRomanizationTerms(keyword: string, lang: Lang): P
 			return [];
 		}
 
-		return intersectRomanizationResults(responses);
+		const intersected = intersectRomanizationResults(responses);
+		if (lang !== 'c') {
+			return intersected;
+		}
+
+		return filterPositionalRomanizationTerms(intersected, buildExactCharacterSets(responses));
 	} catch {
 		return [];
 	}
