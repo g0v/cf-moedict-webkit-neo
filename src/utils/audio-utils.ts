@@ -12,12 +12,22 @@ const AUDIO_CDN_MAP: Record<DictionaryLang, string> = {
   c: 'https://203146b5091e8f0aafda-15d41c68795720c6e932125f5ace0c70.ssl.cf1.rackcdn.com', // 兩岸詞典使用華語路由
 };
 
+function normalizeAudioIdByLang(lang: DictionaryLang, audioId: string): string {
+  const normalized = String(audioId || '').trim();
+  if (!normalized) return '';
+  if (lang !== 't') return normalized;
+  // 台語音檔路徑採 5 碼數字，資料若為 4 碼需補 0（例：8778 -> 08778）
+  if (/^\d{1,4}$/.test(normalized)) return normalized.padStart(5, '0');
+  return normalized;
+}
+
 /**
  * 根據語言與 audio_id 取得音檔 URL
  */
 export function getAudioUrl(lang: DictionaryLang, audioId: string): string {
   const base = AUDIO_CDN_MAP[lang] ?? AUDIO_CDN_MAP.a;
-  return `${base}/${audioId}.ogg`;
+  const normalizedAudioId = normalizeAudioIdByLang(lang, audioId);
+  return `${base}/${normalizedAudioId}.ogg`;
 }
 
 let currentAudio: HTMLAudioElement | null = null;

@@ -26,6 +26,7 @@ interface Definition {
 }
 
 interface Heteronym {
+  id?: string;
   bopomofo?: string;
   pinyin?: string;
   trs?: string;
@@ -89,6 +90,7 @@ function normalizeComparableStringArray(value: string[] | string | undefined): s
 function getHeteronymSignature(heteronym: Heteronym): string {
   // 以穩定 key 順序產生簽章，僅用於「完全相同資料」去重
   const normalized = {
+    id: normalizeComparableText(heteronym.id),
     bopomofo: normalizeComparableText(heteronym.bopomofo),
     pinyin: normalizeComparableText(heteronym.pinyin),
     trs: normalizeComparableText(heteronym.trs),
@@ -562,6 +564,7 @@ export function DictionaryPage({ word, lang }: DictionaryPageProps) {
       <StrokeAnimation title={title} visible={strokesVisible} lang={lang} />
 
       {heteronyms.map((heteronym, idx) => {
+        const pronunAudioId = heteronym.audio_id || (lang === 't' ? heteronym.id : undefined);
         const rubyData =
           lang === 'h'
             ? {
@@ -666,17 +669,17 @@ export function DictionaryPage({ word, lang }: DictionaryPageProps) {
                 })()}
               </span>
               {rubyData.youyin && <small className="youyin">{rubyData.youyin}</small>}
-              {lang !== 'h' && heteronym.audio_id && (
+              {lang !== 'h' && pronunAudioId && (
                 <span className="audioBlock">
                   <i
                     role="button"
                     tabIndex={0}
-                    aria-label={playingAudioId === heteronym.audio_id ? '停止播放' : '播放發音'}
-                    className={`${playingAudioId === heteronym.audio_id ? 'icon-stop' : 'icon-play'} playAudio part-of-speech`}
-                    title={playingAudioId === heteronym.audio_id ? '停止播放' : '播放發音'}
+                    aria-label={playingAudioId === pronunAudioId ? '停止播放' : '播放發音'}
+                    className={`${playingAudioId === pronunAudioId ? 'icon-stop' : 'icon-play'} playAudio part-of-speech`}
+                    title={playingAudioId === pronunAudioId ? '停止播放' : '播放發音'}
                     onClick={(event) => {
                       event.stopPropagation();
-                      const audioId = heteronym.audio_id!;
+                      const audioId = pronunAudioId;
                       playAudioUrl(getAudioUrl(lang, audioId), (playing) => {
                         setPlayingAudioId(playing ? audioId : null);
                       });
@@ -684,7 +687,7 @@ export function DictionaryPage({ word, lang }: DictionaryPageProps) {
                     onKeyDown={(event) => {
                       if (event.key === 'Enter' || event.key === ' ') {
                         event.preventDefault();
-                        const audioId = heteronym.audio_id!;
+                        const audioId = pronunAudioId;
                         playAudioUrl(getAudioUrl(lang, audioId), (playing) => {
                           setPlayingAudioId(playing ? audioId : null);
                         });
