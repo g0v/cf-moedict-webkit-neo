@@ -40,8 +40,15 @@ const INDEX_FALLBACK_ORDER: Record<Lang, Lang[]> = {
 	h: ['h'],
 	c: ['c'],
 };
-const MANDARIN_ROMANIZATION_QUERY_RE = /^[\p{Script=Latin}\d' -]+$/u;
-const LEGACY_MANDARIN_PINYIN_LOOKUP_BASE = 'https://www.moedict.org/lookup/pinyin/a/HanYu';
+const HANYU_ROMANIZATION_QUERY_RE = /^[\p{Script=Latin}\d' -]+$/u;
+
+function getLegacyHanYuPinyinLookupBase(lang: Lang): string | null {
+	if (lang !== 'a' && lang !== 'c') {
+		return null;
+	}
+
+	return `https://www.moedict.org/lookup/pinyin/${lang}/HanYu`;
+}
 
 /**
  * 從字詞提取語言前綴和清理後的字詞
@@ -295,8 +302,8 @@ function getIndexSetForLang(lang: Lang): Set<string> {
 	return next;
 }
 
-function isMandarinRomanizationQuery(keyword: string, lang: Lang): boolean {
-	if (lang !== 'a') {
+function isHanYuRomanizationQuery(keyword: string, lang: Lang): boolean {
+	if (lang !== 'a' && lang !== 'c') {
 		return false;
 	}
 
@@ -305,7 +312,7 @@ function isMandarinRomanizationQuery(keyword: string, lang: Lang): boolean {
 		return false;
 	}
 
-	return MANDARIN_ROMANIZATION_QUERY_RE.test(normalizedKeyword);
+	return HANYU_ROMANIZATION_QUERY_RE.test(normalizedKeyword);
 }
 
 function parseRomanizationLookupResponse(payload: string): string[] {
@@ -324,14 +331,14 @@ function parseRomanizationLookupResponse(payload: string): string[] {
 	);
 }
 
-function normalizeMandarinRomanizationToken(token: string): string {
+function normalizeHanYuRomanizationToken(token: string): string {
 	return token
 		.normalize('NFD')
 		.replace(/\p{Mark}/gu, '')
 		.toLowerCase();
 }
 
-function tokenizeMandarinRomanization(keyword: string): string[] {
+function tokenizeHanYuRomanization(keyword: string): string[] {
 	const normalizedKeyword = keyword.trim();
 	if (!normalizedKeyword) {
 		return [];
@@ -339,7 +346,7 @@ function tokenizeMandarinRomanization(keyword: string): string[] {
 
 	const tokens = normalizedKeyword
 		.split(/[\s']+/)
-		.map((token) => normalizeMandarinRomanizationToken(token))
+		.map((token) => normalizeHanYuRomanizationToken(token))
 		.filter(Boolean);
 
 	if (tokens.length === 0 || tokens.some((token) => !/^[a-z0-9-]+$/.test(token))) {
@@ -359,8 +366,13 @@ function intersectRomanizationResults(resultGroups: string[][]): string[] {
 	return firstGroup.filter((term) => remainingSets.every((group) => group.has(term)));
 }
 
-async function fetchLegacyMandarinRomanizationTerms(keyword: string): Promise<string[]> {
-	const tokens = tokenizeMandarinRomanization(keyword);
+async function fetchLegacyHanYuRomanizationTerms(keyword: string, lang: Lang): Promise<string[]> {
+	const lookupBase = getLegacyHanYuPinyinLookupBase(lang);
+	if (!lookupBase) {
+		return [];
+	}
+
+	const tokens = tokenizeHanYuRomanization(keyword);
 	if (tokens.length === 0) {
 		return [];
 	}
@@ -368,7 +380,7 @@ async function fetchLegacyMandarinRomanizationTerms(keyword: string): Promise<st
 	try {
 		const responses = await Promise.all(
 			tokens.map(async (token) => {
-				const response = await fetch(`${LEGACY_MANDARIN_PINYIN_LOOKUP_BASE}/${encodeURIComponent(token)}.json`, {
+				const response = await fetch(`${lookupBase}/${encodeURIComponent(token)}.json`, {
 					headers: { Accept: 'application/json' },
 				});
 				if (!response.ok) {
@@ -394,13 +406,13 @@ async function fetchLegacyMandarinRomanizationTerms(keyword: string): Promise<st
 	}
 }
 
-async function fetchMandarinRomanizationTerms(keyword: string): Promise<string[]> {
+async function fetchHanYuRomanizationTerms(keyword: string, lang: Lang): Promise<string[]> {
 	const normalizedKeyword = keyword.trim();
 	if (!normalizedKeyword) {
 		return [];
 	}
 
-	const legacyTerms = await fetchLegacyMandarinRomanizationTerms(normalizedKeyword);
+	const legacyTerms = await fetchLegacyHanYuRomanizationTerms(normalizedKeyword, lang);
 	if (legacyTerms.length > 0) {
 		return legacyTerms;
 	}
@@ -496,7 +508,7 @@ export function SearchBox({ currentLang }: SearchBoxProps) {
 		return activeSearchLang === 't' && hasActiveSearch && isTaiwaneseRomanizedInput(activeSearchTerm);
 	}, [activeSearchLang, activeSearchTerm, hasActiveSearch]);
 	const usesPatternSearch = hasLegacyPatternOperators(activeSearchTerm);
-	const usesMandarinRomanizationLookup = isMandarinRomanizationQuery(activeSearchTerm, activeSearchLang);
+	const usesHanYuRomanizationLookup = isHanYuRomanizationQuery(activeSearchTerm, activeSearchLang);
 
 	// Search 字詞變更時，手機結果面板預設收合
 	useEffect(() => {
@@ -530,9 +542,9 @@ export function SearchBox({ currentLang }: SearchBoxProps) {
 
 				if (isTaiwaneseRomanSearch) {
 					matchedTerms = await fetchTaiwanesePinyinSuggestions(activeSearchTerm, activeTaiwanesePinyinType);
-				} else if (usesMandarinRomanizationLookup) {
+				} else if (usesHanYuRomanizationLookup) {
 					const [romanizationTerms, indexTerms] = await Promise.all([
-						fetchMandarinRomanizationTerms(activeSearchTerm),
+						fetchHanYuRomanizationTerms(activeSearchTerm, activeSearchLang),
 						indexTermsPromise,
 					]);
 					const indexSet = getIndexSetForLang(activeSearchLang);
@@ -573,7 +585,7 @@ export function SearchBox({ currentLang }: SearchBoxProps) {
 		return () => {
 			window.clearTimeout(timer);
 		};
-	}, [activeSearchLang, activeSearchTerm, activeTaiwanesePinyinType, hasActiveSearch, isTaiwaneseRomanSearch, usesMandarinRomanizationLookup]);
+	}, [activeSearchLang, activeSearchTerm, activeTaiwanesePinyinType, hasActiveSearch, isTaiwaneseRomanSearch, usesHanYuRomanizationLookup]);
 
 	// 預先抓取前幾筆候選詞條，減少點選後等待時間
 	useEffect(() => {
@@ -599,7 +611,7 @@ export function SearchBox({ currentLang }: SearchBoxProps) {
 			if (!resolved) return;
 			if (hasLegacyPatternOperators(resolved.term)) return;
 			if (resolved.lang === 't' && isTaiwaneseRomanizedInput(resolved.term)) return;
-			if (isMandarinRomanizationQuery(resolved.term, resolved.lang)) return;
+			if (isHanYuRomanizationQuery(resolved.term, resolved.lang)) return;
 
 			const nextPath = formatSearchTerm(resolved.term, resolved.lang);
 			if (nextPath === location.pathname) return;
@@ -673,7 +685,7 @@ export function SearchBox({ currentLang }: SearchBoxProps) {
 			if (!resolved) return;
 			if (hasLegacyPatternOperators(resolved.term)) return;
 			if (resolved.lang === 't' && isTaiwaneseRomanizedInput(resolved.term)) return;
-			if (isMandarinRomanizationQuery(resolved.term, resolved.lang)) return;
+			if (isHanYuRomanizationQuery(resolved.term, resolved.lang)) return;
 			const path = formatSearchTerm(resolved.term, resolved.lang);
 			navigate(path);
 		},
