@@ -393,13 +393,11 @@ function filterPositionalRomanizationTerms(terms: string[], exactCharacterSets: 
 }
 
 function shouldKeepHanYuRomanizationTerm(term: string, lang: Lang, indexSet: Set<string>): boolean {
-	if (indexSet.has(term)) {
+	if (lang === 'c') {
 		return true;
 	}
 
-	// Cross-strait index.json intentionally omits single-character entries such as 「愛」,
-	// but the dictionary route can still resolve them. Keep those exact HanYu hits.
-	if (lang === 'c' && Array.from(term).length === 1) {
+	if (indexSet.has(term)) {
 		return true;
 	}
 
