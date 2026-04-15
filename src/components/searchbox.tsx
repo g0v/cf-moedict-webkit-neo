@@ -6,7 +6,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { prefetchDictionaryEntry } from '../utils/dictionary-cache';
+import { fetchDictionaryEntry, prefetchDictionaryEntry } from '../utils/dictionary-cache';
 import { removeBopomofo } from '../utils/bopomofo-pinyin-utils';
 import { collectLegacyMatchedTerms, hasLegacyPatternOperators } from '../utils/legacy-search-utils';
 
@@ -600,6 +600,18 @@ export function SearchBox({ currentLang }: SearchBoxProps) {
 				} else {
 					const indexTerms = await indexTermsPromise;
 					matchedTerms = collectLegacyMatchedTerms(indexTerms, activeSearchTerm);
+				}
+
+				if (
+					matchedTerms.length === 0 &&
+					!usesPatternSearch &&
+					!isTaiwaneseRomanSearch &&
+					!usesHanYuRomanizationLookup
+				) {
+					const exactEntry = await fetchDictionaryEntry(activeSearchTerm, activeSearchLang);
+					if (exactEntry.ok) {
+						matchedTerms = [activeSearchTerm];
+					}
 				}
 
 				if (requestId !== requestIdRef.current) return;
