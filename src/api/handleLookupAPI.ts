@@ -16,6 +16,7 @@ const LOOKUP_LANG_SET = new Set<LookupLang>(['a', 't', 'h', 'c']);
 const LOOKUP_CORS_ALLOWLIST = new Set(['https://moedict.tw', 'https://old.moedict.tw', 'http://old.moedict.tw', 'https://www.moedict.org', 'http://www.moedict.org', 'https://moedict.org', 'http://moedict.org']);
 const PINYIN_CACHE_CONTROL = 'public, max-age=300, stale-while-revalidate=1800';
 const TRS_CACHE_CONTROL = 'public, max-age=300, stale-while-revalidate=1800';
+const LOOKUP_MAP_CACHE = new Map<string, Promise<Record<string, string[]>>>();
 
 function buildLookupCORSHeaders(request: Request): Record<string, string> {
 	const origin = request.headers.get('Origin');
@@ -95,7 +96,11 @@ function parseTrsLookupPath(pathname: string): { term: string } | null {
 async function readLookupTitles(env: LookupEnv, lang: LookupLang, type: string, term: string): Promise<string[]> {
 	const key = `lookup/pinyin/${lang}/${type}/${encodeURIComponent(term)}.json`;
 	const obj = await env.DICTIONARY.get(key);
-	if (!obj) return [];
+	if (!obj) {
+		if (lang !== 'h') return [];
+		const lookupMap = await readLookupTitleMap(env, lang, type);
+		return lookupMap[term] ?? [];
+	}
 
 	try {
 		const raw = await obj.text();
@@ -105,6 +110,40 @@ async function readLookupTitles(env: LookupEnv, lang: LookupLang, type: string, 
 	} catch {
 		return [];
 	}
+}
+
+async function readLookupTitleMap(env: LookupEnv, lang: LookupLang, type: string): Promise<Record<string, string[]>> {
+	const cacheKey = `${lang}:${type}`;
+	const cached = LOOKUP_MAP_CACHE.get(cacheKey);
+	if (cached) {
+		return cached;
+	}
+
+	const pending = (async () => {
+		const key = `lookup/pinyin/${lang}/${type}.json`;
+		const obj = await env.DICTIONARY.get(key);
+		if (!obj) return {};
+
+		try {
+			const raw = await obj.text();
+			const parsed = JSON.parse(raw) as unknown;
+			if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+				return {};
+			}
+
+			const result: Record<string, string[]> = {};
+			for (const [term, titles] of Object.entries(parsed)) {
+				if (!Array.isArray(titles)) continue;
+				result[term] = titles.filter((item): item is string => typeof item === 'string' && item.length > 0);
+			}
+			return result;
+		} catch {
+			return {};
+		}
+	})();
+
+	LOOKUP_MAP_CACHE.set(cacheKey, pending);
+	return pending;
 }
 
 export async function handleLookupAPI(request: Request, url: URL, env: LookupEnv): Promise<Response | null> {

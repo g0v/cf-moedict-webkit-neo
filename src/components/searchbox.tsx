@@ -33,12 +33,27 @@ const TAIWANESE_PINYIN_PROMISE_CACHE = new Map<string, Promise<string[]>>();
 const TAIWANESE_PINYIN_CACHE_MAX_ENTRIES = 400;
 const TAIWANESE_PINYIN_TYPES = new Set(['TL', 'DT', 'POJ']);
 const TAIWANESE_ROMAN_INPUT_RE = /^(?=.*[A-Za-z])[A-Za-z0-9\s\-']+$/;
+const HAKKA_PINYIN_CACHE = new Map<string, string[]>();
+const HAKKA_PINYIN_PROMISE_CACHE = new Map<string, Promise<string[]>>();
+const HAKKA_PINYIN_CACHE_MAX_ENTRIES = 400;
+const HAKKA_PINYIN_TYPES = new Set(['TH', 'PFS']);
+const HAKKA_ROMAN_INPUT_RE = /^(?=.*\p{Script=Latin})[\p{Script=Latin}\p{Mark}0-9\s\-']+$/u;
+const INDEX_SET_CACHE = new Map<Lang, Set<string>>();
 const INDEX_FALLBACK_ORDER: Record<Lang, Lang[]> = {
 	a: ['a'],
 	t: ['t'],
 	h: ['h'],
 	c: ['c'],
 };
+const HANYU_ROMANIZATION_QUERY_RE = /^[\p{Script=Latin}\d' -]+$/u;
+
+function getLegacyHanYuPinyinLookupBase(lang: Lang): string | null {
+	if (lang !== 'a' && lang !== 'c') {
+		return null;
+	}
+
+	return `https://www.moedict.org/lookup/pinyin/${lang}/HanYu`;
+}
 
 /**
  * 從字詞提取語言前綴和清理後的字詞
@@ -99,8 +114,25 @@ function readTaiwanesePinyinType(): string {
 	}
 }
 
+function readHakkaPinyinType(): string {
+	if (typeof window === 'undefined') {
+		return 'TH';
+	}
+
+	try {
+		const raw = window.localStorage.getItem('pinyin_h') || 'TH';
+		return HAKKA_PINYIN_TYPES.has(raw) ? raw : 'TH';
+	} catch {
+		return 'TH';
+	}
+}
+
 function isTaiwaneseRomanizedInput(input: string): boolean {
 	return TAIWANESE_ROMAN_INPUT_RE.test(input);
+}
+
+function isHakkaRomanizedInput(input: string): boolean {
+	return HAKKA_ROMAN_INPUT_RE.test(input);
 }
 
 function normalizeTaiwaneseLookupTerm(input: string): string {
@@ -126,6 +158,32 @@ function touchTaiwanesePinyinCache(key: string, list: string[]): void {
 	const oldestKey = TAIWANESE_PINYIN_CACHE.keys().next().value;
 	if (oldestKey) {
 		TAIWANESE_PINYIN_CACHE.delete(oldestKey);
+	}
+}
+
+function normalizeHakkaLookupTerm(input: string): string {
+	return String(input ?? '')
+		.toLowerCase()
+		.normalize('NFD')
+		.replace(/\p{Mark}/gu, '')
+		.replace(/ⁿ/g, 'nn')
+		.replace(/ɑ/g, 'a')
+		.replace(/[^a-z]/g, '');
+}
+
+function touchHakkaPinyinCache(key: string, list: string[]): void {
+	if (HAKKA_PINYIN_CACHE.has(key)) {
+		HAKKA_PINYIN_CACHE.delete(key);
+	}
+	HAKKA_PINYIN_CACHE.set(key, list);
+
+	if (HAKKA_PINYIN_CACHE.size <= HAKKA_PINYIN_CACHE_MAX_ENTRIES) {
+		return;
+	}
+
+	const oldestKey = HAKKA_PINYIN_CACHE.keys().next().value;
+	if (oldestKey) {
+		HAKKA_PINYIN_CACHE.delete(oldestKey);
 	}
 }
 
@@ -186,6 +244,9 @@ function resolveSearchInput(input: string, fallbackLang: Lang): { lang: Lang; te
 async function fetchIndexForLang(lang: Lang): Promise<string[]> {
 	const cached = INDEX_CACHE.get(lang);
 	if (cached) {
+		if (!INDEX_SET_CACHE.has(lang)) {
+			INDEX_SET_CACHE.set(lang, new Set(cached));
+		}
 		return cached;
 	}
 
@@ -210,6 +271,7 @@ async function fetchIndexForLang(lang: Lang): Promise<string[]> {
 		.catch(() => [])
 		.then((list) => {
 			INDEX_CACHE.set(lang, list);
+			INDEX_SET_CACHE.set(lang, new Set(list));
 			return list;
 		})
 		.finally(() => {
@@ -270,6 +332,244 @@ async function fetchTaiwanesePinyinSuggestions(term: string, type: string): Prom
 
 	TAIWANESE_PINYIN_PROMISE_CACHE.set(cacheKey, request);
 	return request;
+}
+
+async function fetchHakkaPinyinSuggestions(term: string, type: string): Promise<string[]> {
+	const normalizedTerm = normalizeHakkaLookupTerm(term);
+	const cacheKey = `${type}:${normalizedTerm}`;
+	const cached = HAKKA_PINYIN_CACHE.get(cacheKey);
+	if (cached) {
+		touchHakkaPinyinCache(cacheKey, cached);
+		return cached;
+	}
+
+	const pending = HAKKA_PINYIN_PROMISE_CACHE.get(cacheKey);
+	if (pending) {
+		return pending;
+	}
+
+	const request = fetch(`/api/lookup/pinyin/h/${encodeURIComponent(type)}/${encodeURIComponent(term)}.json`, {
+		headers: { Accept: 'application/json' },
+	})
+		.then(async (response) => {
+			if (!response.ok) {
+				throw new Error(`客語拼音索引讀取失敗: ${response.status}`);
+			}
+
+			const data = (await response.json()) as unknown;
+			if (!Array.isArray(data)) {
+				return [];
+			}
+
+			return data.filter((item): item is string => typeof item === 'string' && item.trim().length > 0);
+		})
+		.then((list) => {
+			touchHakkaPinyinCache(cacheKey, list);
+			return list;
+		})
+		.finally(() => {
+			HAKKA_PINYIN_PROMISE_CACHE.delete(cacheKey);
+		});
+
+	HAKKA_PINYIN_PROMISE_CACHE.set(cacheKey, request);
+	return request;
+}
+
+function getIndexSetForLang(lang: Lang): Set<string> {
+	const cached = INDEX_SET_CACHE.get(lang);
+	if (cached) {
+		return cached;
+	}
+
+	const list = INDEX_CACHE.get(lang);
+	if (!list) {
+		return new Set();
+	}
+
+	const next = new Set(list);
+	INDEX_SET_CACHE.set(lang, next);
+	return next;
+}
+
+function isHanYuRomanizationQuery(keyword: string, lang: Lang): boolean {
+	if (lang !== 'a' && lang !== 'c') {
+		return false;
+	}
+
+	const normalizedKeyword = keyword.trim();
+	if (!normalizedKeyword || hasLegacyPatternOperators(normalizedKeyword)) {
+		return false;
+	}
+
+	return HANYU_ROMANIZATION_QUERY_RE.test(normalizedKeyword);
+}
+
+function parseRomanizationLookupResponse(payload: string): string[] {
+	const normalizedPayload = payload.trim();
+	if (!normalizedPayload || normalizedPayload.startsWith('<')) {
+		return [];
+	}
+
+	return Array.from(
+		new Set(
+			normalizedPayload
+				.split('|')
+				.map((term) => term.trim())
+				.filter(Boolean)
+		)
+	);
+}
+
+function normalizeHanYuRomanizationToken(token: string): string {
+	return token
+		.normalize('NFD')
+		.replace(/\p{Mark}/gu, '')
+		.toLowerCase();
+}
+
+function tokenizeHanYuRomanization(keyword: string): string[] {
+	const normalizedKeyword = keyword.trim();
+	if (!normalizedKeyword) {
+		return [];
+	}
+
+	const tokens = normalizedKeyword
+		.split(/[\s']+/)
+		.map((token) => normalizeHanYuRomanizationToken(token))
+		.filter(Boolean);
+
+	if (tokens.length === 0 || tokens.some((token) => !/^[a-z0-9-]+$/.test(token))) {
+		return [];
+	}
+
+	return tokens;
+}
+
+function intersectRomanizationResults(resultGroups: string[][]): string[] {
+	if (resultGroups.length === 0) {
+		return [];
+	}
+
+	const [firstGroup, ...restGroups] = resultGroups;
+	const remainingSets = restGroups.map((group) => new Set(group));
+	return firstGroup.filter((term) => remainingSets.every((group) => group.has(term)));
+}
+
+function buildExactCharacterSets(resultGroups: string[][]): Set<string>[] {
+	return resultGroups.map(
+		(group) => new Set(group.filter((term) => Array.from(term).length === 1))
+	);
+}
+
+function filterPositionalRomanizationTerms(terms: string[], exactCharacterSets: Set<string>[]): string[] {
+	if (exactCharacterSets.length === 0) {
+		return terms;
+	}
+
+	return terms.filter((term) => {
+		const chars = Array.from(term);
+		if (chars.length < exactCharacterSets.length) {
+			return false;
+		}
+
+		return exactCharacterSets.every((charSet, index) => {
+			if (charSet.size === 0) {
+				return true;
+			}
+			return charSet.has(chars[index]);
+		});
+	});
+}
+
+function shouldKeepHanYuRomanizationTerm(term: string, lang: Lang, indexSet: Set<string>): boolean {
+	if (lang === 'c') {
+		return true;
+	}
+
+	if (indexSet.has(term)) {
+		return true;
+	}
+
+	return false;
+}
+
+async function fetchLegacyHanYuRomanizationTerms(keyword: string, lang: Lang): Promise<string[]> {
+	const lookupBase = getLegacyHanYuPinyinLookupBase(lang);
+	if (!lookupBase) {
+		return [];
+	}
+
+	const tokens = tokenizeHanYuRomanization(keyword);
+	if (tokens.length === 0) {
+		return [];
+	}
+
+	try {
+		const responses = await Promise.all(
+			tokens.map(async (token) => {
+				const response = await fetch(`${lookupBase}/${encodeURIComponent(token)}.json`, {
+					headers: { Accept: 'application/json' },
+				});
+				if (!response.ok) {
+					return [];
+				}
+
+				const payload = (await response.json()) as unknown;
+				if (!Array.isArray(payload)) {
+					return [];
+				}
+
+				return payload.filter((term): term is string => typeof term === 'string' && term.trim().length > 0);
+			})
+		);
+
+		if (responses.some((group) => group.length === 0)) {
+			return [];
+		}
+
+		const intersected = intersectRomanizationResults(responses);
+		if (lang !== 'c') {
+			return intersected;
+		}
+
+		return filterPositionalRomanizationTerms(intersected, buildExactCharacterSets(responses));
+	} catch {
+		return [];
+	}
+}
+
+async function fetchHanYuRomanizationTerms(keyword: string, lang: Lang): Promise<string[]> {
+	const normalizedKeyword = keyword.trim();
+	if (!normalizedKeyword) {
+		return [];
+	}
+
+	const legacyTerms = await fetchLegacyHanYuRomanizationTerms(normalizedKeyword, lang);
+	if (legacyTerms.length > 0) {
+		return legacyTerms;
+	}
+
+	try {
+		const response = await fetch(`/lookup/trs/${encodeURIComponent(normalizedKeyword)}`, {
+			headers: { Accept: 'text/plain, application/json;q=0.9, */*;q=0.8' },
+		});
+		if (!response.ok) {
+			return [];
+		}
+
+		const contentType = response.headers.get('content-type') || '';
+		if (contentType.includes('application/json')) {
+			const payload = (await response.json()) as { terms?: unknown };
+			if (!Array.isArray(payload.terms)) {
+				return [];
+			}
+			return payload.terms.filter((term): term is string => typeof term === 'string' && term.trim().length > 0);
+		}
+
+		return parseRomanizationLookupResponse(await response.text());
+	} catch {
+		return [];
+	}
 }
 
 /**
@@ -336,10 +636,15 @@ export function SearchBox({ currentLang }: SearchBoxProps) {
 	const activeSearchTerm = activeSearch?.term ?? '';
 	const hasActiveSearch = activeSearchTerm.length > 0;
 	const activeTaiwanesePinyinType = useMemo(() => readTaiwanesePinyinType(), []);
+	const activeHakkaPinyinType = useMemo(() => readHakkaPinyinType(), []);
 	const isTaiwaneseRomanSearch = useMemo(() => {
 		return activeSearchLang === 't' && hasActiveSearch && isTaiwaneseRomanizedInput(activeSearchTerm);
 	}, [activeSearchLang, activeSearchTerm, hasActiveSearch]);
+	const isHakkaRomanSearch = useMemo(() => {
+		return activeSearchLang === 'h' && hasActiveSearch && isHakkaRomanizedInput(activeSearchTerm);
+	}, [activeSearchLang, activeSearchTerm, hasActiveSearch]);
 	const usesPatternSearch = hasLegacyPatternOperators(activeSearchTerm);
+	const usesHanYuRomanizationLookup = isHanYuRomanizationQuery(activeSearchTerm, activeSearchLang);
 
 	// Search 字詞變更時，手機結果面板預設收合
 	useEffect(() => {
@@ -367,20 +672,44 @@ export function SearchBox({ currentLang }: SearchBoxProps) {
 		setLoadingSuggestions(true);
 
 		const timer = window.setTimeout(() => {
-			const suggestionRequest = isTaiwaneseRomanSearch
-				? fetchTaiwanesePinyinSuggestions(activeSearchTerm, activeTaiwanesePinyinType)
-				: loadIndexByLang(activeSearchLang).then((indexTerms) => collectLegacyMatchedTerms(indexTerms, activeSearchTerm));
+			const loadSuggestions = async () => {
+				const indexTermsPromise = loadIndexByLang(activeSearchLang);
+				let matchedTerms: string[] = [];
 
-			suggestionRequest
-				.then((matchedTerms) => {
-					if (requestId !== requestIdRef.current) return;
-					setSuggestions(
-						matchedTerms.map((term) => ({
-							label: term,
-							value: term,
-							lang: activeSearchLang,
-						}))
+				if (isTaiwaneseRomanSearch) {
+					matchedTerms = await fetchTaiwanesePinyinSuggestions(activeSearchTerm, activeTaiwanesePinyinType);
+				} else if (isHakkaRomanSearch) {
+					matchedTerms = await fetchHakkaPinyinSuggestions(activeSearchTerm, activeHakkaPinyinType);
+				} else if (usesHanYuRomanizationLookup) {
+					const [romanizationTerms, indexTerms] = await Promise.all([
+						fetchHanYuRomanizationTerms(activeSearchTerm, activeSearchLang),
+						indexTermsPromise,
+					]);
+					const indexSet = getIndexSetForLang(activeSearchLang);
+					matchedTerms = romanizationTerms.filter((term) =>
+						shouldKeepHanYuRomanizationTerm(term, activeSearchLang, indexSet)
 					);
+					if (matchedTerms.length === 0) {
+						matchedTerms = collectLegacyMatchedTerms(indexTerms, activeSearchTerm);
+					}
+				} else {
+					const indexTerms = await indexTermsPromise;
+					matchedTerms = collectLegacyMatchedTerms(indexTerms, activeSearchTerm);
+				}
+
+				if (requestId !== requestIdRef.current) return;
+				setSuggestions(
+					matchedTerms.map((term) => ({
+						label: term,
+						value: term,
+						lang: activeSearchLang,
+					}))
+				);
+			};
+
+			loadSuggestions()
+				.then(() => {
+					if (requestId !== requestIdRef.current) return;
 				})
 				.catch(() => {
 					if (requestId !== requestIdRef.current) return;
@@ -396,7 +725,7 @@ export function SearchBox({ currentLang }: SearchBoxProps) {
 		return () => {
 			window.clearTimeout(timer);
 		};
-	}, [activeSearchLang, activeSearchTerm, activeTaiwanesePinyinType, hasActiveSearch, isTaiwaneseRomanSearch]);
+	}, [activeHakkaPinyinType, activeSearchLang, activeSearchTerm, activeTaiwanesePinyinType, hasActiveSearch, isHakkaRomanSearch, isTaiwaneseRomanSearch, usesHanYuRomanizationLookup]);
 
 	// 預先抓取前幾筆候選詞條，減少點選後等待時間
 	useEffect(() => {
@@ -422,6 +751,8 @@ export function SearchBox({ currentLang }: SearchBoxProps) {
 			if (!resolved) return;
 			if (hasLegacyPatternOperators(resolved.term)) return;
 			if (resolved.lang === 't' && isTaiwaneseRomanizedInput(resolved.term)) return;
+			if (resolved.lang === 'h' && isHakkaRomanizedInput(resolved.term)) return;
+			if (isHanYuRomanizationQuery(resolved.term, resolved.lang)) return;
 
 			const nextPath = formatSearchTerm(resolved.term, resolved.lang);
 			if (nextPath === location.pathname) return;
@@ -495,6 +826,8 @@ export function SearchBox({ currentLang }: SearchBoxProps) {
 			if (!resolved) return;
 			if (hasLegacyPatternOperators(resolved.term)) return;
 			if (resolved.lang === 't' && isTaiwaneseRomanizedInput(resolved.term)) return;
+			if (resolved.lang === 'h' && isHakkaRomanizedInput(resolved.term)) return;
+			if (isHanYuRomanizationQuery(resolved.term, resolved.lang)) return;
 			const path = formatSearchTerm(resolved.term, resolved.lang);
 			navigate(path);
 		},
