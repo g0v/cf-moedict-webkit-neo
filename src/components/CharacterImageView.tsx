@@ -193,6 +193,7 @@ function extractDef(data: unknown): string {
 export function CharacterImageView({ queryWord, terms, lang, langTokenPrefix }: CharacterImageViewProps) {
   const navigate = useNavigate();
   const [segments, setSegments] = useState<TermSegment[]>([]);
+  const [segmentsLoading, setSegmentsLoading] = useState(true);
   const [shareSupported] = useState(() => typeof navigator !== 'undefined' && !!navigator.share);
   const [font, setFont] = useState(getStoredFont);
   const [hollowMode, setHollowMode] = useState(true);
@@ -209,6 +210,8 @@ export function CharacterImageView({ queryWord, terms, lang, langTokenPrefix }: 
 
   useEffect(() => {
     let cancelled = false;
+    setSegmentsLoading(true);
+    setSegments([]);
 
     async function loadSegments() {
       const results: TermSegment[] = [];
@@ -224,7 +227,10 @@ export function CharacterImageView({ queryWord, terms, lang, langTokenPrefix }: 
           results.push({ part, href: null, def: '' });
         }
       }
-      if (!cancelled) setSegments(results);
+      if (!cancelled) {
+        setSegments(results);
+        setSegmentsLoading(false);
+      }
     }
 
     loadSegments();
@@ -501,52 +507,68 @@ export function CharacterImageView({ queryWord, terms, lang, langTokenPrefix }: 
           }}
         >
           <tbody>
-            {segments.map((segment) => (
-              <tr key={segment.part}>
-                <td style={{ verticalAlign: 'top', padding: 4 }}>
-                  <div className="charimg-practice-box" style={{ width: SEGMENT_IMAGE_SIZE, height: SEGMENT_IMAGE_SIZE }}>
-                    <img
-                      className="charimg-glyph charimg-glyph-segment"
-                      src={charImgUrl(segment.part, font)}
-                      alt={segment.part}
-                      style={{ width: SEGMENT_IMAGE_SIZE, height: SEGMENT_IMAGE_SIZE }}
-                    />
-                    <canvas
-                      className="charimg-draw-canvas"
-                      ref={registerCanvas(`segment:${segment.part}`, SEGMENT_IMAGE_SIZE, SEGMENT_IMAGE_SIZE)}
-                      onPointerDown={(event) => handleCanvasPointerDown(`segment:${segment.part}`, event)}
-                      onPointerMove={(event) => handleCanvasPointerMove(`segment:${segment.part}`, event)}
-                      onPointerUp={(event) => finishDrawing(`segment:${segment.part}`, event)}
-                      onPointerLeave={(event) => finishDrawing(`segment:${segment.part}`, event)}
-                      onPointerCancel={(event) => finishDrawing(`segment:${segment.part}`, event)}
-                    />
-                  </div>
-                </td>
+            {segmentsLoading ? (
+              <tr>
                 <td
+                  colSpan={2}
                   style={{
-                    verticalAlign: 'top',
-                    padding: '16px 12px',
-                    color: '#006',
-                    textAlign: 'left',
-                    lineHeight: 1.6,
+                    padding: '16px 24px',
+                    textAlign: 'center',
+                    color: '#666',
                     fontSize: '1.05em',
-                    wordBreak: 'break-word',
                   }}
                 >
-                  {segment.href ? (
-                    <a
-                      href={segment.href}
-                      style={{ color: '#006' }}
-                      onClick={(e) => handleTermClick(e, segment.href!)}
-                    >
-                      {segment.def || segment.part}
-                    </a>
-                  ) : (
-                    <span style={{ color: '#999' }}>{segment.part}</span>
-                  )}
+                  載入中...
                 </td>
               </tr>
-            ))}
+            ) : (
+              segments.map((segment) => (
+                <tr key={segment.part}>
+                  <td style={{ verticalAlign: 'top', padding: 4 }}>
+                    <div className="charimg-practice-box" style={{ width: SEGMENT_IMAGE_SIZE, height: SEGMENT_IMAGE_SIZE }}>
+                      <img
+                        className="charimg-glyph charimg-glyph-segment"
+                        src={charImgUrl(segment.part, font)}
+                        alt={segment.part}
+                        style={{ width: SEGMENT_IMAGE_SIZE, height: SEGMENT_IMAGE_SIZE }}
+                      />
+                      <canvas
+                        className="charimg-draw-canvas"
+                        ref={registerCanvas(`segment:${segment.part}`, SEGMENT_IMAGE_SIZE, SEGMENT_IMAGE_SIZE)}
+                        onPointerDown={(event) => handleCanvasPointerDown(`segment:${segment.part}`, event)}
+                        onPointerMove={(event) => handleCanvasPointerMove(`segment:${segment.part}`, event)}
+                        onPointerUp={(event) => finishDrawing(`segment:${segment.part}`, event)}
+                        onPointerLeave={(event) => finishDrawing(`segment:${segment.part}`, event)}
+                        onPointerCancel={(event) => finishDrawing(`segment:${segment.part}`, event)}
+                      />
+                    </div>
+                  </td>
+                  <td
+                    style={{
+                      verticalAlign: 'top',
+                      padding: '16px 12px',
+                      color: '#006',
+                      textAlign: 'left',
+                      lineHeight: 1.6,
+                      fontSize: '1.05em',
+                      wordBreak: 'break-word',
+                    }}
+                  >
+                    {segment.href ? (
+                      <a
+                        href={segment.href}
+                        style={{ color: '#006' }}
+                        onClick={(e) => handleTermClick(e, segment.href!)}
+                      >
+                        {segment.def || segment.part}
+                      </a>
+                    ) : (
+                      <span style={{ color: '#999' }}>{segment.part}</span>
+                    )}
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </center>
