@@ -386,6 +386,34 @@ export function CharacterImageView({ queryWord, terms, lang, langTokenPrefix }: 
             .charimg-result .charimg-draw-canvas {
               display: none !important;
             }
+            .charimg-result table.moetext {
+              display: block;
+              max-width: 100% !important;
+              background: transparent !important;
+              border: 0 !important;
+              box-shadow: none !important;
+            }
+            .charimg-result table.moetext > tbody {
+              display: inline-flex;
+              flex-wrap: wrap;
+              align-items: flex-start;
+              gap: 8px;
+            }
+            .charimg-result table.moetext > tbody > tr {
+              display: inline-flex;
+              align-items: flex-start;
+              border: 1px solid #ddd;
+              padding: 4px;
+              break-inside: avoid;
+              page-break-inside: avoid;
+            }
+            .charimg-result table.moetext > tbody > tr > td {
+              padding: 0 !important;
+            }
+            .charimg-result table.moetext > tbody > tr > td:last-child {
+              padding-left: 8px !important;
+              max-width: 180px;
+            }
           }
         `}
       </style>
