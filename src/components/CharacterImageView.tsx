@@ -122,7 +122,7 @@ function setDrawingStyle(
   context.setTransform(ratio, 0, 0, ratio, 0, 0);
   context.lineCap = 'round';
   context.lineJoin = 'round';
-  context.lineWidth = 3;
+  context.lineWidth = 3.6;
   context.strokeStyle = 'rgba(27, 56, 89, 0.85)';
   context.fillStyle = 'rgba(27, 56, 89, 0.85)';
 }
@@ -374,7 +374,7 @@ export function CharacterImageView({ queryWord, terms, lang, langTokenPrefix }: 
             cursor: crosshair;
           }
 
-          .charimg-result.charimg-hollow img.charimg-glyph {
+          .charimg-result.charimg-hollow img.charimg-glyph-segment {
             filter: invert(100%) grayscale(100%);
             opacity: .32;
           }
@@ -395,7 +395,7 @@ export function CharacterImageView({ queryWord, terms, lang, langTokenPrefix }: 
           style={{ width: mainImageSize, height: mainImageSize }}
         >
           <img
-            className="charimg-glyph"
+            className="charimg-glyph charimg-glyph-main"
             src={charImgUrl(queryWord, font)}
             alt={queryWord}
             style={{ width: mainImageSize, height: mainImageSize }}
@@ -457,7 +457,7 @@ export function CharacterImageView({ queryWord, terms, lang, langTokenPrefix }: 
               checked={hollowMode}
               onChange={(event) => setHollowMode(event.target.checked)}
             />
-            鏤空字模式
+            鏤空描寫模式
           </label>
         </div>
 
@@ -478,7 +478,7 @@ export function CharacterImageView({ queryWord, terms, lang, langTokenPrefix }: 
                 <td style={{ verticalAlign: 'top', padding: 4 }}>
                   <div className="charimg-practice-box" style={{ width: SEGMENT_IMAGE_SIZE, height: SEGMENT_IMAGE_SIZE }}>
                     <img
-                      className="charimg-glyph"
+                      className="charimg-glyph charimg-glyph-segment"
                       src={charImgUrl(segment.part, font)}
                       alt={segment.part}
                       style={{ width: SEGMENT_IMAGE_SIZE, height: SEGMENT_IMAGE_SIZE }}
