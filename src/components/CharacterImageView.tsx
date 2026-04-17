@@ -370,6 +370,8 @@ export function CharacterImageView({ queryWord, terms, lang, langTokenPrefix }: 
             display: inline-block;
             line-height: 0;
             user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
           }
 
           .charimg-result .charimg-draw-canvas {
@@ -378,6 +380,18 @@ export function CharacterImageView({ queryWord, terms, lang, langTokenPrefix }: 
             background: transparent;
             touch-action: none;
             cursor: crosshair;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+            -webkit-tap-highlight-color: transparent;
+          }
+
+          .charimg-result .charimg-glyph {
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+            -webkit-user-drag: none;
+            user-drag: none;
           }
 
           .charimg-result.charimg-hollow img.charimg-glyph-segment {
@@ -441,6 +455,7 @@ export function CharacterImageView({ queryWord, terms, lang, langTokenPrefix }: 
           <canvas
             className="charimg-draw-canvas"
             ref={registerCanvas(`main:${queryWord}`, mainImageSize, mainImageSize)}
+            onContextMenu={(event) => event.preventDefault()}
             onPointerDown={(event) => handleCanvasPointerDown(`main:${queryWord}`, event)}
             onPointerMove={(event) => handleCanvasPointerMove(`main:${queryWord}`, event)}
             onPointerUp={(event) => finishDrawing(`main:${queryWord}`, event)}
@@ -539,6 +554,7 @@ export function CharacterImageView({ queryWord, terms, lang, langTokenPrefix }: 
                       <canvas
                         className="charimg-draw-canvas"
                         ref={registerCanvas(`segment:${segment.part}`, SEGMENT_IMAGE_SIZE, SEGMENT_IMAGE_SIZE)}
+                        onContextMenu={(event) => event.preventDefault()}
                         onPointerDown={(event) => handleCanvasPointerDown(`segment:${segment.part}`, event)}
                         onPointerMove={(event) => handleCanvasPointerMove(`segment:${segment.part}`, event)}
                         onPointerUp={(event) => finishDrawing(`segment:${segment.part}`, event)}
