@@ -93,6 +93,30 @@ export function InlineStyles({ r2Endpoint, onReady }: InlineStylesProps) {
 			margin: 16px;
 		}
 
+		@media (max-width: 380px) {
+			body #btn-pref { 
+			    left: 105px !important;
+			}
+		    body #btn-starred {
+			    width: 2.5em !important;
+			}
+			body #btn-starred i {
+				padding-left: .5em !important;
+			}
+			.nav > li > a {
+				padding: 10px 5px !important;
+			}
+			.nav > .navbar-fulltext-search-item-mobile {
+			    width: 70vw !important;
+			    width: -webkit-calc(100vw - 11em) !important;
+				width: calc(100vw - 11em) !important;
+				right: 2.75em !important;
+			}
+			.nav > .navbar-fulltext-search-item-mobile input::placeholder {
+				color: #999 !important;
+			}
+		}
+
 		@media only screen and (max-width: 767px) {
 			#main-content {
 				margin-left: 0;
@@ -140,47 +164,47 @@ export function InlineStyles({ r2Endpoint, onReady }: InlineStylesProps) {
 			}
 		}
 
-			@media only screen and (max-width: 767px) {
-				#query-box.query-box {
-					right: auto !important;
-					width: 100% !important;
-					top: calc(40px + env(safe-area-inset-top)) !important;
-					height: 65px !important;
-					bottom: auto !important;
-					padding: 15px !important;
-					padding-bottom: 3px !important;
-					z-index: 11 !important;
-					border-right: none !important;
-				}
-
-				#main-content {
-					margin-left: 0;
-				}
-
-				.navbar-nav .open .dropdown-menu {
-					width: 100vw !important;
-				}
-
-				/* 手機版分類索引：可展開項目在右側顯示白色向下箭頭 */
-				.navbar-inverse .navbar-nav .open .dropdown-menu .dropdown-submenu > a.taxonomy {
-					position: relative;
-					padding-right: 2em;
-				}
-				.navbar-inverse .navbar-nav .open .dropdown-menu .dropdown-submenu > a.taxonomy:before {
-					content: none !important;
-				}
-				.navbar-inverse .navbar-nav .open .dropdown-menu .dropdown-submenu > a.taxonomy:after {
-					content: "\\25BE";
-					position: absolute;
-					right: 1.6em;
-					top: 50%;
-					transform: translateY(-50%);
-					color: #999;
-					font-size: 0.9em;
-					line-height: 1;
-					pointer-events: none;
-				}
+		@media only screen and (max-width: 767px) {
+			#query-box.query-box {
+				right: auto !important;
+				width: 100% !important;
+				top: calc(40px + env(safe-area-inset-top)) !important;
+				height: 65px !important;
+				bottom: auto !important;
+				padding: 15px !important;
+				padding-bottom: 3px !important;
+				z-index: 11 !important;
+				border-right: none !important;
 			}
+
+			#main-content {
+				margin-left: 0;
+			}
+
+			.navbar-nav .open .dropdown-menu {
+				width: 100vw !important;
+			}
+
+			/* 手機版分類索引：可展開項目在右側顯示白色向下箭頭 */
+			.navbar-inverse .navbar-nav .open .dropdown-menu .dropdown-submenu > a.taxonomy {
+				position: relative;
+				padding-right: 2em;
+			}
+			.navbar-inverse .navbar-nav .open .dropdown-menu .dropdown-submenu > a.taxonomy:before {
+				content: none !important;
+			}
+			.navbar-inverse .navbar-nav .open .dropdown-menu .dropdown-submenu > a.taxonomy:after {
+				content: "\\25BE";
+				position: absolute;
+				right: 1.6em;
+				top: 50%;
+				transform: translateY(-50%);
+				color: #999;
+				font-size: 0.9em;
+				line-height: 1;
+				pointer-events: none;
+			}
+		}
 
 		/* Autocomplete 選單樣式 */
 		.ui-autocomplete {
