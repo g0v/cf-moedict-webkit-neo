@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fetchDictionaryEntry, type DictionaryLang } from '../utils/dictionary-cache';
 
@@ -102,6 +102,45 @@ interface TermSegment {
   def: string;
 }
 
+interface DrawState {
+  drawing: boolean;
+  pointerId: number | null;
+  lastX: number;
+  lastY: number;
+}
+
+const SEGMENT_IMAGE_SIZE = 160;
+
+function setDrawingStyle(
+  context: CanvasRenderingContext2D,
+  ratio: number,
+  width: number,
+  height: number,
+): void {
+  context.setTransform(1, 0, 0, 1, 0, 0);
+  context.clearRect(0, 0, width * ratio, height * ratio);
+  context.setTransform(ratio, 0, 0, ratio, 0, 0);
+  context.lineCap = 'round';
+  context.lineJoin = 'round';
+  context.lineWidth = 3.6;
+  context.strokeStyle = 'rgba(27, 56, 89, 0.85)';
+  context.fillStyle = 'rgba(27, 56, 89, 0.85)';
+}
+
+function resetPracticeCanvas(canvas: HTMLCanvasElement, width: number, height: number): void {
+  const ratio = window.devicePixelRatio || 1;
+  canvas.width = Math.max(1, Math.round(width * ratio));
+  canvas.height = Math.max(1, Math.round(height * ratio));
+  canvas.style.width = `${width}px`;
+  canvas.style.height = `${height}px`;
+  canvas.dataset.width = String(width);
+  canvas.dataset.height = String(height);
+
+  const context = canvas.getContext('2d');
+  if (!context) return;
+  setDrawingStyle(context, ratio, width, height);
+}
+
 function mergeEnglishTerms(terms: string[]): string[] {
   const merged: string[] = [];
   for (const term of terms) {
@@ -154,9 +193,14 @@ function extractDef(data: unknown): string {
 export function CharacterImageView({ queryWord, terms, lang, langTokenPrefix }: CharacterImageViewProps) {
   const navigate = useNavigate();
   const [segments, setSegments] = useState<TermSegment[]>([]);
+  const [segmentsLoading, setSegmentsLoading] = useState(true);
   const [shareSupported] = useState(() => typeof navigator !== 'undefined' && !!navigator.share);
   const [font, setFont] = useState(getStoredFont);
+  const [hollowMode, setHollowMode] = useState(true);
+  const canvasRefs = useRef<Record<string, HTMLCanvasElement>>({});
+  const drawStates = useRef<Record<string, DrawState>>({});
   const mergedTerms = useMemo(() => mergeEnglishTerms(terms), [terms]);
+  const mainImageSize = queryWord.length > 1 ? SEGMENT_IMAGE_SIZE : 240;
 
   const handleFontChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
     const next = e.target.value;
@@ -166,6 +210,8 @@ export function CharacterImageView({ queryWord, terms, lang, langTokenPrefix }: 
 
   useEffect(() => {
     let cancelled = false;
+    setSegmentsLoading(true);
+    setSegments([]);
 
     async function loadSegments() {
       const results: TermSegment[] = [];
@@ -181,7 +227,10 @@ export function CharacterImageView({ queryWord, terms, lang, langTokenPrefix }: 
           results.push({ part, href: null, def: '' });
         }
       }
-      if (!cancelled) setSegments(results);
+      if (!cancelled) {
+        setSegments(results);
+        setSegmentsLoading(false);
+      }
     }
 
     loadSegments();
@@ -216,15 +265,191 @@ export function CharacterImageView({ queryWord, terms, lang, langTokenPrefix }: 
     [navigate],
   );
 
-  return (
-    <div className="result charimg-result">
-      <center>
-        <img src={charImgUrl(queryWord, font)}
-          alt={queryWord}
-          style={{ width: queryWord.length > 1 ? 160 : 240 }}
-        />
+  const registerCanvas = useCallback(
+    (key: string, width: number, height: number) => (node: HTMLCanvasElement | null) => {
+      if (!node) {
+        delete canvasRefs.current[key];
+        delete drawStates.current[key];
+        return;
+      }
+      canvasRefs.current[key] = node;
+      resetPracticeCanvas(node, width, height);
+    },
+    [],
+  );
 
-        <div className="charimg-share" style={{ margin: 15 }}>
+  const drawPoint = useCallback((key: string, event: React.PointerEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRefs.current[key];
+    if (!canvas) return;
+    const state = drawStates.current[key];
+    if (!state?.drawing || state.pointerId !== event.pointerId) return;
+
+    const context = canvas.getContext('2d');
+    if (!context) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    context.beginPath();
+    context.moveTo(state.lastX, state.lastY);
+    context.lineTo(x, y);
+    context.stroke();
+    state.lastX = x;
+    state.lastY = y;
+  }, []);
+
+  const handleCanvasPointerDown = useCallback((key: string, event: React.PointerEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRefs.current[key];
+    if (!canvas) return;
+    event.preventDefault();
+    canvas.setPointerCapture(event.pointerId);
+
+    const rect = canvas.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    drawStates.current[key] = {
+      drawing: true,
+      pointerId: event.pointerId,
+      lastX: x,
+      lastY: y,
+    };
+
+    const context = canvas.getContext('2d');
+    if (!context) return;
+    context.beginPath();
+    context.arc(x, y, 1.4, 0, Math.PI * 2);
+    context.fill();
+  }, []);
+
+  const handleCanvasPointerMove = useCallback(
+    (key: string, event: React.PointerEvent<HTMLCanvasElement>) => {
+      event.preventDefault();
+      drawPoint(key, event);
+    },
+    [drawPoint],
+  );
+
+  const finishDrawing = useCallback((key: string, event: React.PointerEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRefs.current[key];
+    const state = drawStates.current[key];
+    if (!state || !state.drawing || state.pointerId !== event.pointerId) return;
+    state.drawing = false;
+    state.pointerId = null;
+    if (canvas && canvas.hasPointerCapture(event.pointerId)) {
+      canvas.releasePointerCapture(event.pointerId);
+    }
+  }, []);
+
+  const handleClearDrawings = useCallback(() => {
+    for (const canvas of Object.values(canvasRefs.current)) {
+      const width = Number(canvas.dataset.width || SEGMENT_IMAGE_SIZE);
+      const height = Number(canvas.dataset.height || SEGMENT_IMAGE_SIZE);
+      resetPracticeCanvas(canvas, width, height);
+    }
+  }, []);
+
+  const handlePrint = useCallback(() => {
+    window.print();
+  }, []);
+
+  return (
+    <div className={`result charimg-result${hollowMode ? ' charimg-hollow' : ''}`}>
+      <style>
+        {`
+          .charimg-result .charimg-controls {
+            margin: 15px 0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+            justify-content: center;
+          }
+
+          .charimg-result .charimg-practice-box {
+            position: relative;
+            display: inline-block;
+            line-height: 0;
+            user-select: none;
+          }
+
+          .charimg-result .charimg-draw-canvas {
+            position: absolute;
+            inset: 0;
+            background: transparent;
+            touch-action: none;
+            cursor: crosshair;
+          }
+
+          .charimg-result.charimg-hollow img.charimg-glyph-segment {
+            filter: invert(100%) grayscale(100%);
+            -webkit-filter: invert(100%) grayscale(100%);
+            -moz-filter: invert(100%) grayscale(100%);
+            -ms-filter: invert(100%) grayscale(100%);
+            -o-filter: invert(100%) grayscale(100%);
+            opacity: .32;
+          }
+
+          @media print {
+            .charimg-result .charimg-controls {
+              display: none !important;
+            }
+            .charimg-result .charimg-draw-canvas {
+              display: none !important;
+            }
+            .charimg-result table.moetext {
+              display: block;
+              max-width: 100% !important;
+              background: transparent !important;
+              border: 0 !important;
+              box-shadow: none !important;
+            }
+            .charimg-result table.moetext > tbody {
+              display: inline-flex;
+              flex-wrap: wrap;
+              align-items: flex-start;
+              gap: 8px;
+            }
+            .charimg-result table.moetext > tbody > tr {
+              display: inline-flex;
+              align-items: flex-start;
+              border: 1px solid #ddd;
+              padding: 4px;
+              break-inside: avoid;
+              page-break-inside: avoid;
+            }
+            .charimg-result table.moetext > tbody > tr > td {
+              padding: 0 !important;
+            }
+            .charimg-result table.moetext > tbody > tr > td:last-child {
+              padding-left: 8px !important;
+              max-width: 180px;
+            }
+          }
+        `}
+      </style>
+      <center>
+        <div
+          className="charimg-practice-box"
+          style={{ width: mainImageSize, height: mainImageSize }}
+        >
+          <img
+            className="charimg-glyph charimg-glyph-main"
+            src={charImgUrl(queryWord, font)}
+            alt={queryWord}
+            style={{ width: mainImageSize, height: mainImageSize }}
+          />
+          <canvas
+            className="charimg-draw-canvas"
+            ref={registerCanvas(`main:${queryWord}`, mainImageSize, mainImageSize)}
+            onPointerDown={(event) => handleCanvasPointerDown(`main:${queryWord}`, event)}
+            onPointerMove={(event) => handleCanvasPointerMove(`main:${queryWord}`, event)}
+            onPointerUp={(event) => finishDrawing(`main:${queryWord}`, event)}
+            onPointerLeave={(event) => finishDrawing(`main:${queryWord}`, event)}
+            onPointerCancel={(event) => finishDrawing(`main:${queryWord}`, event)}
+          />
+        </div>
+
+        <div className="charimg-controls">
           <select
             id="font"
             value={font}
@@ -248,6 +473,30 @@ export function CharacterImageView({ queryWord, terms, lang, langTokenPrefix }: 
             {' '}
             {shareSupported ? '分享' : '複製連結'}
           </button>
+          <button
+            className="btn btn-default charimg-print-btn"
+            title="列印目前字圖"
+            onClick={handlePrint}
+          >
+            <span className="icon-print" />
+            {' '}
+            列印字卡
+          </button>
+          <button
+            className="btn btn-default charimg-clear-btn"
+            title="清空描寫筆跡"
+            onClick={handleClearDrawings}
+          >
+            清除描寫
+          </button>
+          <label style={{ marginBottom: 0, display: 'inline-flex', gap: 4, alignItems: 'center', fontWeight: 'normal' }}>
+            <input
+              type="checkbox"
+              checked={hollowMode}
+              onChange={(event) => setHollowMode(event.target.checked)}
+            />
+            鏤空描寫模式
+          </label>
         </div>
 
         <table
@@ -262,51 +511,68 @@ export function CharacterImageView({ queryWord, terms, lang, langTokenPrefix }: 
           }}
         >
           <tbody>
-            {segments.map((segment) => (
-              <tr key={segment.part}>
-                <td style={{ verticalAlign: 'top', padding: 4 }}>
-                  {segment.href ? (
-                    <a
-                      href={segment.href}
-                      onClick={(e) => handleTermClick(e, segment.href!)}
-                    >
-                      <img src={charImgUrl(segment.part, font)}
-                        alt={segment.part}
-                        style={{ width: 160, height: 160 }}
-                      />
-                    </a>
-                  ) : (
-                    <img src={charImgUrl(segment.part, font)}
-                      alt={segment.part}
-                      style={{ width: 160, height: 160 }}
-                    />
-                  )}
-                </td>
+            {segmentsLoading ? (
+              <tr>
                 <td
+                  colSpan={2}
                   style={{
-                    verticalAlign: 'top',
-                    padding: '16px 12px',
-                    color: '#006',
-                    textAlign: 'left',
-                    lineHeight: 1.6,
+                    padding: '16px 24px',
+                    textAlign: 'center',
+                    color: '#666',
                     fontSize: '1.05em',
-                    wordBreak: 'break-word',
                   }}
                 >
-                  {segment.href ? (
-                    <a
-                      href={segment.href}
-                      style={{ color: '#006' }}
-                      onClick={(e) => handleTermClick(e, segment.href!)}
-                    >
-                      {segment.def || segment.part}
-                    </a>
-                  ) : (
-                    <span style={{ color: '#999' }}>{segment.part}</span>
-                  )}
+                  載入中...
                 </td>
               </tr>
-            ))}
+            ) : (
+              segments.map((segment) => (
+                <tr key={segment.part}>
+                  <td style={{ verticalAlign: 'top', padding: 4 }}>
+                    <div className="charimg-practice-box" style={{ width: SEGMENT_IMAGE_SIZE, height: SEGMENT_IMAGE_SIZE }}>
+                      <img
+                        className="charimg-glyph charimg-glyph-segment"
+                        src={charImgUrl(segment.part, font)}
+                        alt={segment.part}
+                        style={{ width: SEGMENT_IMAGE_SIZE, height: SEGMENT_IMAGE_SIZE }}
+                      />
+                      <canvas
+                        className="charimg-draw-canvas"
+                        ref={registerCanvas(`segment:${segment.part}`, SEGMENT_IMAGE_SIZE, SEGMENT_IMAGE_SIZE)}
+                        onPointerDown={(event) => handleCanvasPointerDown(`segment:${segment.part}`, event)}
+                        onPointerMove={(event) => handleCanvasPointerMove(`segment:${segment.part}`, event)}
+                        onPointerUp={(event) => finishDrawing(`segment:${segment.part}`, event)}
+                        onPointerLeave={(event) => finishDrawing(`segment:${segment.part}`, event)}
+                        onPointerCancel={(event) => finishDrawing(`segment:${segment.part}`, event)}
+                      />
+                    </div>
+                  </td>
+                  <td
+                    style={{
+                      verticalAlign: 'top',
+                      padding: '16px 12px',
+                      color: '#006',
+                      textAlign: 'left',
+                      lineHeight: 1.6,
+                      fontSize: '1.05em',
+                      wordBreak: 'break-word',
+                    }}
+                  >
+                    {segment.href ? (
+                      <a
+                        href={segment.href}
+                        style={{ color: '#006' }}
+                        onClick={(e) => handleTermClick(e, segment.href!)}
+                      >
+                        {segment.def || segment.part}
+                      </a>
+                    ) : (
+                      <span style={{ color: '#999' }}>{segment.part}</span>
+                    )}
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </center>

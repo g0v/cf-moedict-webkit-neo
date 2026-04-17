@@ -138,7 +138,30 @@ export function InlineStyles({ r2Endpoint, onReady }: InlineStylesProps) {
 		}
 
 		@media print {
-			.query-box { display: none; }
+			.query-box,
+			.nav-bg,
+			.navbar-fixed-top {
+				display: none !important;
+			}
+
+			body {
+				padding-top: 0 !important;
+			}
+
+			#main-content {
+				margin-left: 0 !important;
+				margin-top: 0 !important;
+			}
+
+			/* 字圖列印只保留字形，隱藏詞意說明欄 */
+			.charimg-result .moetext td:nth-child(2) {
+				display: none !important;
+			}
+
+			.charimg-result .moetext {
+				max-width: 100% !important;
+				margin: 0 auto;
+			}
 		}
 
 		@media only screen and (max-width: 767px) {
