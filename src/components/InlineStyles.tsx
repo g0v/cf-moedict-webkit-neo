@@ -107,7 +107,7 @@ export function InlineStyles({ r2Endpoint, onReady }: InlineStylesProps) {
 				padding: 10px 5px !important;
 			}
 			.nav > .navbar-fulltext-search-item-mobile {
-			    width: 70vw !important;
+			    width: 3.5em !important;
 			    width: -webkit-calc(100vw - 11em) !important;
 				width: calc(100vw - 11em) !important;
 				right: 2.75em !important;
