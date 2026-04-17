@@ -382,6 +382,10 @@ export function CharacterImageView({ queryWord, terms, lang, langTokenPrefix }: 
 
           .charimg-result.charimg-hollow img.charimg-glyph-segment {
             filter: invert(100%) grayscale(100%);
+            -webkit-filter: invert(100%) grayscale(100%);
+            -moz-filter: invert(100%) grayscale(100%);
+            -ms-filter: invert(100%) grayscale(100%);
+            -o-filter: invert(100%) grayscale(100%);
             opacity: .32;
           }
 
@@ -485,7 +489,7 @@ export function CharacterImageView({ queryWord, terms, lang, langTokenPrefix }: 
           >
             清除描寫
           </button>
-          <label style={{ marginBottom: 0, display: 'inline-flex', gap: 4, alignItems: 'center' }}>
+          <label style={{ marginBottom: 0, display: 'inline-flex', gap: 4, alignItems: 'center', fontWeight: 'normal' }}>
             <input
               type="checkbox"
               checked={hollowMode}
