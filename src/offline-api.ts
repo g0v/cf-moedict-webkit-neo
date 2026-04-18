@@ -11,7 +11,7 @@
 import { handleDictionaryAPI } from './api/handleDictionaryAPI.ts';
 import { handleLookupAPI } from './api/handleLookupAPI.ts';
 
-if (typeof window !== 'undefined' && (window as any).Capacitor) {
+if (typeof window !== 'undefined' && (window as Window & { Capacitor?: unknown }).Capacitor) {
 
 // Keep the original fetch for loading local files and external requests
 const originalFetch = window.fetch.bind(window);
@@ -111,7 +111,7 @@ XMLHttpRequest.prototype.open = function (
 };
 
 // Monkey-patch fetch to intercept /api/ requests
-(window as any).fetch = async function (input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+window.fetch = async function (input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   let url: string;
   if (typeof input === 'string') {
     url = input;

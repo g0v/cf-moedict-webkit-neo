@@ -192,8 +192,8 @@ function convertPinyinT(yin: string, isBody = true): string {
 
     if (isBody) {
       converted = converted.replace(
-        /((?:[^\.,!?]*(?:\w[^-\.,!?\w\s\u2011]*)[- \u2011])+)(\w)/g,
-        (_, prefix: string, tail: string) => prefix.split(/([- \u2011\.,!?])/).map((seg) => toneSandhi(seg)).join('') + tail,
+        /((?:[^.,!?]*(?:\w[^-.,!?\w\s\u2011]*)[- \u2011])+)(\w)/g,
+        (_, prefix: string, tail: string) => prefix.split(/([- \u2011.,!?])/).map((seg) => toneSandhi(seg)).join('') + tail,
       );
     } else {
       converted = converted.replace(
@@ -220,7 +220,7 @@ function convertPinyinT(yin: string, isBody = true): string {
     .replace(/([ie])r/g, '$1\u0358')
     .replace(/\u030B/g, '\u0306');
 
-  return poj.split(/([- \u2011\.,!?])/).map((seg) => tonePoj(seg)).join('');
+  return poj.split(/([- \u2011.,!?])/).map((seg) => tonePoj(seg)).join('');
 }
 
 function convertPinyinH(yin: string): string {
@@ -314,7 +314,7 @@ export function trsToBpmf(lang: Lang, trs: string): string {
   if (lang === 'a' || lang === 'c') return trs;
 
   return String(trs || '')
-    .replace(/[A-Za-z\u0300-\u030D]+/g, (chunk) => {
+    .replace(/(?:[A-Za-z]|[\u0300-\u030D])+/gu, (chunk) => {
       let tone = '';
       let token = chunk.toLowerCase();
       token = token.replace(/([\u0300-\u0302\u0304\u030D])/g, (mark) => {

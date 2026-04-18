@@ -48,10 +48,11 @@ export function cleanTextForTTS(value: unknown): string {
   // 移除 , CL: 開頭之後的內容
   text = text.replace(/,\s*CL:.*/g, '');
   // 移除 | 後的非標點內容（近似原則：直到遇到常見標點或結尾）
-  text = text.replace(/\|[^,\.\(\)\[\]\s]+/g, '');
+  text = text.replace(/\|[^,.()[\]\s]+/g, '');
   // 移除如 (A) 的大寫標記
   text = text.replace(/\([A-Z]\)/g, '');
   // 僅保留 ASCII 字符
+  // eslint-disable-next-line no-control-regex
   text = text.replace(/[^\x00-\x7F]/g, '');
   // 收斂多餘空白
   text = text.replace(/\s+/g, ' ').trim();

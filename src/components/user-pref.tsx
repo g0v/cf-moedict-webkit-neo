@@ -88,6 +88,7 @@ function applyPhoneticsBodyAttr(value: string): void {
 	document.body.setAttribute('data-ruby-pref', mapped);
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function toggleUserPrefPanel(): void {
 	const panel = document.getElementById('user-pref');
 	if (!panel) return;
@@ -101,7 +102,7 @@ export function toggleUserPrefPanel(): void {
 	panel.style.display = isPanelHidden(panel) ? 'block' : 'none';
 }
 
-export function hideUserPrefPanel(): void {
+function hideUserPrefPanel(): void {
 	const panel = document.getElementById('user-pref');
 	if (!panel) return;
 
