@@ -10,6 +10,7 @@ import { toggleUserPrefPanel } from './user-pref';
 import { computeLangSwitchPathAsync, LANG_PREFIX } from '../utils/xref-switch-utils';
 import { readLRUWords } from '../utils/word-record-utils';
 import { FullTextSearch } from './full-text-search';
+import { SvgIcon } from './SvgIcon';
 import styled from './navbar-normal.module.css'
 
 type Lang = 'a' | 't' | 'h' | 'c';
@@ -661,7 +662,7 @@ export function NavbarNormal({ currentLang }: NavbarNormalProps) {
 					{/* 辭典下拉選單 */}
 					<li>
 						<a href="#" onClick={handleMenuToggle}>
-							<i className="icon-book">&nbsp;</i>
+							<SvgIcon name="book" size={15} className={styled.navIcon} aria-hidden="true" />
 							<span
 								style={{ margin: 0, padding: 0 }}
 								itemProp="articleSection"
@@ -725,6 +726,7 @@ export function NavbarNormal({ currentLang }: NavbarNormalProps) {
 					<li id="btn-starred">
 						<a
 							title="字詞紀錄簿"
+							aria-label="字詞紀錄簿"
 							href={starredPath}
 							onClick={(e) => {
 								if (e.metaKey || e.altKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
@@ -737,14 +739,14 @@ export function NavbarNormal({ currentLang }: NavbarNormalProps) {
 								}
 							}}
 						>
-							<i className="icon-bookmark-empty"></i>
+							<SvgIcon name="bookmarkEmpty" size={16} className={styled.navIcon} aria-hidden="true" />
 						</a>
 					</li>
 
 					{/* 偏好設定按鈕 */}
 					<li id="btn-pref">
-						<a title="偏好設定" href="#" onClick={handlePrefClick}>
-							<i className="icon-cogs"></i>
+						<a title="偏好設定" aria-label="偏好設定" href="#" onClick={handlePrefClick}>
+							<SvgIcon name="cogs" size={16} className={styled.navIcon} aria-hidden="true" />
 						</a>
 					</li>
 
@@ -760,7 +762,7 @@ export function NavbarNormal({ currentLang }: NavbarNormalProps) {
 								// TODO: 實現字體大小調整功能
 							}}
 						>
-							<i className="icon-resize-small"></i>
+							<SvgIcon name="resizeSmall" size={16} className={styled.navIcon} aria-hidden="true" />
 						</a>
 					</li>
 					<li
@@ -774,7 +776,7 @@ export function NavbarNormal({ currentLang }: NavbarNormalProps) {
 								// TODO: 實現字體大小調整功能
 							}}
 						>
-							<i className="icon-resize-full"></i>
+							<SvgIcon name="resizeFull" size={16} className={styled.navIcon} aria-hidden="true" />
 						</a>
 					</li>
 				</ul>
@@ -791,9 +793,10 @@ export function NavbarNormal({ currentLang }: NavbarNormalProps) {
 							target="_blank"
 							rel="noopener noreferrer"
 							title="桌面版下載(可離線使用)"
+							aria-label="桌面版下載(可離線使用)"
 							style={{ color: '#ccc' }}
 						>
-							<i className="icon-download-alt"></i>
+							<SvgIcon name="download" size={16} className={styled.navIcon} aria-hidden="true" />
 						</a>
 					</li>
 
@@ -803,9 +806,10 @@ export function NavbarNormal({ currentLang }: NavbarNormalProps) {
 							target="_blank"
 							rel="noopener noreferrer"
 							title="Google Play 下載"
+							aria-label="Google Play 下載"
 							style={{ color: '#ccc' }}
 						>
-							<i className="icon-android"></i>
+							<SvgIcon name="android" size={16} className={styled.navIcon} aria-hidden="true" />
 						</a>
 					</li>
 					<li style={{ display: 'inline-block' }}>
@@ -814,16 +818,17 @@ export function NavbarNormal({ currentLang }: NavbarNormalProps) {
 							target="_blank"
 							rel="noopener noreferrer"
 							title="App Store 下載"
+							aria-label="App Store 下載"
 							style={{ color: '#ccc' }}
 						>
-							<i className="icon-apple"></i>
+							<SvgIcon name="apple" size={16} className={styled.navIcon} aria-hidden="true" />
 						</a>
 					</li>
 
 					<li>
-						<Link to="/about" title="關於本站">
+						<Link to="/about" title="關於本站" aria-label="關於本站">
 							<span className="iconic-circle" style={{ backgroundColor: '#400' }}>
-								<i className="icon-info"></i>
+								<SvgIcon name="info" size={12} className={styled.navCircleIcon} aria-hidden="true" />
 							</span>
 						</Link>
 					</li>

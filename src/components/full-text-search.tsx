@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { KeyboardEvent, ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { SvgIcon } from './SvgIcon';
 
 type Lang = 'a' | 't' | 'h' | 'c';
 
@@ -325,7 +326,7 @@ export function FullTextSearch({ currentLang }: FullTextSearchProps) {
 				全文檢索
 			</label>
 			<span className="fulltext-search-icon" aria-hidden="true">
-				<i className="icon-search"></i>
+				<SvgIcon name="search" size={13} />
 			</span>
 			<input
 				id="nav-fulltext-search"

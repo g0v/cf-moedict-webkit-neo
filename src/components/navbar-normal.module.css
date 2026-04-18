@@ -129,3 +129,14 @@
     content: '▶';
   }
 }
+
+.navIcon {
+  display: inline-block;
+  vertical-align: middle;
+  flex: none;
+}
+
+.navCircleIcon {
+  display: block;
+  margin: 3px auto;
+}

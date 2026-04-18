@@ -4,6 +4,7 @@
  */
 
 import { Link } from 'react-router-dom';
+import { SvgIcon } from './SvgIcon';
 
 interface NavbarAboutProps {
 	r2Endpoint?: string;
@@ -25,8 +26,9 @@ export function NavbarAbout({ r2Endpoint }: NavbarAboutProps) {
 						target="_blank"
 						rel="noopener noreferrer"
 						title="桌面版下載（可離線使用）"
+						aria-label="桌面版下載（可離線使用）"
 					>
-						<i className="icon-download-alt"></i>
+						<SvgIcon name="download" size={16} aria-hidden="true" />
 					</a>
 				</li>
 			</ul>
@@ -48,12 +50,11 @@ export function NavbarAbout({ r2Endpoint }: NavbarAboutProps) {
 					</a>
 				</li>
 				<li style={{ display: 'inline-block', position: 'absolute', right: 0 }}>
-					<Link to="/" title="回到萌典" className="home">
-						<i className="icon-remove-circle"></i>
+					<Link to="/" title="回到萌典" aria-label="回到萌典" className="home">
+						<SvgIcon name="removeCircle" size={18} aria-hidden="true" />
 					</Link>
 				</li>
 			</ul>
 		</div>
 	);
 }
-

@@ -89,6 +89,13 @@ body {
 	font-size: 13px;
 }
 
+.moe-icon {
+	display: inline-block;
+	vertical-align: middle;
+	flex: none;
+	fill: currentColor;
+}
+
 .fulltext-search-panel {
 	position: absolute;
 	top: calc(100% + 8px);
