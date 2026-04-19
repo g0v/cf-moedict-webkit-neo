@@ -50,8 +50,6 @@ export function InlineStyles({ r2Endpoint, onReady }: InlineStylesProps) {
 
 	if (!endpoint) return null;
 
-	const basePath = endpoint;
-
 	return (
 		<style
 			dangerouslySetInnerHTML={{
@@ -329,29 +327,6 @@ export function InlineStyles({ r2Endpoint, onReady }: InlineStylesProps) {
 			-webkit-appearance: none;
 		}
 
-		/* FontAwesome 字體定義 */
-		@font-face {
-			font-family: 'FontAwesome';
-			src: url('${basePath}/fonts/fontawesome-webfont.eot?v=3.2.1');
-			src: url('${basePath}/fonts/fontawesome-webfont.eot?#iefix&v=3.2.1') format('embedded-opentype'),
-				 url('${basePath}/fonts/fontawesome-webfont.woff?v=3.2.1') format('woff'),
-				 url('${basePath}/fonts/fontawesome-webfont.ttf?v=3.2.1') format('truetype'),
-				 url('${basePath}/fonts/fontawesome-webfont.svg#fontawesomeregular?v=3.2.1') format('svg');
-			font-weight: normal;
-			font-style: normal;
-		}
-
-		/* 基礎圖示樣式 */
-		[class^="icon-"]:before,
-		[class*=" icon-"]:before {
-			font-family: FontAwesome;
-			font-weight: normal;
-			font-style: normal;
-			text-decoration: inherit;
-			-webkit-font-smoothing: antialiased;
-			*margin-right: .3em;
-		}
-
 		/* 手機版調整 */
 		@media (max-width: 767px) {
 			body {
@@ -385,8 +360,6 @@ export function InlineStyles({ r2Endpoint, onReady }: InlineStylesProps) {
 			padding-left: 5px;
 			display: inline-block !important;
 		}
-		.icon-play:before { content: "\\f04b"; }
-		.icon-stop:before { content: "\\f04d"; }
 
 		/* 外文翻譯 TTS 可點擊 */
 		.fw_def {

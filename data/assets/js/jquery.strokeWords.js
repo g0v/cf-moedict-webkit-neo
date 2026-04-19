@@ -838,7 +838,7 @@
       options || (options = {});
       stroker = new Word(options);
       $word = $("<div class=\"word\"></div>");
-      $loader = $("<div class=\"loader\"><div style=\"width: 0\"></div><i class=\"icon-spinner icon-spin icon-large icon-fixed-width\"></i></div>");
+      $loader = $("<div class=\"loader\"><div style=\"width: 0\"></div><div class=\"moe-stroke-loader-spinner\" aria-hidden=\"true\"></div></div>");
       $word.append(stroker.canvas);
       $(element).append($word);
       data = WordStroker.utils.StrokeData({

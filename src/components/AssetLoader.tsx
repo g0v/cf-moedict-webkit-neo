@@ -161,7 +161,6 @@ export function AssetLoader({ r2Endpoint, onCriticalStylesReady }: AssetLoaderPr
 			}
 
 			// 預載入字體
-			preloadFont(`${basePath}/fonts/fontawesome-webfont.woff`, 'font', 'font/woff');
 			preloadFont(`${basePath}/fonts/MOEDICT.woff`, 'font', 'font/woff');
 			preloadFont(`${basePath}/fonts/han.woff`, 'font', 'font/woff');
 			preloadFont(`${basePath}/fonts/EBAS-Subset.woff`, 'font', 'font/woff');
@@ -183,4 +182,3 @@ export function AssetLoader({ r2Endpoint, onCriticalStylesReady }: AssetLoaderPr
 
 	return null;
 }
-

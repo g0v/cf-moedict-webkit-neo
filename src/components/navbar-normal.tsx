@@ -662,7 +662,7 @@ export function NavbarNormal({ currentLang }: NavbarNormalProps) {
 					{/* 辭典下拉選單 */}
 					<li>
 						<a href="#" onClick={handleMenuToggle}>
-							<SvgIcon name="book" size={15} className={styled.navIcon} aria-hidden="true" />
+							<SvgIcon name="book" size="1em" className={styled.navIcon} aria-hidden="true" />
 							<span
 								style={{ margin: 0, padding: 0 }}
 								itemProp="articleSection"
@@ -739,14 +739,19 @@ export function NavbarNormal({ currentLang }: NavbarNormalProps) {
 								}
 							}}
 						>
-							<SvgIcon name="bookmarkEmpty" size={16} className={styled.navIcon} aria-hidden="true" />
+							<SvgIcon
+								name="bookmarkEmpty"
+								size="1em"
+								className={styled.navIcon}
+								aria-hidden="true"
+							/>
 						</a>
 					</li>
 
 					{/* 偏好設定按鈕 */}
 					<li id="btn-pref">
 						<a title="偏好設定" aria-label="偏好設定" href="#" onClick={handlePrefClick}>
-							<SvgIcon name="cogs" size={16} className={styled.navIcon} aria-hidden="true" />
+							<SvgIcon name="cogs" size="1em" className={styled.navIcon} aria-hidden="true" />
 						</a>
 					</li>
 
@@ -762,7 +767,7 @@ export function NavbarNormal({ currentLang }: NavbarNormalProps) {
 								// TODO: 實現字體大小調整功能
 							}}
 						>
-							<SvgIcon name="resizeSmall" size={16} className={styled.navIcon} aria-hidden="true" />
+							<SvgIcon name="resizeSmall" size="1em" className={styled.navIcon} aria-hidden="true" />
 						</a>
 					</li>
 					<li
@@ -776,7 +781,7 @@ export function NavbarNormal({ currentLang }: NavbarNormalProps) {
 								// TODO: 實現字體大小調整功能
 							}}
 						>
-							<SvgIcon name="resizeFull" size={16} className={styled.navIcon} aria-hidden="true" />
+							<SvgIcon name="resizeFull" size="1em" className={styled.navIcon} aria-hidden="true" />
 						</a>
 					</li>
 				</ul>
@@ -796,7 +801,7 @@ export function NavbarNormal({ currentLang }: NavbarNormalProps) {
 							aria-label="桌面版下載(可離線使用)"
 							style={{ color: '#ccc' }}
 						>
-							<SvgIcon name="download" size={16} className={styled.navIcon} aria-hidden="true" />
+							<SvgIcon name="download" size="1em" className={styled.navIcon} aria-hidden="true" />
 						</a>
 					</li>
 
@@ -809,7 +814,7 @@ export function NavbarNormal({ currentLang }: NavbarNormalProps) {
 							aria-label="Google Play 下載"
 							style={{ color: '#ccc' }}
 						>
-							<SvgIcon name="android" size={16} className={styled.navIcon} aria-hidden="true" />
+							<SvgIcon name="android" size="1em" className={styled.navIcon} aria-hidden="true" />
 						</a>
 					</li>
 					<li style={{ display: 'inline-block' }}>
@@ -821,7 +826,7 @@ export function NavbarNormal({ currentLang }: NavbarNormalProps) {
 							aria-label="App Store 下載"
 							style={{ color: '#ccc' }}
 						>
-							<SvgIcon name="apple" size={16} className={styled.navIcon} aria-hidden="true" />
+							<SvgIcon name="apple" size="1em" className={styled.navIcon} aria-hidden="true" />
 						</a>
 					</li>
 

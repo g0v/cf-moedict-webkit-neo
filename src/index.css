@@ -94,6 +94,11 @@ body {
 	vertical-align: middle;
 	flex: none;
 	fill: currentColor;
+	overflow: visible;
+	/* Reset legacy styles.css global `svg` rule (originally scoped to #strokes svg) */
+	border: 0;
+	background: transparent;
+	margin-left: 0;
 }
 
 .fulltext-search-panel {
@@ -182,6 +187,11 @@ body {
 	/* Always show the settings (gear) button on mobile */
 	body #btn-pref {
 		display: block !important;
+	}
+
+	body .iconic-color.star {
+		right: 22px;
+		top: 151px;
 	}
 
 	/* Search bar: position between gear and bookmark.
@@ -277,6 +287,61 @@ button:focus-visible {
   }
 }
 
+/* 原 styles.css: `.nav, .dropdown, #query-box { font-size: 19px }`
+   讓 navbar SvgIcon 用 size="1em" 時能對齊 moedict.tw 19px 的呈現 */
+.nav,
+.dropdown,
+.dropdown .dropdown-menu,
+#query-box {
+  font-size: 19px;
+}
+
+/* ===== 部首＋筆畫 (.radical) ===== */
+
+/* 原 styles.css: .radical */
+.radical {
+  float: right;
+  text-align: right;
+  padding-top: 5px;
+  font-weight: 501;
+}
+.result div.entry ~ .radical,
+.ui-tooltip div.entry ~ .radical {
+  margin-top: 0.4em;
+}
+.radical .count {
+  font-family: "Ubuntu Mono", Menlo, Monaco, Consolas, "American Typewriter", "Courier New", monospace;
+}
+/* 原 styles.css: .part-of-speech, .glyph, .fw_lang, .specific 共用樣式 —— 讓 .glyph 有紅底白字 + line-height:1 確保字形置中 */
+.part-of-speech,
+.glyph,
+.fw_lang,
+.specific {
+  color: white;
+  background-color: #6b0000;
+  border-radius: 4px;
+  padding: 2px;
+  font-size: 100%;
+  line-height: 1;
+}
+.radical .glyph {
+  margin-right: 0.2em;
+  padding-bottom: 4px;
+}
+.radical .glyph b {
+  border-bottom: none !important;
+}
+.radical .glyph b:hover {
+  background: #6b0000;
+}
+.radical .sym {
+  margin-left: 0.2em;
+  padding-right: 0.2em;
+}
+body .ui-tooltip .radical {
+  display: none;
+}
+
 /* ===== 筆順動畫 & 書體圖示 ===== */
 
 /* 原 _theme.scss: .iconic-circle, .iconic-color */
@@ -294,6 +359,27 @@ button:focus-visible {
   text-align: center;
 }
 
+/* 避免 .result a:focus/hover 覆蓋圖示按鈕的白色填色（legacy styles.css 後載入，需較高特異性） */
+.result a.iconic-circle,
+.result a.iconic-circle:hover,
+.result a.iconic-circle:focus,
+.result a.iconic-circle:active,
+a.iconic-circle,
+a.iconic-circle:hover,
+a.iconic-circle:focus,
+a.iconic-circle:active {
+  color: #fff;
+  outline: none;
+  background-image: none;
+}
+
+.iconic-circle .moe-icon,
+.iconic-color .moe-icon {
+  width: 1em;
+  height: 1em;
+  vertical-align: baseline;
+}
+
 /* 原 _theme.scss: .iconic-circle.stroke, .star */
 .iconic-circle.stroke,
 .star {
@@ -303,7 +389,8 @@ button:focus-visible {
   cursor: pointer !important;
   z-index: 8;
 }
-.iconic-circle.stroke:hover {
+.iconic-circle.stroke:hover,
+.star:hover {
   background: #888 !important;
 }
 
@@ -312,6 +399,21 @@ body.lang-a .iconic-circle { background: #400; }
 body.lang-c .iconic-circle { background: #447; }
 body.lang-h .iconic-circle { background: #474; }
 body.lang-t .iconic-circle { background: #744; }
+body.lang-a .iconic-color { color: #400; }
+body.lang-c .iconic-color { color: #447; }
+body.lang-h .iconic-color { color: #474; }
+body.lang-t .iconic-color { color: #744; }
+
+.iconic-color.star {
+  background: white;
+  position: absolute;
+  right: 42px;
+  top: 113px;
+}
+
+.iconic-color.star:hover {
+  background: #ccc !important;
+}
 
 /* 單字詞條 hover 高亮，點擊觸發筆順動畫 */
 .result .entry .title .single-char-stroke-trigger {
@@ -356,19 +458,24 @@ body.lang-t .iconic-circle { background: #744; }
   height: 100%;
   background: #FFF;
 }
-#strokes .loader i {
+#strokes .loader .moe-stroke-loader-spinner {
   position: absolute;
-  top: 107.5px;
-  left: 107.5px;
-  color: #A33;
+  top: 50%;
+  left: 50%;
+  width: 28px;
+  height: 28px;
+  margin-top: -14px;
+  margin-left: -14px;
+  border: 3px solid rgba(170, 51, 51, 0.25);
+  border-top-color: #A33;
+  border-radius: 50%;
+  box-sizing: border-box;
+  animation: moe-stroke-loader-spin 0.8s linear infinite;
 }
-#strokes .loader i.icon-fixed-width {
-  margin-top: -0.5714em;
-  margin-left: -0.5714em;
-}
-#strokes .loader i.icon-fixed-width.icon-large {
-  margin-top: -0.714em;
-  margin-left: -0.714em;
+
+@keyframes moe-stroke-loader-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 /* 原 _result.scss: 筆順動畫 svg / canvas */

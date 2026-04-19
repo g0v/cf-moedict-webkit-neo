@@ -12,6 +12,7 @@ import { setCurrentXrefs } from '../utils/xref-switch-utils';
 import { StrokeAnimation } from '../components/StrokeAnimation';
 import { applyHeadToDocument, getDictionaryHead } from '../ssr/head';
 import { CharacterImageView } from '../components/CharacterImageView';
+import { SvgIcon } from '../components/SvgIcon';
 
 export type DictionaryLang = 'a' | 't' | 'h' | 'c';
 
@@ -590,7 +591,7 @@ export function DictionaryPage({ word, lang }: DictionaryPageProps) {
         const groups = groupDefinitions(definitions);
 
         return (
-          <div key={`${title}-${idx}`} className="entry" style={{ position: 'relative' }}>
+          <div key={`${title}-${idx}`} className="entry">
             {/* 部首＋筆畫＋筆順動畫按鈕（同原 $char div.radical） */}
             <div className="radical">
               {(entry.radical || entry.stroke_count || entry.non_radical_stroke_count) && (
@@ -606,9 +607,8 @@ export function DictionaryPage({ word, lang }: DictionaryPageProps) {
               )}
               {/* 紅底鉛筆按鈕（同原 a.iconic-circle.stroke.icon-pencil） */}
               <a
-                className="iconic-circle stroke icon-pencil"
+                className="iconic-circle stroke"
                 title="筆順動畫"
-                style={{ color: 'white' }}
                 role="button"
                 tabIndex={0}
                 onClick={toggleStrokeAnimation}
@@ -617,13 +617,14 @@ export function DictionaryPage({ word, lang }: DictionaryPageProps) {
                     toggleStrokeAnimation(e);
                   }
                 }}
-              />
+              >
+                <SvgIcon name="pencil" size="1em" aria-hidden="true" />
+              </a>
             </div>
             {idx === 0 && (
-              <i
-                className={`star iconic-color ${isStarred ? 'icon-star' : 'icon-star-empty'}`}
+              <span
+                className="star iconic-color"
                 title={isStarred ? '已加入記錄簿' : '加入字詞記錄簿'}
-                style={{ color: '#400', top: '50px', right: '0px', cursor: 'pointer' }}
                 data-word={title}
                 data-lang={lang}
                 role="button"
@@ -641,7 +642,14 @@ export function DictionaryPage({ word, lang }: DictionaryPageProps) {
                     toggleStar();
                   }
                 }}
-              />
+              >
+                <SvgIcon
+                  name={isStarred ? 'star' : 'starEmpty'}
+                  size="1em"
+                  style={isStarred ? undefined : { transform: 'scale(1.12)' }}
+                  aria-hidden="true"
+                />
+              </span>
             )}
 
             <h1 className="title" data-title={title}>
@@ -671,11 +679,11 @@ export function DictionaryPage({ word, lang }: DictionaryPageProps) {
               {rubyData.youyin && <small className="youyin">{rubyData.youyin}</small>}
               {lang !== 'h' && pronunAudioId && (
                 <span className="audioBlock">
-                  <i
+                  <span
                     role="button"
                     tabIndex={0}
                     aria-label={playingAudioId === pronunAudioId ? '停止播放' : '播放發音'}
-                    className={`${playingAudioId === pronunAudioId ? 'icon-stop' : 'icon-play'} playAudio part-of-speech`}
+                    className="playAudio part-of-speech"
                     title={playingAudioId === pronunAudioId ? '停止播放' : '播放發音'}
                     onClick={(event) => {
                       event.stopPropagation();
@@ -693,7 +701,9 @@ export function DictionaryPage({ word, lang }: DictionaryPageProps) {
                         });
                       }
                     }}
-                  />
+                  >
+                    <SvgIcon name={playingAudioId === pronunAudioId ? 'stop' : 'play'} size="1em" aria-hidden="true" />
+                  </span>
                 </span>
               )}
             </h1>
@@ -709,9 +719,9 @@ export function DictionaryPage({ word, lang }: DictionaryPageProps) {
                             role="button"
                             tabIndex={0}
                             aria-label={playingAudioId === audioKey ? '停止播放' : '播放發音'}
-                            className={`${playingAudioId === audioKey ? 'icon-stop' : 'icon-play'} part-of-speech`}
+                            className="part-of-speech"
                             title={playingAudioId === audioKey ? '停止播放' : '播放發音'}
-                            style={{ cursor: 'pointer', fontSize: '1.4em' }}
+                            style={{ cursor: 'pointer', fontSize: '1.4em', display: 'inline-flex', alignItems: 'center', gap: 4 }}
                             onClick={(event) => {
                               event.stopPropagation();
                               playAudioUrl(getHakkaVariantAudioUrl(item.variant, heteronym.audio_id!), (playing) => {
@@ -727,6 +737,7 @@ export function DictionaryPage({ word, lang }: DictionaryPageProps) {
                               }
                             }}
                           >
+                            <SvgIcon name={playingAudioId === audioKey ? 'stop' : 'play'} size="1em" aria-hidden="true" />
                             {item.dialect}
                           </span>
                         </span>

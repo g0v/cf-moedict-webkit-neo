@@ -5,6 +5,7 @@
 
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { SvgIcon } from '../components/SvgIcon';
 import { applyHeadByPath, applyHeadToDocument, resolveHeadByPath } from '../ssr/head';
 import './About.css';
 
@@ -423,7 +424,7 @@ export function About({ assetBaseUrl }: AboutProps) {
 					className="visible-xs pull-left ebas btn btn-default home"
 				>
 					<span className="iconic-circle">
-						<i className="icon-arrow-left"></i>
+						<SvgIcon name="arrowLeft" size={12} style={{ display: 'block', margin: '3px auto' }} aria-hidden="true" />
 					</span>
 					<span> 萌典</span>
 				</Link>
@@ -481,7 +482,8 @@ export function About({ assetBaseUrl }: AboutProps) {
 					href="#"
 					title="將此頁加入瀏覽器書籤"
 				>
-					<i className="icon icon-plus-sign"></i> 加入書籤
+					<SvgIcon name="plusCircle" size={14} style={{ marginRight: 4 }} aria-hidden="true" />
+					加入書籤
 				</a>
 				{bookmarkHint && (
 					<div style={{ marginTop: 6, fontSize: 12, color: 'var(--color-fg-muted)', maxWidth: 260 }}>
@@ -492,4 +494,3 @@ export function About({ assetBaseUrl }: AboutProps) {
 		</div>
 	);
 }
-

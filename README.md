@@ -140,14 +140,23 @@ rclone sync data/dictionary/ r2:<your-dictionary-bucket>/ \
 
 ### 6. 本機啟動與部署
 
+一般前端/互動測試可直接使用本機資料啟動，不必先登入 Cloudflare：
+
 ```bash
 npm install
-wrangler auth login
 npm run dev
 ```
 
 補充：
-- `npm run dev` 與 `npm run build` 會先根據 `data/dictionary/*ck/*.txt` 自動產生 `data/dictionary/search-index/*.json`。
+- `npm run dev` 會以本機檔案系統提供 `data/assets/`、`data/dictionary/` 與 `data/dictionary/search-index/`，適合日常 UI 與互動除錯。
+- 若你需要完整 Cloudflare Worker / R2 預覽環境，再執行：
+
+```bash
+wrangler auth login
+npm run dev:remote
+```
+
+- `npm run dev`、`npm run dev:remote` 與 `npm run build` 都會先根據 `data/dictionary/*ck/*.txt` 自動產生 `data/dictionary/search-index/*.json`。
 - 這些索引檔不會打包進 Workers assets，避免單一檔案超過 Cloudflare Workers 靜態資產 25 MiB 限制。
 - 正式部署前若字典資料有更新，請先執行 `npm run build-search-index`，再執行 `sh commands/upload_dictionary.sh` 上傳最新的 `search-index/`。
 

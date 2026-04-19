@@ -169,30 +169,3 @@
 	background-color: #46b8da;
 	border-color: #269abc;
 }
-
-/* Icon 樣式（需要載入 FontAwesome 字體） */
-[class^='icon-'],
-[class*=' icon-'] {
-	font-family: FontAwesome;
-	font-weight: normal;
-	font-style: normal;
-	text-decoration: inherit;
-	-webkit-font-smoothing: antialiased;
-}
-
-.icon-download-alt:before {
-	content: '\f019';
-}
-
-.icon-remove-circle:before {
-	content: '\f05c';
-}
-
-.icon-arrow-left:before {
-	content: '\f060';
-}
-
-.icon-plus-sign:before {
-	content: '\f067';
-}
-

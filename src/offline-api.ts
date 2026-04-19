@@ -11,7 +11,14 @@
 import { handleDictionaryAPI } from './api/handleDictionaryAPI.ts';
 import { handleLookupAPI } from './api/handleLookupAPI.ts';
 
-if (typeof window !== 'undefined' && (window as Window & { Capacitor?: unknown }).Capacitor) {
+const shouldUseOfflineApi =
+  typeof window !== 'undefined' &&
+  (
+    Boolean((window as Window & { Capacitor?: unknown }).Capacitor) ||
+    (import.meta.env.DEV && !import.meta.env.VITE_CLOUDFLARE_REMOTE_DEV)
+  );
+
+if (shouldUseOfflineApi) {
 
 // Keep the original fetch for loading local files and external requests
 const originalFetch = window.fetch.bind(window);
@@ -121,11 +128,15 @@ window.fetch = async function (input: RequestInfo | URL, init?: RequestInit): Pr
     url = input.url;
   }
 
-  const isApiRequest =
+  const isOfflineRequest =
     url.startsWith('/api/') ||
-    (url.startsWith(window.location.origin) && new URL(url).pathname.startsWith('/api/'));
+    url.startsWith('/lookup/trs/') ||
+    (url.startsWith(window.location.origin) && (() => {
+      const pathname = new URL(url).pathname;
+      return pathname.startsWith('/api/') || pathname.startsWith('/lookup/trs/');
+    })());
 
-  if (isApiRequest) {
+  if (isOfflineRequest) {
     return handleOfflineApiRequest(url, init);
   }
 

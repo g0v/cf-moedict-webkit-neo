@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { SvgIcon } from './SvgIcon';
 import { fetchDictionaryEntry, type DictionaryLang } from '../utils/dictionary-cache';
 
 interface FontGroup {
@@ -484,8 +485,7 @@ export function CharacterImageView({ queryWord, terms, lang, langTokenPrefix }: 
             title={shareSupported ? '分享' : '複製連結'}
             onClick={handleShare}
           >
-            <span className="icon-share" />
-            {' '}
+            <SvgIcon name="share" size={16} aria-hidden="true" />
             {shareSupported ? '分享' : '複製連結'}
           </button>
           <button
@@ -493,8 +493,7 @@ export function CharacterImageView({ queryWord, terms, lang, langTokenPrefix }: 
             title="列印目前字圖"
             onClick={handlePrint}
           >
-            <span className="icon-print" />
-            {' '}
+            <SvgIcon name="print" size={16} aria-hidden="true" />
             列印字卡
           </button>
           <button

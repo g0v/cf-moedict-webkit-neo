@@ -1,4 +1,4 @@
-import type { ReactNode, SVGProps } from 'react';
+import type { SVGProps } from 'react';
 
 export type SvgIconName =
 	| 'android'
@@ -12,6 +12,7 @@ export type SvgIconName =
 	| 'pencil'
 	| 'play'
 	| 'plusCircle'
+	| 'print'
 	| 'removeCircle'
 	| 'resizeFull'
 	| 'resizeSmall'
@@ -28,192 +29,54 @@ interface SvgIconProps extends Omit<SVGProps<SVGSVGElement>, 'children'> {
 	title?: string;
 }
 
-function getIconFragment(name: SvgIconName): ReactNode {
-	switch (name) {
-		case 'android':
-			return (
-				<>
-					<path d="M8 8.5h8a2 2 0 0 1 2 2V16a2.5 2.5 0 0 1-2.5 2.5h-7A2.5 2.5 0 0 1 6 16v-5.5a2 2 0 0 1 2-2Z" fill="currentColor" />
-					<path d="M9 6.5 7.8 4.2M15 6.5l1.2-2.3" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" />
-					<rect x="4.5" y="9.5" width="1.8" height="6.5" rx=".9" fill="currentColor" />
-					<rect x="17.7" y="9.5" width="1.8" height="6.5" rx=".9" fill="currentColor" />
-					<rect x="8.8" y="18" width="1.8" height="3" rx=".9" fill="currentColor" />
-					<rect x="13.4" y="18" width="1.8" height="3" rx=".9" fill="currentColor" />
-					<circle cx="10.1" cy="11.6" r=".9" fill="#222" />
-					<circle cx="13.9" cy="11.6" r=".9" fill="#222" />
-				</>
-			);
-		case 'apple':
-			return (
-				<>
-					<path d="M15.3 6.5c.7-.9 1.2-2.2 1-3.5-1.1.1-2.4.7-3.2 1.6-.7.8-1.3 2-1.1 3.2 1.2.1 2.5-.6 3.3-1.3Z" fill="currentColor" />
-					<path d="M17.9 12.4c0-2 1.6-2.9 1.7-3-1-1.4-2.5-1.6-3-1.6-1.2-.1-2.3.7-3 .7s-1.6-.7-2.7-.7c-1.3 0-2.6.8-3.3 2-1.4 2.4-.3 6.2 1 8 .7 1 1.4 2 2.5 2 1 0 1.4-.6 2.6-.6s1.6.6 2.6.6c1.1 0 1.8-.9 2.4-1.8.8-1.1 1.1-2.3 1.2-2.3 0 0-2-.8-2-3.3Z" fill="currentColor" />
-				</>
-			);
-		case 'arrowLeft':
-			return (
-				<path
-					d="M19 12H5M11 6l-6 6 6 6"
-					fill="none"
-					stroke="currentColor"
-					strokeLinecap="round"
-					strokeLinejoin="round"
-					strokeWidth="2"
-				/>
-			);
-		case 'book':
-			return (
-				<>
-					<path
-						d="M5.5 4.5A2.5 2.5 0 0 1 8 2h10.5v18H8a2.5 2.5 0 0 0-2.5 2Z"
-						fill="none"
-						stroke="currentColor"
-						strokeLinecap="round"
-						strokeLinejoin="round"
-						strokeWidth="1.8"
-					/>
-					<path d="M5.5 4v18" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" />
-					<path d="M9 6.5h6.5" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="1.8" />
-				</>
-			);
-		case 'bookmarkEmpty':
-			return (
-				<path
-					d="M7 3.5h10v16l-5-3.4L7 19.5Z"
-					fill="none"
-					stroke="currentColor"
-					strokeLinecap="round"
-					strokeLinejoin="round"
-					strokeWidth="1.9"
-				/>
-			);
-		case 'cogs':
-			return (
-				<>
-					<path
-						d="M12 4.5 13 6.9a5.7 5.7 0 0 1 1.6.7l2.3-1 1.4 1.4-1 2.3a5.7 5.7 0 0 1 .7 1.6l2.4 1v2l-2.4 1a5.7 5.7 0 0 1-.7 1.6l1 2.3-1.4 1.4-2.3-1a5.7 5.7 0 0 1-1.6.7L12 23h-2l-1-2.4a5.7 5.7 0 0 1-1.6-.7l-2.3 1-1.4-1.4 1-2.3a5.7 5.7 0 0 1-.7-1.6L1.6 15v-2l2.4-1a5.7 5.7 0 0 1 .7-1.6l-1-2.3 1.4-1.4 2.3 1a5.7 5.7 0 0 1 1.6-.7L10 4.5Z"
-						fill="none"
-						stroke="currentColor"
-						strokeLinecap="round"
-						strokeLinejoin="round"
-						strokeWidth="1.5"
-					/>
-					<circle cx="11" cy="13" r="2.8" fill="none" stroke="currentColor" strokeWidth="1.8" />
-				</>
-			);
-		case 'download':
-			return (
-				<>
-					<path d="M12 3.5v11" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="2" />
-					<path d="m7.5 11.5 4.5 4.5 4.5-4.5" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" />
-					<path d="M5 19.5h14" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="2" />
-				</>
-			);
-		case 'info':
-			return (
-				<>
-					<circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="1.9" />
-					<path d="M12 10.4v5.1" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="1.9" />
-					<circle cx="12" cy="7.2" r="1" fill="currentColor" />
-				</>
-			);
-		case 'pencil':
-			return (
-				<>
-					<path
-						d="m5 18.8 1.2-4.5L14.8 5.7a1.8 1.8 0 0 1 2.5 0l1 1a1.8 1.8 0 0 1 0 2.5l-8.6 8.6Z"
-						fill="none"
-						stroke="currentColor"
-						strokeLinecap="round"
-						strokeLinejoin="round"
-						strokeWidth="1.8"
-					/>
-					<path d="m13.5 7 3.5 3.5" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" />
-					<path d="M4.8 19.2 9 18l-3-3Z" fill="currentColor" />
-				</>
-			);
-		case 'play':
-			return <polygon points="8,6 18,12 8,18" fill="currentColor" />;
-		case 'plusCircle':
-			return (
-				<>
-					<circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="1.9" />
-					<path d="M12 7.5v9M7.5 12h9" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="1.9" />
-				</>
-			);
-		case 'removeCircle':
-			return (
-				<>
-					<circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="1.9" />
-					<path d="m8.5 8.5 7 7m0-7-7 7" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="1.9" />
-				</>
-			);
-		case 'resizeFull':
-			return (
-				<>
-					<path d="M8.5 3.5H3.5v5M15.5 3.5h5v5M20.5 15.5v5h-5M8.5 20.5h-5v-5" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.9" />
-					<path d="M9 9 3.8 3.8M15 9l5.2-5.2M9 15l-5.2 5.2M15 15l5.2 5.2" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="1.9" />
-				</>
-			);
-		case 'resizeSmall':
-			return (
-				<>
-					<path d="M10 10H5V5M14 10h5V5M10 14H5v5M14 14h5v5" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.9" />
-					<path d="M5.5 5.5 10 10M18.5 5.5 14 10M5.5 18.5 10 14M18.5 18.5 14 14" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="1.9" />
-				</>
-			);
-		case 'search':
-			return (
-				<>
-					<circle cx="10.5" cy="10.5" r="5.7" fill="none" stroke="currentColor" strokeWidth="1.9" />
-					<path d="m15 15 4.5 4.5" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="1.9" />
-				</>
-			);
-		case 'share':
-			return (
-				<>
-					<path d="M14 4h6v6" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.9" />
-					<path d="M20 4 10 14" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="1.9" />
-					<path
-						d="M18 13v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h5"
-						fill="none"
-						stroke="currentColor"
-						strokeLinecap="round"
-						strokeLinejoin="round"
-						strokeWidth="1.9"
-					/>
-				</>
-			);
-		case 'spinner':
-			return (
-				<>
-					<circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeOpacity=".2" strokeWidth="2" />
-					<path d="M21 12a9 9 0 0 0-9-9" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="2.4" />
-				</>
-			);
-		case 'star':
-			return <polygon points="12,2.8 14.8,8.5 21,9.4 16.5,13.8 17.6,20 12,17.1 6.4,20 7.5,13.8 3,9.4 9.2,8.5" fill="currentColor" />;
-		case 'starEmpty':
-			return (
-				<polygon
-					points="12,2.8 14.8,8.5 21,9.4 16.5,13.8 17.6,20 12,17.1 6.4,20 7.5,13.8 3,9.4 9.2,8.5"
-					fill="none"
-					stroke="currentColor"
-					strokeLinejoin="round"
-					strokeWidth="1.8"
-				/>
-			);
-		case 'stop':
-			return <rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor" />;
-	}
+interface FontAwesomeGlyph {
+	width: number;
+	path: string;
 }
 
+/**
+ * FontAwesome 3.2.1 font metrics (from fontawesome-webfont.svg):
+ * - units-per-em = 1792
+ * - ascent = 1536, descent = -256
+ *
+ * Glyph paths are in font coordinates where y points UP and baseline is y=0.
+ * We flip Y with `scale(1 -1)` and offset by ascent so the glyph renders
+ * top-left aligned in an SVG viewBox of `0 0 width 1792`.
+ */
+const FONT_AWESOME_HEIGHT = 1792;
+const FONT_AWESOME_ASCENT = 1536;
+
+const FONT_AWESOME_GLYPHS: Record<SvgIconName, FontAwesomeGlyph> = {
+	android: { width: 1408, path: 'M493 1053q16 0 27.5 11.5t11.5 27.5t-11.5 27.5t-27.5 11.5t-27 -11.5t-11 -27.5t11 -27.5t27 -11.5zM915 1053q16 0 27 11.5t11 27.5t-11 27.5t-27 11.5t-27.5 -11.5t-11.5 -27.5t11.5 -27.5t27.5 -11.5zM103 869q42 0 72 -30t30 -72v-430q0 -43 -29.5 -73t-72.5 -30 t-73 30t-30 73v430q0 42 30 72t73 30zM1163 850v-666q0 -46 -32 -78t-77 -32h-75v-227q0 -43 -30 -73t-73 -30t-73 30t-30 73v227h-138v-227q0 -43 -30 -73t-73 -30q-42 0 -72 30t-30 73l-1 227h-74q-46 0 -78 32t-32 78v666h918zM931 1255q107 -55 171 -153.5t64 -215.5 h-925q0 117 64 215.5t172 153.5l-71 131q-7 13 5 20q13 6 20 -6l72 -132q95 42 201 42t201 -42l72 132q7 12 20 6q12 -7 5 -20zM1408 767v-430q0 -43 -30 -73t-73 -30q-42 0 -72 30t-30 73v430q0 43 30 72.5t72 29.5q43 0 73 -29.5t30 -72.5z' },
+	apple: { width: 1408, path: 'M1393 321q-39 -125 -123 -250q-129 -196 -257 -196q-49 0 -140 32q-86 32 -151 32q-61 0 -142 -33q-81 -34 -132 -34q-152 0 -301 259q-147 261 -147 503q0 228 113 374q112 144 284 144q72 0 177 -30q104 -30 138 -30q45 0 143 34q102 34 173 34q119 0 213 -65 q52 -36 104 -100q-79 -67 -114 -118q-65 -94 -65 -207q0 -124 69 -223t158 -126zM1017 1494q0 -61 -29 -136q-30 -75 -93 -138q-54 -54 -108 -72q-37 -11 -104 -17q3 149 78 257q74 107 250 148q1 -3 2.5 -11t2.5 -11q0 -4 0.5 -10t0.5 -10z' },
+	arrowLeft: { width: 1408, path: 'M1536 640v-128q0 -53 -32.5 -90.5t-84.5 -37.5h-704l293 -294q38 -36 38 -90t-38 -90l-75 -76q-37 -37 -90 -37q-52 0 -91 37l-651 652q-37 37 -37 90q0 52 37 91l651 650q38 38 91 38q52 0 90 -38l75 -74q38 -38 38 -91t-38 -91l-293 -293h704q52 0 84.5 -37.5 t32.5 -90.5z' },
+	book: { width: 1664, path: 'M1639 1058q40 -57 18 -129l-275 -906q-19 -64 -76.5 -107.5t-122.5 -43.5h-923q-77 0 -148.5 53.5t-99.5 131.5q-24 67 -2 127q0 4 3 27t4 37q1 8 -3 21.5t-3 19.5q2 11 8 21t16.5 23.5t16.5 23.5q23 38 45 91.5t30 91.5q3 10 0.5 30t-0.5 28q3 11 17 28t17 23 q21 36 42 92t25 90q1 9 -2.5 32t0.5 28q4 13 22 30.5t22 22.5q19 26 42.5 84.5t27.5 96.5q1 8 -3 25.5t-2 26.5q2 8 9 18t18 23t17 21q8 12 16.5 30.5t15 35t16 36t19.5 32t26.5 23.5t36 11.5t47.5 -5.5l-1 -3q38 9 51 9h761q74 0 114 -56t18 -130l-274 -906 q-36 -119 -71.5 -153.5t-128.5 -34.5h-869q-27 0 -38 -15q-11 -16 -1 -43q24 -70 144 -70h923q29 0 56 15.5t35 41.5l300 987q7 22 5 57q38 -15 59 -43zM575 1056q-4 -13 2 -22.5t20 -9.5h608q13 0 25.5 9.5t16.5 22.5l21 64q4 13 -2 22.5t-20 9.5h-608q-13 0 -25.5 -9.5 t-16.5 -22.5zM492 800q-4 -13 2 -22.5t20 -9.5h608q13 0 25.5 9.5t16.5 22.5l21 64q4 13 -2 22.5t-20 9.5h-608q-13 0 -25.5 -9.5t-16.5 -22.5z' },
+	bookmarkEmpty: { width: 1280, path: 'M1152 1280h-1024v-1242l423 406l89 85l89 -85l423 -406v1242zM1164 1408q23 0 44 -9q33 -13 52.5 -41t19.5 -62v-1289q0 -34 -19.5 -62t-52.5 -41q-19 -8 -44 -8q-48 0 -83 32l-441 424l-441 -424q-36 -33 -83 -33q-23 0 -44 9q-33 13 -52.5 41t-19.5 62v1289 q0 34 19.5 62t52.5 41q21 9 44 9h1048z' },
+	cogs: { width: 1920, path: 'M896 640q0 106 -75 181t-181 75t-181 -75t-75 -181t75 -181t181 -75t181 75t75 181zM1664 128q0 52 -38 90t-90 38t-90 -38t-38 -90q0 -53 37.5 -90.5t90.5 -37.5t90.5 37.5t37.5 90.5zM1664 1152q0 52 -38 90t-90 38t-90 -38t-38 -90q0 -53 37.5 -90.5t90.5 -37.5 t90.5 37.5t37.5 90.5zM1280 731v-185q0 -10 -7 -19.5t-16 -10.5l-155 -24q-11 -35 -32 -76q34 -48 90 -115q7 -10 7 -20q0 -12 -7 -19q-23 -30 -82.5 -89.5t-78.5 -59.5q-11 0 -21 7l-115 90q-37 -19 -77 -31q-11 -108 -23 -155q-7 -24 -30 -24h-186q-11 0 -20 7.5t-10 17.5 l-23 153q-34 10 -75 31l-118 -89q-7 -7 -20 -7q-11 0 -21 8q-144 133 -144 160q0 9 7 19q10 14 41 53t47 61q-23 44 -35 82l-152 24q-10 1 -17 9.5t-7 19.5v185q0 10 7 19.5t16 10.5l155 24q11 35 32 76q-34 48 -90 115q-7 11 -7 20q0 12 7 20q22 30 82 89t79 59q11 0 21 -7 l115 -90q34 18 77 32q11 108 23 154q7 24 30 24h186q11 0 20 -7.5t10 -17.5l23 -153q34 -10 75 -31l118 89q8 7 20 7q11 0 21 -8q144 -133 144 -160q0 -9 -7 -19q-12 -16 -42 -54t-45 -60q23 -48 34 -82l152 -23q10 -2 17 -10.5t7 -19.5zM1920 198v-140q0 -16 -149 -31 q-12 -27 -30 -52q51 -113 51 -138q0 -4 -4 -7q-122 -71 -124 -71q-8 0 -46 47t-52 68q-20 -2 -30 -2t-30 2q-14 -21 -52 -68t-46 -47q-2 0 -124 71q-4 3 -4 7q0 25 51 138q-18 25 -30 52q-149 15 -149 31v140q0 16 149 31q13 29 30 52q-51 113 -51 138q0 4 4 7q4 2 35 20 t59 34t30 16q8 0 46 -46.5t52 -67.5q20 2 30 2t30 -2q51 71 92 112l6 2q4 0 124 -70q4 -3 4 -7q0 -25 -51 -138q17 -23 30 -52q149 -15 149 -31zM1920 1222v-140q0 -16 -149 -31q-12 -27 -30 -52q51 -113 51 -138q0 -4 -4 -7q-122 -71 -124 -71q-8 0 -46 47t-52 68 q-20 -2 -30 -2t-30 2q-14 -21 -52 -68t-46 -47q-2 0 -124 71q-4 3 -4 7q0 25 51 138q-18 25 -30 52q-149 15 -149 31v140q0 16 149 31q13 29 30 52q-51 113 -51 138q0 4 4 7q4 2 35 20t59 34t30 16q8 0 46 -46.5t52 -67.5q20 2 30 2t30 -2q51 71 92 112l6 2q4 0 124 -70 q4 -3 4 -7q0 -25 -51 -138q17 -23 30 -52q149 -15 149 -31z' },
+	download: { width: 1664, path: 'M1280 192q0 26 -19 45t-45 19t-45 -19t-19 -45t19 -45t45 -19t45 19t19 45zM1536 192q0 26 -19 45t-45 19t-45 -19t-19 -45t19 -45t45 -19t45 19t19 45zM1664 416v-320q0 -40 -28 -68t-68 -28h-1472q-40 0 -68 28t-28 68v320q0 40 28 68t68 28h465l135 -136 q58 -56 136 -56t136 56l136 136h464q40 0 68 -28t28 -68zM1339 985q17 -41 -14 -70l-448 -448q-18 -19 -45 -19t-45 19l-448 448q-31 29 -14 70q17 39 59 39h256v448q0 26 19 45t45 19h256q26 0 45 -19t19 -45v-448h256q42 0 59 -39z' },
+	info: { width: 640, path: 'M640 192v-128q0 -26 -19 -45t-45 -19h-512q-26 0 -45 19t-19 45v128q0 26 19 45t45 19h64v384h-64q-26 0 -45 19t-19 45v128q0 26 19 45t45 19h384q26 0 45 -19t19 -45v-576h64q26 0 45 -19t19 -45zM512 1344v-192q0 -26 -19 -45t-45 -19h-256q-26 0 -45 19t-19 45v192 q0 26 19 45t45 19h256q26 0 45 -19t19 -45z' },
+	pencil: { width: 1408, path: 'M363 0l91 91l-235 235l-91 -91v-107h128v-128h107zM886 928q0 22 -22 22q-10 0 -17 -7l-542 -542q-7 -7 -7 -17q0 -22 22 -22q10 0 17 7l542 542q7 7 7 17zM832 1120l416 -416l-832 -832h-416v416zM1515 1024q0 -53 -37 -90l-166 -166l-416 416l166 165q36 38 90 38 q53 0 91 -38l235 -234q37 -39 37 -91z' },
+	play: { width: 1408, path: 'M1384 609l-1328 -738q-23 -13 -39.5 -3t-16.5 36v1472q0 26 16.5 36t39.5 -3l1328 -738q23 -13 23 -31t-23 -31z' },
+	plusCircle: { width: 1408, path: 'M1216 576v128q0 26 -19 45t-45 19h-256v256q0 26 -19 45t-45 19h-128q-26 0 -45 -19t-19 -45v-256h-256q-26 0 -45 -19t-19 -45v-128q0 -26 19 -45t45 -19h256v-256q0 -26 19 -45t45 -19h128q26 0 45 19t19 45v256h256q26 0 45 19t19 45zM1536 640q0 -209 -103 -385.5 t-279.5 -279.5t-385.5 -103t-385.5 103t-279.5 279.5t-103 385.5t103 385.5t279.5 279.5t385.5 103t385.5 -103t279.5 -279.5t103 -385.5z' },
+	print: { width: 1664, path: 'M384 0h896v256h-896v-256zM384 640h896v384h-160q-40 0 -68 28t-28 68v160h-640v-640zM1536 576q0 26 -19 45t-45 19t-45 -19t-19 -45t19 -45t45 -19t45 19t19 45zM1664 576v-416q0 -13 -9.5 -22.5t-22.5 -9.5h-224v-160q0 -40 -28 -68t-68 -28h-960q-40 0 -68 28t-28 68 v160h-224q-13 0 -22.5 9.5t-9.5 22.5v416q0 79 56.5 135.5t135.5 56.5h64v544q0 40 28 68t68 28h672q40 0 88 -20t76 -48l152 -152q28 -28 48 -76t20 -88v-256h64q79 0 135.5 -56.5t56.5 -135.5z' },
+	removeCircle: { width: 1408, path: 'M1149 414q0 26 -19 45l-181 181l181 181q19 19 19 45q0 27 -19 46l-90 90q-19 19 -46 19q-26 0 -45 -19l-181 -181l-181 181q-19 19 -45 19q-27 0 -46 -19l-90 -90q-19 -19 -19 -46q0 -26 19 -45l181 -181l-181 -181q-19 -19 -19 -45q0 -27 19 -46l90 -90q19 -19 46 -19 q26 0 45 19l181 181l181 -181q19 -19 45 -19q27 0 46 19l90 90q19 19 19 46zM1536 640q0 -209 -103 -385.5t-279.5 -279.5t-385.5 -103t-385.5 103t-279.5 279.5t-103 385.5t103 385.5t279.5 279.5t385.5 103t385.5 -103t279.5 -279.5t103 -385.5z' },
+	resizeFull: { width: 1408, path: 'M1283 995l-355 -355l355 -355l144 144q29 31 70 14q39 -17 39 -59v-448q0 -26 -19 -45t-45 -19h-448q-42 0 -59 40q-17 39 14 69l144 144l-355 355l-355 -355l144 -144q31 -30 14 -69q-17 -40 -59 -40h-448q-26 0 -45 19t-19 45v448q0 42 40 59q39 17 69 -14l144 -144 l355 355l-355 355l-144 -144q-19 -19 -45 -19q-12 0 -24 5q-40 17 -40 59v448q0 26 19 45t45 19h448q42 0 59 -40q17 -39 -14 -69l-144 -144l355 -355l355 355l-144 144q-31 30 -14 69q17 40 59 40h448q26 0 45 -19t19 -45v-448q0 -42 -39 -59q-13 -5 -25 -5q-26 0 -45 19z ' },
+	resizeSmall: { width: 1408, path: 'M768 576v-448q0 -26 -19 -45t-45 -19t-45 19l-144 144l-332 -332q-10 -10 -23 -10t-23 10l-114 114q-10 10 -10 23t10 23l332 332l-144 144q-19 19 -19 45t19 45t45 19h448q26 0 45 -19t19 -45zM1523 1248q0 -13 -10 -23l-332 -332l144 -144q19 -19 19 -45t-19 -45 t-45 -19h-448q-26 0 -45 19t-19 45v448q0 26 19 45t45 19t45 -19l144 -144l332 332q10 10 23 10t23 -10l114 -114q10 -10 10 -23z' },
+	search: { width: 1664, path: 'M1152 704q0 185 -131.5 316.5t-316.5 131.5t-316.5 -131.5t-131.5 -316.5t131.5 -316.5t316.5 -131.5t316.5 131.5t131.5 316.5zM1664 -128q0 -52 -38 -90t-90 -38q-54 0 -90 38l-343 342q-179 -124 -399 -124q-143 0 -273.5 55.5t-225 150t-150 225t-55.5 273.5 t55.5 273.5t150 225t225 150t273.5 55.5t273.5 -55.5t225 -150t150 -225t55.5 -273.5q0 -220 -124 -399l343 -343q37 -37 37 -90z' },
+	share: { width: 1792, path: 'M1792 896q0 -26 -19 -45l-512 -512q-19 -19 -45 -19t-45 19t-19 45v256h-224q-98 0 -175.5 -6t-154 -21.5t-133 -42.5t-105.5 -69.5t-80 -101t-48.5 -138.5t-17.5 -181q0 -55 5 -123q0 -6 2.5 -23.5t2.5 -26.5q0 -15 -8.5 -25t-23.5 -10q-16 0 -28 17q-7 9 -13 22 t-13.5 30t-10.5 24q-127 285 -127 451q0 199 53 333q162 403 875 403h224v256q0 26 19 45t45 19t45 -19l512 -512q19 -19 19 -45z' },
+	spinner: { width: 1568, path: 'M496 192q0 -60 -42.5 -102t-101.5 -42q-60 0 -102 42t-42 102t42 102t102 42q59 0 101.5 -42t42.5 -102zM928 0q0 -53 -37.5 -90.5t-90.5 -37.5t-90.5 37.5t-37.5 90.5t37.5 90.5t90.5 37.5t90.5 -37.5t37.5 -90.5zM320 640q0 -66 -47 -113t-113 -47t-113 47t-47 113 t47 113t113 47t113 -47t47 -113zM1360 192q0 -46 -33 -79t-79 -33t-79 33t-33 79t33 79t79 33t79 -33t33 -79zM528 1088q0 -73 -51.5 -124.5t-124.5 -51.5t-124.5 51.5t-51.5 124.5t51.5 124.5t124.5 51.5t124.5 -51.5t51.5 -124.5zM992 1280q0 -80 -56 -136t-136 -56 t-136 56t-56 136t56 136t136 56t136 -56t56 -136zM1536 640q0 -40 -28 -68t-68 -28t-68 28t-28 68t28 68t68 28t68 -28t28 -68zM1328 1088q0 -33 -23.5 -56.5t-56.5 -23.5t-56.5 23.5t-23.5 56.5t23.5 56.5t56.5 23.5t56.5 -23.5t23.5 -56.5z' },
+	star: { width: 1664, path: 'M1664 889q0 -22 -26 -48l-363 -354l86 -500q1 -7 1 -20q0 -21 -10.5 -35.5t-30.5 -14.5q-19 0 -40 12l-449 236l-449 -236q-22 -12 -40 -12q-21 0 -31.5 14.5t-10.5 35.5q0 6 2 20l86 500l-364 354q-25 27 -25 48q0 37 56 46l502 73l225 455q19 41 49 41t49 -41l225 -455 l502 -73q56 -9 56 -46z' },
+	starEmpty: { width: 1664, path: 'M1137 532l306 297l-422 62l-189 382l-189 -382l-422 -62l306 -297l-73 -421l378 199l377 -199zM1664 889q0 -22 -26 -48l-363 -354l86 -500q1 -7 1 -20q0 -50 -41 -50q-19 0 -40 12l-449 236l-449 -236q-22 -12 -40 -12q-21 0 -31.5 14.5t-10.5 35.5q0 6 2 20l86 500 l-364 354q-25 27 -25 48q0 37 56 46l502 73l225 455q19 41 49 41t49 -41l225 -455l502 -73q56 -9 56 -46z' },
+	stop: { width: 1408, path: 'M1536 1344v-1408q0 -26 -19 -45t-45 -19h-1408q-26 0 -45 19t-19 45v1408q0 26 19 45t45 19h1408q26 0 45 -19t19 -45z' },
+};
+
 export function SvgIcon({ name, size = '1em', className = '', title, ...props }: SvgIconProps) {
+	const glyph = FONT_AWESOME_GLYPHS[name];
 	const classes = ['moe-icon', className].filter(Boolean).join(' ');
 
 	return (
 		<svg
-			viewBox="0 0 24 24"
+			viewBox={`0 0 ${glyph.width} ${FONT_AWESOME_HEIGHT}`}
 			width={size}
 			height={size}
 			className={classes}
@@ -223,7 +86,12 @@ export function SvgIcon({ name, size = '1em', className = '', title, ...props }:
 			{...props}
 		>
 			{title ? <title>{title}</title> : null}
-			{getIconFragment(name)}
+			<path
+				d={glyph.path}
+				transform={`translate(0 ${FONT_AWESOME_ASCENT}) scale(1 -1)`}
+				fill="currentColor"
+				fillRule="evenodd"
+			/>
 		</svg>
 	);
 }

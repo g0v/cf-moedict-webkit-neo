@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type MouseEvent as ReactMouseEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { SvgIcon } from '../components/SvgIcon';
 import { clearLRUWords, clearStarredWords, readLRUWords, readStarredWords } from '../utils/word-record-utils';
 import { useRadicalTooltip } from '../hooks/useRadicalTooltip';
 
@@ -93,7 +94,9 @@ export function StarredPage({ lang }: StarredPageProps) {
         </h3>
         <div className="word-list">
           {starredWords.length === 0 ? (
-            <p className="bg-info">（請按詞條右方的 <i className="icon-star-empty"></i> 按鈕，即可將字詞加到這裡。）</p>
+            <p className="bg-info">
+              （請按詞條右方的 <SvgIcon name="starEmpty" size="1em" style={{ margin: '0 0.15em', verticalAlign: '-0.125em' }} aria-hidden="true" /> 按鈕，即可將字詞加到這裡。）
+            </p>
           ) : (
             starredWords.map((word) => {
               const path = buildPath(word);
