@@ -132,9 +132,10 @@
 
 .navIcon {
   display: inline-block;
-  vertical-align: middle;
+  /* FontAwesome font glyph sits ~0.857em above baseline; our SVG is 1em tall,
+     so shift down by the descent fraction to match the font's line-box ascent. */
+  vertical-align: -0.143em;
   flex: none;
-  /* 對齊原 FontAwesome `[class^="icon-"] { margin-right: .3em }` 所留下的間距 */
   margin-right: 0.3em;
 }
 

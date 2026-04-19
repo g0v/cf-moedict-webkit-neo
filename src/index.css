@@ -377,7 +377,10 @@ a.iconic-circle:active {
 .iconic-color .moe-icon {
   width: 1em;
   height: 1em;
-  vertical-align: baseline;
+  /* FontAwesome font glyph extends 1536/1792 (~0.857em) above baseline,
+     so shift SVG down by the descent portion (~0.143em) to match line-box
+     ascent and avoid pushing siblings downward. */
+  vertical-align: -0.143em;
 }
 
 /* 原 _theme.scss: .iconic-circle.stroke, .star */
