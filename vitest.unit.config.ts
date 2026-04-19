@@ -31,6 +31,16 @@ export default defineConfig({
       exclude: [
         'src/utils/image-generation.ts',
       ],
+      // Ratchet gate — fails the run if aggregate unit coverage drops below
+      // these floors. Raise them (never lower) in a PR that adds tests; the
+      // goal is a monotonically-non-decreasing ratchet toward 100%. See
+      // CLAUDE.md "Combined coverage across tiers" for the workflow.
+      thresholds: {
+        statements: 77,
+        branches: 67,
+        functions: 86,
+        lines: 80,
+      },
     },
   },
 });

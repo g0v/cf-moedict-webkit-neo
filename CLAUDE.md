@@ -92,6 +92,22 @@ reports ~96% combined statement coverage but two caveats:
   a new branch to worker/index.ts or a handler, make sure the matching direct-call test exercises
   it; Miniflare integration alone won't move the coverage needle.
 
+### Coverage ratchet
+
+`vitest.unit.config.ts` declares `coverage.thresholds` as a **ratchet floor**, not a target.
+CI's unit job runs `bun run test:unit --coverage`, which fails the run if aggregate coverage
+dips below the current floor. The rule:
+
+- Lower the floor **never**. If coverage drops, the PR that caused it must restore it.
+- Raise the floor **in the same PR that adds the tests** (or in a follow-up that's about
+  nothing else). Don't raise speculatively — only to lock in gains that just landed.
+
+When a line genuinely can't be covered (impossible null, unreachable default, module-load
+only code), a `/* v8 ignore next */` comment is allowed. But
+`scripts/check-v8-ignore-count.mjs` caps total ignores across `src/` + `worker/` at 20
+(see `MAX_IGNORED`). Raising the cap needs an explicit commit comment justifying why.
+The static CI job runs this check.
+
 ## 環境設定
 
 專案已版本化管理 `wrangler.jsonc`，無須從範本複製。若使用自有 R2 bucket 或公開網域，請直接編輯該檔：
