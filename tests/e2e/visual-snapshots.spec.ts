@@ -83,3 +83,64 @@ test.describe('visual regressions', () => {
     await expect(page).toHaveScreenshot('starred.png', { fullPage: true });
   });
 });
+
+/**
+ * Mobile viewport baselines — guard against the recurring class of bug where
+ * the navbar settings/search controls overlap at narrow widths (#80 / #93 /
+ * #96). 375px matches iPhone SE / 13 mini portrait.
+ */
+test.describe('visual regressions — mobile 375px', () => {
+  test.use({ viewport: { width: 375, height: 700 } });
+
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => {
+      const style = document.createElement('style');
+      style.textContent = `
+        *, *::before, *::after {
+          transition-duration: 0s !important;
+          animation-duration: 0s !important;
+        }
+      `;
+      document.documentElement.appendChild(style);
+    });
+  });
+
+  test('mobile home (/萌)', async ({ page }) => {
+    await page.goto('/%E8%90%8C');
+    await page.waitForLoadState('networkidle');
+    await page.evaluate(() => document.fonts.ready);
+    await expect(page).toHaveScreenshot('mobile-home-meng.png', { fullPage: true });
+  });
+
+  test('mobile navbar region above the fold', async ({ page }) => {
+    await page.goto('/%E8%90%8C');
+    await page.waitForLoadState('networkidle');
+    await page.evaluate(() => document.fonts.ready);
+    // Crop to the first 120px so diffs concentrate on the navbar — the exact
+    // region where #96 / #93 / #80 all landed.
+    await expect(page).toHaveScreenshot('mobile-navbar.png', {
+      clip: { x: 0, y: 0, width: 375, height: 120 },
+    });
+  });
+
+  test('mobile about page', async ({ page }) => {
+    await page.goto('/about');
+    await page.waitForLoadState('networkidle');
+    await page.evaluate(() => document.fonts.ready);
+    await expect(page).toHaveScreenshot('mobile-about.png', { fullPage: true });
+  });
+});
+
+/**
+ * Print-mode baseline — guards the 字卡 / hollow-font / inline-flex work
+ * from #92 and #94 that only manifests under `@media print`.
+ */
+test.describe('visual regressions — print mode', () => {
+  test('dictionary entry in print CSS', async ({ page }) => {
+    await page.goto('/%E8%90%8C');
+    await page.waitForLoadState('networkidle');
+    await page.emulateMedia({ media: 'print' });
+    await page.evaluate(() => document.fonts.ready);
+    await expect(page).toHaveScreenshot('print-dict-meng.png', { fullPage: true });
+  });
+});

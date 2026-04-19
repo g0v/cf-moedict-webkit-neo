@@ -188,6 +188,18 @@ export function collectDictionaryFixtures(): FixtureEntry[] {
 export function collectAssetFixtures(): FixtureEntry[] {
   const entries: FixtureEntry[] = [];
 
+  // Stroke animation loader JS — tests need this to verify the Worker serves
+  // the inline-SVG spinner markup (see tests/integration/api-legacy-assets.test.ts).
+  const strokeWordsJs = path.join(DATA_ASSETS, 'js', 'jquery.strokeWords.js');
+  if (existsSync(strokeWordsJs)) {
+    entries.push({
+      bucket: 'ASSETS',
+      key: 'js/jquery.strokeWords.js',
+      body: readFileSync(strokeWordsJs),
+      httpMetadata: { contentType: 'application/javascript; charset=utf-8' },
+    });
+  }
+
   const downloadBadge = path.join(
     DATA_ASSETS,
     'css',
