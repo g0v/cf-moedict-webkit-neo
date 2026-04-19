@@ -834,7 +834,7 @@ export function NavbarNormal({ currentLang }: NavbarNormalProps) {
 					<li>
 						<Link to="/about" title="關於本站" aria-label="關於本站">
 							<span className="iconic-circle" style={{ backgroundColor: '#400' }}>
-								<SvgIcon name="info" size={12} className={styled.navCircleIcon} aria-hidden="true" />
+								<SvgIcon name="info" size="1em" className={styled.navCircleIcon} aria-hidden="true" />
 							</span>
 						</Link>
 					</li>

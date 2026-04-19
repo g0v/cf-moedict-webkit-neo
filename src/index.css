@@ -91,7 +91,10 @@ body {
 
 .moe-icon {
 	display: inline-block;
-	vertical-align: middle;
+	/* FontAwesome glyphs sit ~0.857em above baseline; since our SVG is 1em tall,
+	   shift it down by the descent fraction so icons align like the original font
+	   glyphs rather than floating ~2px above. */
+	vertical-align: -0.143em;
 	flex: none;
 	fill: currentColor;
 	overflow: visible;
