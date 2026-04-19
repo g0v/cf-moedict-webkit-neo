@@ -42,6 +42,9 @@ coverage/
 unit-report.xml
 
 # Visual-regression: commit only linux baselines; local runs generate darwin/win32 variants.
+# The `visual` Playwright project uses its own name (not the browser) in the snapshot filename.
+tests/e2e/**/*-visual-darwin.png
+tests/e2e/**/*-visual-win32.png
 tests/e2e/**/*-chromium-darwin.png
 tests/e2e/**/*-chromium-win32.png
 tests/e2e/**/*-webkit-darwin.png

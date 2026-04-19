@@ -16,5 +16,24 @@ export default defineConfig({
     maxConcurrency: 1,
     pool: 'forks',
     fileParallelism: false,
+    coverage: {
+      // Integration coverage is mostly empty because the worker + handlers
+      // run inside Miniflare's workerd isolate, which vitest's v8 collector
+      // can't see into. We keep coverage enabled only to expose any accidental
+      // *direct* imports from tests/integration → src (e.g. shape helpers).
+      // The handler files themselves get attribution from the direct-call
+      // unit tests in tests/unit/api-handlers-direct.test.ts.
+      provider: 'v8',
+      reporter: ['text-summary', 'json', 'lcov'],
+      reportsDirectory: 'coverage/integration',
+      include: [
+        'src/ssr/**/*.ts',
+        'src/utils/**/*.ts',
+        'src/api/**/*.ts',
+      ],
+      exclude: [
+        'src/utils/image-generation.ts',
+      ],
+    },
   },
 });

@@ -152,8 +152,16 @@ function localDataAssetsPlugin(): Plugin {
 // https://vite.dev/config/
 export default defineConfig(({ command }) => {
 	const remoteDev = process.env.VITE_CLOUDFLARE_REMOTE_DEV === '1'
+	// Emit source maps only when explicitly building for coverage — the
+	// coverage merge script (scripts/merge-coverage.mjs) reads them to map
+	// bundled Chromium V8 coverage back to src/**/*.ts. Regular `npm run
+	// build` deploys ship without maps (smaller payload).
+	const needsSourcemaps = process.env.E2E_COVERAGE === '1'
 
 	return {
+		build: {
+			sourcemap: needsSourcemaps,
+		},
 		server: {
 			proxy: {
 				'/lookup/trs': {

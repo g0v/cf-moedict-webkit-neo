@@ -50,6 +50,33 @@ Visual snapshots live at `tests/e2e/visual-snapshots.spec.ts-snapshots/`. Only `
 is committed (see `.gitignore`); darwin/win32 variants are developer-local. To update Linux
 baselines, run the `visual` CI job with `--update-snapshots` (or use a Linux runner/Codespace).
 
+### Combined coverage across tiers
+
+```bash
+npm run test:coverage   # unit + integration + e2e, merged into coverage/combined/
+```
+
+The merge pipeline (`scripts/merge-coverage.mjs`) unifies three coverage sources into a single
+Istanbul report:
+
+- **Unit** (vitest v8 provider) — per-statement attribution, written to `coverage/unit/`.
+- **Integration** (vitest v8 provider) — mostly empty on `src/api/**` because the worker runs in
+  Miniflare's separate workerd isolate, which vitest's collector can't see into. API handlers are
+  attributed via `tests/unit/api-handlers-direct.test.ts` which calls them directly with a mock R2.
+- **E2E** (Playwright `page.coverage.startJSCoverage`) — collected per-test by the fixture in
+  `tests/e2e/_fixtures.ts`, then converted back to `src/**/*.ts` via `v8-to-istanbul` using Vite
+  sourcemaps (emitted only when `E2E_COVERAGE=1` is set during the build).
+
+Output lives in `coverage/combined/` (`coverage-final.json` + `lcov.info`). The text summary
+reports ~96% combined statement coverage but two caveats:
+
+- **V8's "line" metric is coarse.** V8 reports function-level coverage and v8-to-istanbul maps
+  function declarations (not bodies) to lines, so a file whose functions are loaded but never
+  called can show up as 100% lines / 0% functions. Prefer the statement and function numbers.
+- **workerd isn't instrumented.** `worker/index.ts` and its direct dependencies still aren't
+  tracked during integration runs. Coverage on `src/api/**` comes from the direct-call unit tests,
+  not from Miniflare.
+
 ## 環境設定
 
 專案已版本化管理 `wrangler.jsonc`，無須從範本複製。若使用自有 R2 bucket 或公開網域，請直接編輯該檔：
