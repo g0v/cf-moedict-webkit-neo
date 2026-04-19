@@ -407,8 +407,15 @@ body.lang-t .iconic-color { color: #744; }
 .iconic-color.star {
   background: white;
   position: absolute;
-  right: 42px;
-  top: 113px;
+  right: 0;
+  top: 50px;
+  /* 原 FontAwesome [class^="icon-"] { margin-right: .3em }：保留與 moedict.tw 相同的 4.8px 右邊距 */
+  margin-right: 0.3em;
+}
+
+/* 同理，`.radical` 內的筆順按鈕原是 <a class="icon-pencil">，需要保留 0.3em 右邊距 */
+.radical a.iconic-circle.stroke {
+  margin-right: 0.3em;
 }
 
 .iconic-color.star:hover {

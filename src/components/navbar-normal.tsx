@@ -662,7 +662,8 @@ export function NavbarNormal({ currentLang }: NavbarNormalProps) {
 					{/* 辭典下拉選單 */}
 					<li>
 						<a href="#" onClick={handleMenuToggle}>
-							<SvgIcon name="book" size="1em" className={styled.navIcon} aria-hidden="true" />
+							{/* Book icon: moedict.tw 的原始 <i class="icon-book">&nbsp;</i> 會多出一個 nbsp 寬度 (~4.8px at 19px)；改以加寬 margin-right 還原同等間距 */}
+							<SvgIcon name="book" size="1em" className={styled.navIcon} style={{ marginRight: '0.55em' }} aria-hidden="true" />
 							<span
 								style={{ margin: 0, padding: 0 }}
 								itemProp="articleSection"

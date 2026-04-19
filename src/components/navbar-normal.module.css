@@ -134,6 +134,8 @@
   display: inline-block;
   vertical-align: middle;
   flex: none;
+  /* 對齊原 FontAwesome `[class^="icon-"] { margin-right: .3em }` 所留下的間距 */
+  margin-right: 0.3em;
 }
 
 .navCircleIcon {

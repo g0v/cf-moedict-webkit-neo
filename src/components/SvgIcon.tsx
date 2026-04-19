@@ -70,19 +70,24 @@ const FONT_AWESOME_GLYPHS: Record<SvgIconName, FontAwesomeGlyph> = {
 	stop: { width: 1408, path: 'M1536 1344v-1408q0 -26 -19 -45t-45 -19h-1408q-26 0 -45 19t-19 45v1408q0 26 19 45t45 19h1408q26 0 45 -19t19 -45z' },
 };
 
-export function SvgIcon({ name, size = '1em', className = '', title, ...props }: SvgIconProps) {
+export function SvgIcon({ name, size = '1em', className = '', title, style, ...props }: SvgIconProps) {
 	const glyph = FONT_AWESOME_GLYPHS[name];
 	const classes = ['moe-icon', className].filter(Boolean).join(' ');
+
+	// Match font glyph's natural advance width at the requested size — full em box
+	// (1792 units) keeps aspect ratio aligned with the FontAwesome font metrics.
+	const ratio = glyph.width / FONT_AWESOME_HEIGHT;
+	const widthStyle = typeof size === 'number' ? `${size * ratio}px` : `calc(${size} * ${ratio})`;
+	const heightStyle = typeof size === 'number' ? `${size}px` : size;
 
 	return (
 		<svg
 			viewBox={`0 0 ${glyph.width} ${FONT_AWESOME_HEIGHT}`}
-			width={size}
-			height={size}
 			className={classes}
 			aria-hidden={title ? undefined : true}
 			role={title ? 'img' : 'presentation'}
 			focusable="false"
+			style={{ width: widthStyle, height: heightStyle, ...style }}
 			{...props}
 		>
 			{title ? <title>{title}</title> : null}

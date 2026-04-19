@@ -591,7 +591,7 @@ export function DictionaryPage({ word, lang }: DictionaryPageProps) {
         const groups = groupDefinitions(definitions);
 
         return (
-          <div key={`${title}-${idx}`} className="entry">
+          <div key={`${title}-${idx}`} className="entry" style={{ position: 'relative' }}>
             {/* 部首＋筆畫＋筆順動畫按鈕（同原 $char div.radical） */}
             <div className="radical">
               {(entry.radical || entry.stroke_count || entry.non_radical_stroke_count) && (
@@ -625,6 +625,7 @@ export function DictionaryPage({ word, lang }: DictionaryPageProps) {
               <span
                 className="star iconic-color"
                 title={isStarred ? '已加入記錄簿' : '加入字詞記錄簿'}
+                style={{ top: '50px', right: '0px', cursor: 'pointer' }}
                 data-word={title}
                 data-lang={lang}
                 role="button"
