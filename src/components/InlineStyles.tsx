@@ -92,9 +92,6 @@ export function InlineStyles({ r2Endpoint, onReady }: InlineStylesProps) {
 		}
 
 		@media (max-width: 380px) {
-			body #btn-pref { 
-			    left: 105px !important;
-			}
 		    body #btn-starred {
 			    width: 2.5em !important;
 			}
