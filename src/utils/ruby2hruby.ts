@@ -24,6 +24,10 @@ const TYPESET = {
   },
 };
 
+/* v8 ignore start -- decodes numeric character references emitted by serializers
+   that preserve &#x...;. happy-dom decodes them at parse time and never re-emits
+   them, so the regex on line 154 never matches under the unit-test DOMParser.
+   Kept for environments whose serializer escapes supplementary-plane characters. */
 function toCodePointString(entity: string): string {
   const codePoint = Number.parseInt(entity, 16);
   if (Number.isNaN(codePoint)) return entity;
@@ -31,6 +35,7 @@ function toCodePointString(entity: string): string {
   const cp = codePoint - 0x10000;
   return String.fromCharCode((cp >> 10) + 0xd800) + String.fromCharCode((cp % 0x400) + 0xdc00);
 }
+/* v8 ignore stop */
 
 function normalizeAnnotation(text: string): string {
   return text
@@ -48,9 +53,17 @@ export function ruby2hruby(html: string): string {
     const parser = new DOMParser();
     const doc = parser.parseFromString(`<ruby class="rightangle">${html}</ruby>`, 'text/html');
     const ruby = doc.querySelector('ruby');
+    // Our template always prepends <ruby class="rightangle"> so happy-dom always
+    // yields a ruby root; retained for defensive parser failures.
+    /* v8 ignore start */
     if (!ruby) return html;
+    /* v8 ignore stop */
 
+    // We always set class="rightangle" above, so the fallback is only reached if
+    // a caller ever drops that attribute from the template.
+    /* v8 ignore start */
     const originalClass = ruby.getAttribute('class') || '';
+    /* v8 ignore stop */
     const maxspan = ruby.querySelectorAll('rb').length;
     const rus: HTMLElement[] = [];
 
@@ -63,7 +76,11 @@ export function ruby2hruby(html: string): string {
         if (!rb) return;
 
         const rbClone = rb.cloneNode(true);
+        // Element.textContent is always a string on an rt element; the `|| ''`
+        // guards against hypothetical null returns from non-DOM parsers.
+        /* v8 ignore start */
         const zhuyin = rt.textContent || '';
+        /* v8 ignore stop */
         const yin = zhuyin.replace(TYPESET.zhuyin.diao, '');
         const diao = zhuyin
           .replace(yin, '')
@@ -114,6 +131,9 @@ export function ruby2hruby(html: string): string {
             span += Number(rb.getAttribute('span') || 1);
           }
 
+          /* v8 ignore start -- only reachable if a pulled <ru> has span > 1, but the
+             zhuyin stage only ever pushes rus with no span attribute (defaulting to 1
+             per rb). Kept as defensive handling for future multi-span rus. */
           if (rbspan < span) {
             if (baseNodes.length > 1) return;
             const single = baseNodes[0];
@@ -121,6 +141,7 @@ export function ruby2hruby(html: string): string {
             baseNodes = Array.from(single.querySelectorAll('rb')).slice(0, rbspan);
             span = rbspan;
           }
+          /* v8 ignore stop */
           spans[idx] = span;
         } else {
           span = spans[idx];
@@ -139,7 +160,11 @@ export function ruby2hruby(html: string): string {
         ru.setAttribute('span', String(span));
         ru.setAttribute('order', String(order));
         ru.setAttribute('class', originalClass);
+        // Element.textContent is always a string; `|| ''` is a defensive fallback
+        // that happy-dom never exercises.
+        /* v8 ignore start */
         ru.setAttribute('annotation', normalizeAnnotation(rt.textContent || ''));
+        /* v8 ignore stop */
 
         firstBase.replaceWith(ru);
         baseNodes.slice(1).forEach((node) => node.remove());
@@ -151,7 +176,14 @@ export function ruby2hruby(html: string): string {
       rt.setAttribute('style', 'text-indent: -9999px; color: transparent');
     });
 
-    return ruby.innerHTML.replace(/&#x([0-9a-fA-F]+);/g, (_m, hex) => toCodePointString(hex));
+    return ruby.innerHTML.replace(
+      /&#x([0-9a-fA-F]+);/g,
+      // happy-dom never emits &#x...; entities in innerHTML, so the callback is
+      // only invoked in browser environments whose serializer does.
+      /* v8 ignore start */
+      (_m, hex) => toCodePointString(hex),
+      /* v8 ignore stop */
+    );
   } catch {
     return html;
   }
