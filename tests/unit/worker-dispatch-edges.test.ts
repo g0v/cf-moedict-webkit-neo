@@ -27,6 +27,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import workerDefault, { dispatch } from '../../worker/index';
+import * as dictionaryAPI from '../../src/api/handleDictionaryAPI';
 
 type AnyEnv = Parameters<typeof dispatch>[1];
 
@@ -464,6 +465,41 @@ describe('dispatch — cfdict.txt 404 branch', () => {
   });
 });
 
+describe('dispatch — ASSETS helper guard branches', () => {
+  it('returns 404 for an HTML-shell route when ASSETS has no fetcher', async () => {
+    const env = makeEnv({
+      ASSETS: undefined,
+    });
+    const res = await dispatch(req('/about'), env);
+    expect(res.status).toBe(404);
+  });
+
+  it('treats ASSETS.fetch as absent when it is not callable', async () => {
+    const env = makeEnv({ ASSETS: { fetch: true } as unknown as AnyEnv['ASSETS'] });
+    const res = await dispatch(req('/plain.txt'), env);
+    expect(res.status).toBe(404);
+  });
+
+  it('treats ASSETS.get as absent when it is not callable', async () => {
+    const env = makeEnv({
+      ASSETS: { get: true } as unknown as AnyEnv['ASSETS'],
+    });
+    const res = await dispatch(req('/plain.txt'), env);
+    expect(res.status).toBe(404);
+  });
+
+  it('returns the static response directly when passThroughAssets finds a non-404 fetcher response', async () => {
+    const env = makeEnv({
+      ASSETS: {
+        fetch: vi.fn(async () => new Response('static-ok', { status: 200, headers: { 'Content-Type': 'text/plain' } })),
+      } as unknown as AnyEnv['ASSETS'],
+    });
+    const res = await dispatch(req('/plain.txt'), env);
+    expect(res.status).toBe(200);
+    expect(await res.text()).toBe('static-ok');
+  });
+});
+
 describe('dispatch — /api/lookup/pinyin/* (lookupResponse return, line 232)', () => {
   it('delegates to handleLookupAPI and returns its response verbatim', async () => {
     // Empty DICTIONARY means lookupResponse returns []; still non-null,
@@ -490,6 +526,17 @@ describe('dispatch — /api/=category (handleListAPI delegation, lines 459-460)'
     // so we know we entered handleListAPI (not the generic fallback).
     const res = await dispatch(req("/api/'=%E8%AB%BA%E8%AA%9E"), makeEnv());
     expect(res.status).toBe(404);
+  });
+});
+
+describe('dispatch — dictionary API null fallback (lines 473-474)', () => {
+  it('returns a trailing 404 when handleDictionaryAPI yields no response', async () => {
+    const spy = vi.spyOn(dictionaryAPI, 'handleDictionaryAPI').mockResolvedValueOnce(null as never);
+    const res = await dispatch(req('/api/%E8%90%8C.json'), makeEnv());
+    expect(res.status).toBe(404);
+    expect(await res.text()).toBe('Not Found');
+    expect(spy).toHaveBeenCalledTimes(1);
+    spy.mockRestore();
   });
 });
 

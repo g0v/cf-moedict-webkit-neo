@@ -1,12 +1,18 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   escapeHtml,
+  fetchJsonByToken,
+  fetchRadicalRows,
   normalizeRadicalVariant,
   normalizeRows,
   normalizeTooltipId,
   stripTags,
   getTokenByLang,
 } from '../../src/utils/radical-page-utils';
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 describe('escapeHtml', () => {
   it('escapes all five HTML-critical characters', () => {
@@ -95,6 +101,22 @@ describe('normalizeRows', () => {
   it('returns [] on unexpected input (string)', () => {
     expect(normalizeRows('hello')).toEqual([]);
   });
+
+  it('returns [] for objects without numeric keys', () => {
+    expect(normalizeRows({ foo: ['a'], bar: 'b' })).toEqual([]);
+  });
+
+  it('swallows row access errors and returns []', () => {
+    const raw = Object.create(null);
+    Object.defineProperty(raw, '0', {
+      enumerable: true,
+      get() {
+        throw new Error('boom');
+      },
+    });
+
+    expect(normalizeRows(raw)).toEqual([]);
+  });
 });
 
 describe('normalizeTooltipId', () => {
@@ -116,5 +138,61 @@ describe('normalizeTooltipId', () => {
 
   it('does not throw on malformed percent-encoding', () => {
     expect(normalizeTooltipId('%E8')).toBe('%E8');
+  });
+
+  it('coerces nullish tooltip IDs to an empty string', () => {
+    expect(normalizeTooltipId(null as unknown as string)).toBe('');
+  });
+});
+
+describe('fetchJsonByToken', () => {
+  it('returns null for empty or whitespace-only tokens without fetching', async () => {
+    const fetchSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy);
+
+    await expect(fetchJsonByToken('   ')).resolves.toBeNull();
+    await expect(fetchJsonByToken(null as unknown as string)).resolves.toBeNull();
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('returns null when the response is not ok', async () => {
+    const fetchSpy = vi.fn().mockResolvedValue({ ok: false });
+    vi.stubGlobal('fetch', fetchSpy);
+
+    await expect(fetchJsonByToken('@木')).resolves.toBeNull();
+    expect(fetchSpy).toHaveBeenCalledWith('/api/%40%E6%9C%A8.json', {
+      headers: { Accept: 'application/json' },
+    });
+  });
+
+  it('fetches encoded tokens and returns parsed JSON', async () => {
+    const payload = { title: 'radical' };
+    const fetchSpy = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue(payload),
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+
+    await expect(fetchJsonByToken(' ~@木 ')).resolves.toEqual(payload);
+    expect(fetchSpy).toHaveBeenCalledWith('/api/~%40%E6%9C%A8.json', {
+      headers: { Accept: 'application/json' },
+    });
+  });
+});
+
+describe('fetchRadicalRows', () => {
+  it('delegates to the c-lang token helper and normalizes the fetched rows', async () => {
+    const fetchSpy = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({
+        0: ['靑', '木'],
+      }),
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+
+    await expect(fetchRadicalRows('c', '@青')).resolves.toEqual([['青', '木']]);
+    expect(fetchSpy).toHaveBeenCalledWith('/api/~%40%E9%9D%92.json', {
+      headers: { Accept: 'application/json' },
+    });
   });
 });

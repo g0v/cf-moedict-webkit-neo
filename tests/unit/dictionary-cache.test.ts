@@ -157,6 +157,30 @@ describe('fetchDictionaryEntry — LRU eviction', () => {
     await mod.fetchDictionaryEntry('lru-300', 'a');
     expect(callCount).toBe(before + 1);
   });
+
+  it('skips eviction when the cache iterator is unexpectedly empty', async () => {
+    const mod = await importFresh();
+    const keysSpy = vi.spyOn(Map.prototype, 'keys').mockImplementation(function () {
+      return {
+        next: () => ({ value: undefined, done: true }),
+        [Symbol.iterator]() {
+          return this;
+        },
+      } as IterableIterator<string>;
+    });
+    let callCount = 0;
+    globalThis.fetch = vi.fn(async () => {
+      callCount += 1;
+      return new Response(JSON.stringify({ n: callCount }), { status: 200 });
+    }) as typeof fetch;
+
+    for (let i = 0; i < 301; i += 1) {
+      await mod.fetchDictionaryEntry(`lru-empty-${i}`, 'a');
+    }
+
+    expect(keysSpy).toHaveBeenCalled();
+    expect(callCount).toBe(301);
+  });
 });
 
 describe('prefetchDictionaryEntry', () => {

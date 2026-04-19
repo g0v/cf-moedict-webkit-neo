@@ -258,6 +258,38 @@ describe('lookupXref — cache present, various miss/hit shapes', () => {
     expect(path).toBe("/'兜底");
   });
 
+  it('non-empty xref value that filters down to no candidates still falls through', async () => {
+    const mod = await importFresh();
+    // The value is present, so raw is truthy, but after split/trim/filter the
+    // candidate list is empty and lookupXref must still miss.
+    const payload = { t: { 萌: ' , , ' } };
+    globalThis.fetch = vi.fn(async () => new Response(JSON.stringify(payload), { status: 200 }));
+    addToLRU('空白兜底', 't');
+
+    const path = await mod.computeLangSwitchPathAsync('a', 't', '萌');
+    expect(path).toBe("/'空白兜底");
+  });
+
+  it('blank normalized input still falls through even when xref.json has an empty-string key', async () => {
+    const mod = await importFresh();
+    const payload = { t: { '': '發穎' } };
+    globalThis.fetch = vi.fn(async () => new Response(JSON.stringify(payload), { status: 200 }));
+    addToLRU('空字串兜底', 't');
+
+    const path = await mod.computeLangSwitchPathAsync('a', 't', '   ');
+    expect(path).toBe("/'空字串兜底");
+  });
+
+  it('blank normalized input and missing cache key still falls through cleanly', async () => {
+    const mod = await importFresh();
+    const payload = { t: { 其他: '發穎' } };
+    globalThis.fetch = vi.fn(async () => new Response(JSON.stringify(payload), { status: 200 }));
+    addToLRU('完全空白兜底', 't');
+
+    const path = await mod.computeLangSwitchPathAsync('a', 't', '   ');
+    expect(path).toBe("/'完全空白兜底");
+  });
+
   it('toLang map entirely missing (different lang present) → falls back via LRU/DEFAULTS', async () => {
     const mod = await importFresh();
     // xref cache has h-map only, but caller asks for t. Hits the else arm
@@ -313,5 +345,28 @@ describe('setCurrentXrefs — normalizeWordToken strips malformed input', () => 
     // Entry xref for 't' has zero words after normalization → lookupXref
     // falls through to DEFAULTS['t'].
     expect(mod.computeLangSwitchPath('a', 't', '萌')).toBe("/'發穎");
+  });
+
+  it('skips entry.xrefs when the word matches but the language does not', async () => {
+    const mod = await importFresh();
+    mod.setCurrentXrefs('萌', 'a', [{ lang: 't', words: ['發穎'] }]);
+
+    // Same word, different source language. This keeps _word === fromWord
+    // true but _lang === fromLang false, which exercises the skip branch.
+    expect(mod.computeLangSwitchPath('t', 'a', '萌')).toBe('/萌');
+  });
+
+  it('uses a direct t→c xref instead of the 華語 bridge when one exists', async () => {
+    const mod = await importFresh();
+    mod.setCurrentXrefs('發穎', 't', [{ lang: 'c', words: ['上訴'] }]);
+
+    expect(mod.computeLangSwitchPath('t', 'c', '發穎')).toBe('/~上訴');
+  });
+
+  it('falls back to the target-lang default when the 華語 bridge has no answer', async () => {
+    const mod = await importFresh();
+    mod.setCurrentXrefs('發穎', 't', []);
+
+    expect(mod.computeLangSwitchPath('t', 'c', '發穎')).toBe('/~萌');
   });
 });

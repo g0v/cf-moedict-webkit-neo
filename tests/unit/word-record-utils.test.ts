@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   addStarWord,
   addToLRU,
@@ -17,6 +17,14 @@ import {
   shouldRecordWord,
   writeLastLookup,
 } from '../../src/utils/word-record-utils';
+
+beforeEach(() => {
+  window.localStorage.clear();
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe('storage key helpers', () => {
   it('returns namespaced keys per lang', () => {
@@ -64,6 +72,11 @@ describe('starred words CRUD', () => {
     expect(hasStarWord('a', 'one')).toBe(false);
   });
 
+  it('removeStarWord is a no-op when the bucket is missing', () => {
+    removeStarWord('a', 'missing');
+    expect(readStarredWords('a')).toEqual([]);
+  });
+
   it('normalizes percent-encoded input on write AND read', () => {
     addStarWord('a', '%E8%90%8C'); // decodes to 萌
     expect(hasStarWord('a', '萌')).toBe(true);
@@ -108,6 +121,23 @@ describe('LRU list', () => {
     expect(readLRUWords('a')).toEqual(['two', 'one']);
   });
 
+  it('falls back to an empty bucket when storage reads fail', () => {
+    vi.spyOn(window.localStorage, 'getItem').mockImplementation(() => {
+      throw new Error('boom');
+    });
+
+    expect(readStarredWords('a')).toEqual([]);
+  });
+
+  it('drops words when trimming throws during normalization', () => {
+    vi.spyOn(String.prototype, 'trim').mockImplementation(() => {
+      throw new Error('trim failed');
+    });
+
+    addStarWord('a', '萌');
+    expect(readStarredWords('a')).toEqual([]);
+  });
+
   it('addToLRU dedupes existing word (promotes to front)', () => {
     addToLRU('one', 'a');
     addToLRU('two', 'a');
@@ -129,6 +159,32 @@ describe('LRU list', () => {
     addToLRU('萌', 'a');
     addToLRU('%E8%90%8C', 'a');
     expect(readLRUWords('a')).toEqual(['萌']);
+  });
+
+  it('keeps existing entries when legacy JSON parsing fails', () => {
+    window.localStorage.setItem('lru-a', '{bad json');
+
+    addToLRU('new', 'a');
+
+    expect(readLRUWords('a')).toEqual(['new']);
+  });
+
+  it('parseLRUWords fallback dedupes repeated quoted words', () => {
+    expect(parseLRUWords('"a"\\n"a"\\n"b"\\n')).toEqual(['a', 'b']);
+  });
+
+  it('keeps undecodable legacy entries while still prepending the new word', () => {
+    window.localStorage.setItem('lru-a', JSON.stringify(['%E0%A4%A', 'old']));
+
+    addToLRU('new', 'a');
+
+    expect(readLRUWords('a')).toEqual(['new', '%E0%A4%A', 'old']);
+  });
+
+  it('ignores non-recordable words at the addToLRU gate', () => {
+    addToLRU('about', 'a');
+    addToLRU('a/b', 'a');
+    expect(readLRUWords('a')).toEqual([]);
   });
 
   it('skips the "=*" placeholder (starred landing)', () => {
@@ -166,6 +222,10 @@ describe('shouldRecordWord', () => {
     expect(shouldRecordWord('上訴')).toBe(true);
   });
 
+  it('handles boxed-empty string input as non-recordable', () => {
+    expect(shouldRecordWord(new String('') as unknown as string)).toBe(false);
+  });
+
   it('rejects control placeholders', () => {
     expect(shouldRecordWord('')).toBe(false);
     expect(shouldRecordWord('#')).toBe(false);
@@ -192,6 +252,11 @@ describe('last-lookup', () => {
   it('defaults lang to "a" for unknown codes', () => {
     window.localStorage.setItem('prev-id', '萌');
     window.localStorage.setItem('lang', 'q');
+    expect(readLastLookup()).toEqual({ word: '萌', lang: 'a' });
+  });
+
+  it('defaults lang to "a" when the lang key is missing', () => {
+    window.localStorage.setItem('prev-id', '萌');
     expect(readLastLookup()).toEqual({ word: '萌', lang: 'a' });
   });
 

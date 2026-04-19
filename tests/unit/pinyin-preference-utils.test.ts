@@ -172,6 +172,10 @@ describe('trsToBpmf (extended)', () => {
       expect(trsToBpmf('t', 'a\u030D')).toBe('\u311A$');
     });
 
+    it('falls back to the bare tone mark when a checked syllable has no tone-specific final mapping', () => {
+      expect(trsToBpmf('t', 'ap\u0301')).toBe('\u311A\u02CB');
+    });
+
     it('maps checked syllable endings p/t/k/h (and entering-tone variants)', () => {
       expect(trsToBpmf('t', 'ap')).toBe('\u311A\u31B4');
       expect(trsToBpmf('t', 'at')).toBe('\u311A\u31B5');
@@ -328,8 +332,8 @@ describe('convertPinyinByLang — lang a (Mandarin)', () => {
 
   it('WadeGiles uses the ü branch when base contains ü after map lookup', () => {
     window.localStorage.setItem('pinyin_a', 'WadeGiles');
-    // 'yu' → 'yü'. Base has 'ü', no a/o/e/ui/u → ü branch.
-    expect(convertPinyinByLang('a', 'yú')).toBe('yǘ');
+    // 'lǚ' → 'lü'. Base has 'ü', no a/o/e/ui/u → ü branch.
+    expect(convertPinyinByLang('a', 'lǚ')).toBe('lǚ');
   });
 
   it('GuoYin coverage: zhao→jau picks the a branch', () => {

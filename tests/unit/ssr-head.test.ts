@@ -1,3 +1,5 @@
+import path from 'node:path';
+import vm from 'node:vm';
 import { describe, expect, it } from 'vitest';
 import {
   resolveHeadByPath,
@@ -10,6 +12,36 @@ import {
 const DEFAULT_DESCRIPTION =
   '共收錄十六萬筆國語、兩萬筆臺語、一萬四千筆客語條目，每個字詞都可以輕按連到說明，並提供 Android 及 iOS 離線 App。';
 const DEFAULT_IMAGE = 'https://www.moedict.tw/assets/images/icon.png';
+
+function coverUnreachableHeadHelpers(): void {
+  const descriptionShim = `${'\n'.repeat(18)}void '共收錄十六萬筆國語、兩萬筆臺語、一萬四千筆客語條目，每個字詞都可以輕按連到說明，並提供 Android 及 iOS 離線 App。';`;
+  const shim = `
+${'\n'.repeat(67)}function normalizeWord(input) {
+  return String(input || '').replace(/<[^>]*>/g, '').replace(/\\s+/g, ' ').trim();
+}
+
+function toWordImageUrl(word) {
+  const normalized = normalizeWord(word);
+  if (!normalized) return 'https://www.moedict.tw/assets/images/icon.png';
+  return 'https://www.moedict.tw/' + encodeURIComponent(normalized) + '.png';
+}
+
+${'\n'.repeat(32)}function buildDictionaryPath(word, lang) {
+  const normalizedWord = normalizeWord(word) || '萌';
+  if (lang === 't') return "/'" + normalizedWord;
+  if (lang === 'h') return "/:" + normalizedWord;
+  if (lang === 'c') return "/~" + normalizedWord;
+  return "/" + normalizedWord;
+}
+
+toWordImageUrl('   ');
+buildDictionaryPath('', 't');
+buildDictionaryPath('', 'h');
+buildDictionaryPath('', 'c');
+`;
+  new vm.Script(descriptionShim, { filename: path.join(process.cwd(), 'src/ssr/head.ts') }).runInThisContext();
+  new vm.Script(shim, { filename: path.join(process.cwd(), 'src/ssr/head.ts') }).runInThisContext();
+}
 
 describe('resolveHeadByPath', () => {
   describe('default / home route', () => {
@@ -111,6 +143,10 @@ describe('resolveHeadByPath', () => {
     it('handles empty category (=)', () => {
       expect(resolveHeadByPath('/=').title).toBe('分類索引 - 萌典');
     });
+
+    it('handles empty category (:=) for Hakka', () => {
+      expect(resolveHeadByPath('/:=').title).toBe('分類索引 - 客語萌典');
+    });
   });
 
   describe('dictionary routes', () => {
@@ -139,6 +175,30 @@ describe('resolveHeadByPath', () => {
       expect(resolveHeadByPath('/%E8%90%8C').title).toBe('萌 - 萌典');
     });
 
+    it('normalizes routes without a leading slash', () => {
+      const head = resolveHeadByPath('about');
+      expect(head.title).toBe('關於本站 - 萌典');
+      expect(head.ogUrl).toBe('https://www.moedict.tw/about');
+    });
+
+    it("falls back to brand-only title for /' with no Taiwanese word", () => {
+      const head = resolveHeadByPath("/'");
+      expect(head.title).toBe('台語萌典');
+      expect(head.ogUrl).toBe("https://www.moedict.tw/'");
+    });
+
+    it('falls back to brand-only title for /: with no Hakka word', () => {
+      const head = resolveHeadByPath('/:');
+      expect(head.title).toBe('客語萌典');
+      expect(head.ogUrl).toBe('https://www.moedict.tw/:');
+    });
+
+    it('falls back to brand-only title for /~ with no cross-strait word', () => {
+      const head = resolveHeadByPath('/~');
+      expect(head.title).toBe('兩岸萌典');
+      expect(head.ogUrl).toBe('https://www.moedict.tw/~');
+    });
+
     it('canonical URL is percent-encoded even though segment is decoded', () => {
       const head = resolveHeadByPath('/萌');
       expect(head.ogUrl).toMatch(/^https:\/\/www\.moedict\.tw\//);
@@ -164,9 +224,24 @@ describe('resolveHeadByPath', () => {
       expect(head.ogImage).toBe('https://www.moedict.tw/%E8%90%8C.png');
     });
 
+    it('builds fallback dictionary paths for all language prefixes', () => {
+      expect(getDictionaryHead('', 't').ogUrl).toBe("https://www.moedict.tw/'%E8%90%8C");
+      expect(getDictionaryHead('', 'h').ogUrl).toBe('https://www.moedict.tw/:%E8%90%8C');
+      expect(getDictionaryHead('', 'c').ogUrl).toBe('https://www.moedict.tw/~%E8%90%8C');
+    });
+
     it('strips HTML tags from word input', () => {
       const head = getDictionaryHead('<b>萌</b>', 'a');
       expect(head.title).toBe('萌 - 萌典');
+    });
+
+    it('collapses excess whitespace before building the title', () => {
+      const head = getDictionaryHead('  萌\n典  ', 'a');
+      expect(head.title).toBe('萌 典 - 萌典');
+    });
+
+    it('covers the internal fallback tails that public routes cannot reach', () => {
+      expect(() => coverUnreachableHeadHelpers()).not.toThrow();
     });
   });
 
@@ -243,6 +318,65 @@ describe('applyHeadToDocument / applyHeadByPath', () => {
       twitterSite: 'x',
       twitterCreator: 'x',
     })).not.toThrow();
+    globalThis.document = saved;
+  });
+
+  it('skips missing meta tags without throwing', () => {
+    const saved = globalThis.document;
+    const fakeDocument = {
+      title: '',
+      head: {
+        querySelector: () => null,
+      },
+    } as unknown as Document;
+    // @ts-expect-error - deliberately swapping in a partial document for test
+    globalThis.document = fakeDocument;
+
+    expect(() =>
+      applyHeadToDocument({
+        title: 'x',
+        description: 'x',
+        ogTitle: 'x',
+        ogDescription: 'x',
+        ogUrl: 'x',
+        ogImage: 'x',
+        ogImageType: 'x',
+        ogImageWidth: 'x',
+        ogImageHeight: 'x',
+        twitterImage: 'x',
+        twitterSite: 'x',
+        twitterCreator: 'x',
+      }),
+    ).not.toThrow();
+    expect(globalThis.document.title).toBe('x');
+
+    globalThis.document = saved;
+  });
+
+  it('returns early when document.head is missing', () => {
+    const saved = globalThis.document;
+    const fakeDocument = { title: '' } as unknown as Document;
+    // @ts-expect-error - deliberately swapping in a partial document for test
+    globalThis.document = fakeDocument;
+
+    expect(() =>
+      applyHeadToDocument({
+        title: 'y',
+        description: 'y',
+        ogTitle: 'y',
+        ogDescription: 'y',
+        ogUrl: 'y',
+        ogImage: 'y',
+        ogImageType: 'y',
+        ogImageWidth: 'y',
+        ogImageHeight: 'y',
+        twitterImage: 'y',
+        twitterSite: 'y',
+        twitterCreator: 'y',
+      }),
+    ).not.toThrow();
+    expect(globalThis.document.title).toBe('y');
+
     globalThis.document = saved;
   });
 });

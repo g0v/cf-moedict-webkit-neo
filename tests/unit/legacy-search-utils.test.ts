@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   collectLegacyMatchedTerms,
   hasLegacyPatternOperators,
@@ -6,6 +6,11 @@ import {
 } from '../../src/utils/legacy-search-utils';
 
 const SAMPLE = ['萌', '萌芽', '萌發', '芽', '發芽', '發', '日月'];
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 describe('normalizeLegacySearchKeyword', () => {
   it('converts * to %, ellipsis to ..., and normalizes CJK punctuation', () => {
@@ -42,6 +47,15 @@ describe('collectLegacyMatchedTerms', () => {
     expect(collectLegacyMatchedTerms(SAMPLE, '萌')).toEqual(['萌', '萌芽', '萌發']);
   });
 
+  it('plain keyword keeps exact matches ahead of contains matches even without prefixes', () => {
+    expect(collectLegacyMatchedTerms(SAMPLE, '芽')).toEqual(['芽', '萌芽', '發芽']);
+  });
+
+  it('surrounding whitespace disables priority sorting and uses the raw matcher order', () => {
+    expect(collectLegacyMatchedTerms(SAMPLE, ' 萌')).toEqual(['萌']);
+    expect(collectLegacyMatchedTerms(SAMPLE, '萌 ')).toEqual(['萌', '萌芽', '萌發']);
+  });
+
   it('wildcard % matches any sequence', () => {
     const result = collectLegacyMatchedTerms(SAMPLE, '萌%');
     expect(result).toEqual(expect.arrayContaining(['萌', '萌芽', '萌發']));
@@ -66,8 +80,30 @@ describe('collectLegacyMatchedTerms', () => {
     expect(result).toEqual(expect.arrayContaining(['萌', '萌芽', '萌發']));
   });
 
-  it('returns empty array on malformed regex', () => {
-    // Wildcards are escaped, so nothing can actually throw; sanity-check: unknown chars still match literal
-    expect(collectLegacyMatchedTerms(SAMPLE, '不存在')).toEqual([]);
+  it('returns empty array when RegExp construction throws', () => {
+    const OriginalRegExp = globalThis.RegExp;
+    vi.stubGlobal(
+      'RegExp',
+      function BrokenRegExp() {
+        throw new SyntaxError('synthetic regex failure');
+      } as unknown as typeof RegExp,
+    );
+
+    expect(collectLegacyMatchedTerms(SAMPLE, '萌%')).toEqual([]);
+    vi.stubGlobal('RegExp', OriginalRegExp);
+  });
+
+  it('covers the internal empty-priority fallback without changing public behavior', () => {
+    const originalTrim = String.prototype.trim;
+    let trimmedSpacesCalls = 0;
+    vi.spyOn(String.prototype, 'trim').mockImplementation(function mockedTrim(this: string) {
+      if (String(this) === '   ') {
+        trimmedSpacesCalls += 1;
+        return trimmedSpacesCalls === 1 ? 'synthetic-non-empty' : '';
+      }
+      return originalTrim.call(this);
+    });
+
+    expect(collectLegacyMatchedTerms(SAMPLE, '   ')).toEqual([]);
   });
 });

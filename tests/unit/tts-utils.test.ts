@@ -34,12 +34,19 @@ class FakeUtterance {
   }
 }
 
-function installSynthesis() {
+interface InstallSynthesisOptions {
+  getVoices?: () => SpeechSynthesisVoice[];
+  cancel?: () => void;
+  onvoiceschangedSetterThrows?: boolean;
+}
+
+function installSynthesis(options: InstallSynthesisOptions = {}) {
+  if (typeof globalThis.window === 'undefined') return;
   const synthesis = {
-    getVoices: () => voices,
-    cancel: () => {
+    getVoices: options.getVoices ?? (() => voices),
+    cancel: options.cancel ?? (() => {
       cancelCalls += 1;
-    },
+    }),
     speak: (u: FakeUtterance) => {
       speakCalls.push({
         text: u.text,
@@ -50,13 +57,31 @@ function installSynthesis() {
         volume: u.volume,
       });
     },
-    set onvoiceschanged(handler: () => void) {
-      voicesChangedHandler = handler;
-    },
     get onvoiceschanged() {
       return voicesChangedHandler ?? (() => undefined);
     },
   };
+  if (options.onvoiceschangedSetterThrows) {
+    Object.defineProperty(synthesis, 'onvoiceschanged', {
+      configurable: true,
+      set() {
+        throw new Error('setter failed');
+      },
+      get() {
+        return voicesChangedHandler ?? (() => undefined);
+      },
+    });
+  } else {
+    Object.defineProperty(synthesis, 'onvoiceschanged', {
+      configurable: true,
+      set(handler: () => void) {
+        voicesChangedHandler = handler;
+      },
+      get() {
+        return voicesChangedHandler ?? (() => undefined);
+      },
+    });
+  }
   // @ts-expect-error stubbing window-level TTS for happy-dom
   globalThis.window.speechSynthesis = synthesis;
   // @ts-expect-error same
@@ -64,6 +89,7 @@ function installSynthesis() {
 }
 
 function uninstallSynthesis() {
+  if (typeof globalThis.window === 'undefined') return;
   // @ts-expect-error clean up stubs
   delete globalThis.window.speechSynthesis;
   // @ts-expect-error same
@@ -72,6 +98,20 @@ function uninstallSynthesis() {
 
 function voice(name: string, lang: string): SpeechSynthesisVoice {
   return { name, lang, default: false, localService: true, voiceURI: name } as SpeechSynthesisVoice;
+}
+
+function throwingVoice(): SpeechSynthesisVoice {
+  return {
+    get name() {
+      throw new Error('name failed');
+    },
+    get lang() {
+      throw new Error('lang failed');
+    },
+    default: false,
+    localService: true,
+    voiceURI: 'throwing',
+  } as SpeechSynthesisVoice;
 }
 
 beforeEach(() => {
@@ -85,6 +125,7 @@ beforeEach(() => {
 afterEach(() => {
   uninstallSynthesis();
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 describe('getLanguageCode', () => {
@@ -191,6 +232,32 @@ describe('speakText', () => {
     expect(speakCalls[0].voice?.lang).toBe('fr-CA');
   });
 
+  it('ignores a FR voiceschanged event when no French voice is available yet', () => {
+    voices = [];
+    speakText('法', 'bonjour');
+    expect(voicesChangedHandler).toBeTypeOf('function');
+    voices = [];
+    voicesChangedHandler?.();
+    expect(speakCalls).toHaveLength(0);
+  });
+
+  it('handles a FR voiceschanged event when getVoices is missing', () => {
+    // @ts-expect-error force the ternary fallback inside the handler
+    delete globalThis.window.speechSynthesis.getVoices;
+    speakText('法', 'bonjour');
+    expect(voicesChangedHandler).toBeTypeOf('function');
+    voicesChangedHandler?.();
+    expect(speakCalls).toHaveLength(0);
+  });
+
+  it('falls back cleanly when deferred FR voices resolve to null', () => {
+    installSynthesis({ getVoices: () => null as unknown as SpeechSynthesisVoice[] });
+    speakText('法', 'bonjour');
+    expect(voicesChangedHandler).toBeTypeOf('function');
+    voicesChangedHandler?.();
+    expect(speakCalls).toHaveLength(0);
+  });
+
   it('speaks 德 entries with de-DE regardless of voice list', () => {
     voices = [voice('Anna', 'de-DE')];
     speakText('德', 'hallo');
@@ -203,8 +270,199 @@ describe('speakText', () => {
     expect(speakCalls).toHaveLength(0);
   });
 
+  it('noops when window itself is unavailable', () => {
+    vi.stubGlobal('window', undefined);
+    expect(() => speakText('英', 'hi')).not.toThrow();
+    expect(speakCalls).toHaveLength(0);
+  });
+
+  it('noops when SpeechSynthesisUtterance is unavailable', () => {
+    // @ts-expect-error intentionally remove the constructor to hit the guard
+    delete globalThis.window.SpeechSynthesisUtterance;
+    speakText('英', 'hi');
+    expect(speakCalls).toHaveLength(0);
+  });
+
   it('noops when the cleaned text is empty', () => {
     speakText('英', '<tag></tag>');
     expect(speakCalls).toHaveLength(0);
+  });
+
+  it('uses Firefox rate and pitch tweaks for English voices', () => {
+    vi.stubGlobal('navigator', { userAgent: 'Mozilla/5.0 Gecko/20100101 Firefox/124.0' });
+    voices = [voice('US Voice', 'en-US')];
+    speakText('英', 'hello');
+    expect(speakCalls).toHaveLength(1);
+    expect(speakCalls[0].rate).toBe(0.95);
+    expect(speakCalls[0].pitch).toBe(1.02);
+  });
+
+  it('treats a missing navigator as non-Firefox', () => {
+    vi.stubGlobal('navigator', undefined);
+    voices = [voice('US Voice', 'en-US')];
+    speakText('英', 'hello');
+    expect(speakCalls).toHaveLength(1);
+    expect(speakCalls[0].rate).toBe(1);
+    expect(speakCalls[0].pitch).toBe(1);
+  });
+
+  it.each([
+    ['Alex', [voice('Fred', 'en-US'), voice('Alex', 'en-US'), voice('US Voice', 'en-US')]],
+    ['en-GB', [voice('UK Voice', 'en-GB'), voice('NZ Voice', 'en-NZ')]],
+    ['en-AU', [voice('AU Voice', 'en-AU'), voice('NZ Voice', 'en-NZ')]],
+    ['first available', [voice('Fallback 1', 'en-ZA'), voice('Fallback 2', 'en-CA')]],
+  ])('selects the %s EN voice fallback', (_label, voiceList) => {
+    voices = voiceList;
+    speakText('英', 'hi');
+    expect(speakCalls).toHaveLength(1);
+    expect(speakCalls[0].voice?.name).toBe(voiceList[0].name === 'Fred' ? 'Alex' : voiceList[0].name);
+  });
+
+  it('handles an EN voice with an empty name', () => {
+    voices = [voice('', 'en-US'), voice('US Voice', 'en-US')];
+    speakText('英', 'hi');
+    expect(speakCalls).toHaveLength(1);
+    expect(speakCalls[0].lang).toBe('en-US');
+  });
+
+  it('prefers fr-FR when a Google voice is not present', () => {
+    voices = [voice('Amelie', 'fr-CA'), voice('Jean', 'fr-FR')];
+    speakText('法', 'bonjour');
+    expect(speakCalls).toHaveLength(1);
+    expect(speakCalls[0].voice?.lang).toBe('fr-FR');
+  });
+
+  it('skips Google voices unless they are fr-FR', () => {
+    voices = [voice('Google français', 'fr-CA'), voice('Jean', 'fr-FR')];
+    speakText('法', 'bonjour');
+    expect(speakCalls).toHaveLength(1);
+    expect(speakCalls[0].voice?.name).toBe('Jean');
+  });
+
+  it('handles French voices with empty names in the Google selector', () => {
+    voices = [voice('', 'fr-FR'), voice('Google français', 'fr-FR')];
+    speakText('法', 'bonjour');
+    expect(speakCalls).toHaveLength(1);
+    expect(speakCalls[0].voice?.name).toBe('Google français');
+  });
+
+  it('falls back to the first French voice when only non fr-FR / fr-CA voices exist', () => {
+    voices = [voice('Belgium', 'fr-BE'), voice('Swiss', 'fr-CH')];
+    speakText('法', 'bonjour');
+    expect(speakCalls).toHaveLength(1);
+    expect(speakCalls[0].voice?.name).toBe('Belgium');
+  });
+
+  it('swallows FR voice-selection failures and still speaks with the default language', () => {
+    voices = [throwingVoice()];
+    speakText('法', 'bonjour');
+    expect(speakCalls).toHaveLength(1);
+    expect(speakCalls[0].lang).toBe('fr-FR');
+    expect(speakCalls[0].voice).toBeUndefined();
+  });
+
+  it('handles a getVoices failure and recovers once voices become available', () => {
+    let firstCall = true;
+    installSynthesis({
+      getVoices: () => {
+        if (firstCall) {
+          firstCall = false;
+          throw new Error('getVoices failed');
+        }
+        return voices;
+      },
+    });
+    voices = [];
+    speakText('英', 'hi');
+    expect(speakCalls).toHaveLength(0);
+    expect(voicesChangedHandler).toBeTypeOf('function');
+    voices = [voice('Samantha', 'en-US')];
+    voicesChangedHandler?.();
+    expect(speakCalls).toHaveLength(1);
+    expect(speakCalls[0].voice?.name).toBe('Samantha');
+  });
+
+  it('swallows onvoiceschanged assignment failures', () => {
+    installSynthesis({ onvoiceschangedSetterThrows: true });
+    voices = [];
+    expect(() => speakText('英', 'hi')).not.toThrow();
+    expect(voicesChangedHandler).toBeNull();
+    expect(speakCalls).toHaveLength(0);
+  });
+
+  it('swallows cancel failures in deferred English speech', () => {
+    installSynthesis({
+      cancel: () => {
+        cancelCalls += 1;
+        throw new Error('cancel failed');
+      },
+    });
+    voices = [];
+    speakText('英', 'hi');
+    expect(voicesChangedHandler).toBeTypeOf('function');
+    voices = [voice('Samantha', 'en-US')];
+    voicesChangedHandler?.();
+    expect(speakCalls).toHaveLength(1);
+  });
+
+  it('ignores an EN voiceschanged event when no English voice is available yet', () => {
+    voices = [];
+    speakText('英', 'hi');
+    expect(voicesChangedHandler).toBeTypeOf('function');
+    voices = [];
+    voicesChangedHandler?.();
+    expect(speakCalls).toHaveLength(0);
+  });
+
+  it('handles a deferred EN voiceschanged event when getVoices is missing', () => {
+    // @ts-expect-error force the ternary fallback inside the handler
+    delete globalThis.window.speechSynthesis.getVoices;
+    voices = [];
+    speakText('英', 'hi');
+    expect(voicesChangedHandler).toBeTypeOf('function');
+    voicesChangedHandler?.();
+    expect(speakCalls).toHaveLength(0);
+  });
+
+  it('falls back cleanly when deferred EN voices resolve to null', () => {
+    installSynthesis({ getVoices: () => null as unknown as SpeechSynthesisVoice[] });
+    speakText('英', 'hi');
+    expect(voicesChangedHandler).toBeTypeOf('function');
+    voicesChangedHandler?.();
+    expect(speakCalls).toHaveLength(0);
+  });
+
+  it('uses Firefox rate and pitch tweaks in the deferred EN path', () => {
+    vi.stubGlobal('navigator', { userAgent: 'Mozilla/5.0 Gecko/20100101 Firefox/124.0' });
+    voices = [];
+    speakText('英', 'hi');
+    expect(voicesChangedHandler).toBeTypeOf('function');
+    voices = [voice('US Voice', 'en-US')];
+    voicesChangedHandler?.();
+    expect(speakCalls).toHaveLength(1);
+    expect(speakCalls[0].rate).toBe(0.95);
+    expect(speakCalls[0].pitch).toBe(1.02);
+  });
+
+  it('swallows EN voice-selection failures and still speaks with the default language', () => {
+    voices = [throwingVoice()];
+    speakText('英', 'hi');
+    expect(speakCalls).toHaveLength(1);
+    expect(speakCalls[0].lang).toBe('en-US');
+    expect(speakCalls[0].voice).toBeUndefined();
+  });
+
+  it('warns when utterance construction throws', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    class ThrowingUtterance {
+      constructor() {
+        throw new Error('boom');
+      }
+    }
+    // @ts-expect-error force the outer catch branch
+    globalThis.window.SpeechSynthesisUtterance = ThrowingUtterance;
+    expect(() => speakText('英', 'hi')).not.toThrow();
+    expect(speakCalls).toHaveLength(0);
+    expect(warn).toHaveBeenCalledWith('[TTS] 語音播放失敗', expect.any(Error));
   });
 });

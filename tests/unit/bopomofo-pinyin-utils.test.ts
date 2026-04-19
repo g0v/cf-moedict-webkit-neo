@@ -329,6 +329,78 @@ describe('buildRubyBases — DOMParser catch fallback', () => {
   });
 });
 
+describe('buildRubyBases — DOMParser happy-path edge cases', () => {
+  it('returns an empty ruby string when parseFromString cannot find the wrap element', () => {
+    const original = globalThis.DOMParser;
+    class NoWrapDOMParser {
+      parseFromString() {
+        return {
+          getElementById() {
+            return null;
+          },
+        } as unknown as Document;
+      }
+    }
+    globalThis.DOMParser = NoWrapDOMParser as unknown as typeof DOMParser;
+    try {
+      const result = decorateRuby({
+        LANG: 'a',
+        title: '萌',
+        bopomofo: 'ㄇㄥˊ',
+        pinyin: 'méng',
+      });
+      expect(result.ruby).toContain('<rtc class="zhuyin"');
+      expect(result.ruby).not.toContain('<rb>');
+    } finally {
+      globalThis.DOMParser = original;
+    }
+  });
+
+  it('builds rb anchors for plain text titles on the DOMParser path', () => {
+    const result = decorateRuby({
+      LANG: 'a',
+      title: ' 萌 典 ',
+      bopomofo: 'ㄇㄥˊㄉㄧㄢˇ',
+      pinyin: 'méng diǎn',
+    });
+    expect(result.ruby).toContain('<rb><a href="./#%E8%90%8C">萌</a></rb>');
+    expect(result.ruby).toContain('<rb><a href="./#%E5%85%B8">典</a></rb>');
+  });
+
+  it('handles an empty text node by falling back to an empty string', () => {
+    const original = globalThis.DOMParser;
+    class EmptyTextNodeDOMParser {
+      parseFromString() {
+        return {
+          getElementById() {
+            return {
+              childNodes: [
+                {
+                  nodeType: Node.TEXT_NODE,
+                  textContent: '',
+                },
+              ],
+            };
+          },
+        } as unknown as Document;
+      }
+    }
+    globalThis.DOMParser = EmptyTextNodeDOMParser as unknown as typeof DOMParser;
+    try {
+      const result = decorateRuby({
+        LANG: 'a',
+        title: '萌',
+        bopomofo: 'ㄇㄥˊ',
+        pinyin: 'méng',
+      });
+      expect(result.ruby).not.toContain('<rb><a');
+      expect(result.ruby).toContain('<rtc class="zhuyin"');
+    } finally {
+      globalThis.DOMParser = original;
+    }
+  });
+});
+
 describe('buildRubyBases — element branches via rich title HTML', () => {
   it('preserves <a href="…"> elements in the title and wraps each char in <rb><a>', () => {
     // An explicit <a> element hits the `element.tagName.toLowerCase() === 'a'`
@@ -449,5 +521,64 @@ describe('decorateRuby — r-suffix branch without cn-specific override', () => 
     expect(result.cnSpecific).toBe('');
     // bAlt is not rewritten on this path.
     expect(result.bAlt).toBe('');
+  });
+});
+
+describe('decorateRuby — hard-to-hit rbspan ternary branches', () => {
+  it('covers the hyphenated Taiwanese rbspan null branch via a temporary match shim', () => {
+    const originalMatch = String.prototype.match;
+    const calls: Record<string, number> = {};
+
+    String.prototype.match = function (pattern: RegExp) {
+      const key = pattern.source;
+      calls[key] = (calls[key] || 0) + 1;
+      if (key === '[-\\u2011]' && calls[key] === 1) {
+        return ['-'];
+      }
+      if (key === '[-\\u2011]+' && calls[key] === 1) {
+        return null;
+      }
+      return originalMatch.call(this, pattern);
+    };
+
+    try {
+      const result = decorateRuby({
+        LANG: 't',
+        title: '家裡',
+        trs: 'ka-lí',
+      });
+      expect(result.ruby).toContain('rbspan="1"');
+    } finally {
+      String.prototype.match = originalMatch;
+    }
+  });
+
+  it('covers the vowel-count rbspan null branch via a temporary match shim', () => {
+    const originalMatch = String.prototype.match;
+    const calls: Record<string, number> = {};
+
+    String.prototype.match = function (pattern: RegExp) {
+      const key = pattern.source;
+      calls[key] = (calls[key] || 0) + 1;
+      if (key === '[aāáǎàeēéěèiīíǐìoōóǒòuūúǔùüǖǘǚǜ]+' && calls[key] === 1) {
+        return ['é', 'a'];
+      }
+      if (key === '[aāáǎàeēéěèiīíǐìoōóǒòuūúǔùüǖǘǚǜ]+' && calls[key] === 2) {
+        return null;
+      }
+      return originalMatch.call(this, pattern);
+    };
+
+    try {
+      const result = decorateRuby({
+        LANG: 'a',
+        title: '咖啡',
+        bopomofo: 'ㄎㄚㄈㄟ',
+        pinyin: 'kā fēi',
+      });
+      expect(result.ruby).toContain('rbspan="1"');
+    } finally {
+      String.prototype.match = originalMatch;
+    }
   });
 });

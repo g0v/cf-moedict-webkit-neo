@@ -28,6 +28,27 @@ interface MockAudio {
 let instances: MockAudio[] = [];
 let playShouldReject = false;
 let playRejectionsRemaining = 0;
+let deferredPlay: {
+  outcome: 'resolve' | 'reject';
+  resolve: () => void;
+  reject: (err: unknown) => void;
+} | null = null;
+let nextDeferredPlayOutcome: 'resolve' | 'reject' | null = null;
+
+function flushMicrotasks(): Promise<void> {
+  return new Promise((r) => setTimeout(r, 0));
+}
+
+function settleDeferredPlay(): void {
+  const pending = deferredPlay;
+  deferredPlay = null;
+  if (!pending) return;
+  if (pending.outcome === 'resolve') {
+    pending.resolve();
+    return;
+  }
+  pending.reject(new Error('mock play() rejection'));
+}
 
 function createMockAudio(): MockAudio {
   const listeners = new Map<string, Array<(ev?: unknown) => void>>();
@@ -41,6 +62,13 @@ function createMockAudio(): MockAudio {
     listeners,
     async play() {
       this.playCalls += 1;
+      if (nextDeferredPlayOutcome) {
+        const outcome = nextDeferredPlayOutcome;
+        nextDeferredPlayOutcome = null;
+        return new Promise<void>((resolve, reject) => {
+          deferredPlay = { outcome, resolve, reject };
+        });
+      }
       if (playRejectionsRemaining > 0) {
         playRejectionsRemaining -= 1;
         throw new Error('mock play() rejection');
@@ -73,6 +101,8 @@ beforeEach(() => {
   instances = [];
   playShouldReject = false;
   playRejectionsRemaining = 0;
+  deferredPlay = null;
+  nextDeferredPlayOutcome = null;
   // @ts-expect-error — overriding global for happy-dom env
   globalThis.Audio = function Audio() {
     return createMockAudio();
@@ -88,6 +118,10 @@ describe('getAudioUrl', () => {
   it('uses the 華語 CDN for lang=a', () => {
     const url = getAudioUrl('a', '12345');
     expect(url).toMatch(/rackcdn\.com\/12345\.ogg$/);
+  });
+
+  it('falls back to the 華語 CDN at runtime for unknown langs', () => {
+    expect(getAudioUrl('x' as never, '123')).toBe(getAudioUrl('a', '123'));
   });
 
   it('uses the 客語 CDN for lang=h', () => {
@@ -109,6 +143,10 @@ describe('getAudioUrl', () => {
 
   it('trims whitespace-only IDs to an empty filename', () => {
     expect(getAudioUrl('a', '   ')).toMatch(/\/\.ogg$/);
+  });
+
+  it('treats an empty audio ID as an empty filename', () => {
+    expect(getAudioUrl('a', '')).toMatch(/\/\.ogg$/);
   });
 
   it('falls back to the 華語 CDN for 兩岸 (c)', () => {
@@ -135,7 +173,7 @@ describe('playAudioUrl', () => {
     playRejectionsRemaining = 1;
     const onState = vi.fn();
     playAudioUrl('https://cdn/clip.ogg', onState);
-    await new Promise((r) => setTimeout(r, 0));
+    await flushMicrotasks();
 
     const a = instances[0];
     expect(a.playCalls).toBeGreaterThanOrEqual(2); // mp3 then ogg
@@ -147,14 +185,48 @@ describe('playAudioUrl', () => {
     playShouldReject = true;
     const onState = vi.fn();
     playAudioUrl('https://cdn/clip.ogg', onState);
-    await new Promise((r) => setTimeout(r, 0));
+    await flushMicrotasks();
     expect(onState).toHaveBeenCalledWith(false);
+  });
+
+  it('keeps the original URL when no audio suffix is present', async () => {
+    const onState = vi.fn();
+    playAudioUrl('https://cdn/plain', onState);
+    await flushMicrotasks();
+
+    expect(instances).toHaveLength(1);
+    expect(instances[0].src).toBe('https://cdn/plain');
+    expect(instances[0].playCalls).toBe(1);
+    expect(onState).toHaveBeenCalledWith(true);
+  });
+
+  it('preserves query strings when deriving playback candidates', async () => {
+    const onState = vi.fn();
+    playAudioUrl('https://cdn/clip.ogg?cache=1', onState);
+    await flushMicrotasks();
+
+    expect(instances).toHaveLength(1);
+    expect(instances[0].src).toBe('https://cdn/clip.mp3?cache=1');
+    expect(onState).toHaveBeenCalledWith(true);
+  });
+
+  it('ignores ended events from stale audio elements', async () => {
+    playAudioUrl('https://cdn/first.ogg');
+    await flushMicrotasks();
+    const first = instances[0];
+
+    playAudioUrl('https://cdn/second.ogg');
+    await flushMicrotasks();
+    first.trigger('ended');
+    first.trigger('error');
+
+    expect(instances).toHaveLength(2);
   });
 
   it('clicking the same URL twice toggles playback off (stop)', async () => {
     const onState = vi.fn();
     playAudioUrl('https://cdn/clip.ogg', onState);
-    await new Promise((r) => setTimeout(r, 0));
+    await flushMicrotasks();
     const first = instances[0];
 
     // Second call with the same URL should pause + clear currentAudio.
@@ -166,7 +238,7 @@ describe('playAudioUrl', () => {
   it('clears currentAudio when the audio element fires "ended"', async () => {
     const onState = vi.fn();
     playAudioUrl('https://cdn/a.ogg', onState);
-    await new Promise((r) => setTimeout(r, 0));
+    await flushMicrotasks();
     instances[0].trigger('ended');
     expect(onState).toHaveBeenCalledWith(false);
   });
@@ -174,18 +246,59 @@ describe('playAudioUrl', () => {
   it('clears currentAudio when the audio element fires "error"', async () => {
     const onState = vi.fn();
     playAudioUrl('https://cdn/a.ogg', onState);
-    await new Promise((r) => setTimeout(r, 0));
+    await flushMicrotasks();
     instances[0].trigger('error');
     expect(onState).toHaveBeenCalledWith(false);
   });
 
   it('stopAudio cancels any currently-playing clip', async () => {
     playAudioUrl('https://cdn/a.ogg');
-    await new Promise((r) => setTimeout(r, 0));
+    await flushMicrotasks();
     const a = instances[0];
     stopAudio();
     expect(a.pauseCalls).toBeGreaterThanOrEqual(1);
     expect(a.currentTime).toBe(0);
+  });
+
+  it('aborts a pending rejection before completion when playback is canceled', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    nextDeferredPlayOutcome = 'reject';
+    playAudioUrl('https://cdn/plain');
+    const a = instances[0];
+    stopAudio();
+    settleDeferredPlay();
+    await flushMicrotasks();
+
+    expect(a.playCalls).toBe(1);
+    expect(a.src).toBe('https://cdn/plain');
+    expect(warn).toHaveBeenCalled();
+  });
+
+  it('stops retrying after a rejected mp3 when playback is canceled', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    nextDeferredPlayOutcome = 'reject';
+    playAudioUrl('https://cdn/clip.ogg');
+    const a = instances[0];
+    stopAudio();
+    settleDeferredPlay();
+    await flushMicrotasks();
+
+    expect(a.playCalls).toBe(1);
+    expect(a.src).toMatch(/\.mp3$/);
+    expect(warn).toHaveBeenCalled();
+  });
+
+  it('aborts after play() resolves if playback was stopped meanwhile', async () => {
+    nextDeferredPlayOutcome = 'resolve';
+    const onState = vi.fn();
+    playAudioUrl('https://cdn/clip.ogg', onState);
+    const a = instances[0];
+    stopAudio();
+    settleDeferredPlay();
+    await flushMicrotasks();
+
+    expect(a.playCalls).toBe(1);
+    expect(onState).not.toHaveBeenCalledWith(true);
   });
 
   it('noops when window is undefined (e.g. during SSR)', () => {
