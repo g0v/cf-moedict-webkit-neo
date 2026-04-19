@@ -199,8 +199,15 @@ async function getAssetFromBucket(request: Request, env: Env): Promise<Response 
   return new Response(object.body, { status: 200, headers });
 }
 
-export default {
-  async fetch(request, env: Env) {
+/**
+ * Pure-function worker entry point — same body as the default export's
+ * fetch handler, extracted so unit tests can call it with a mock env
+ * (vitest's v8 coverage collector can't see into Miniflare's workerd
+ * isolate, but it *can* instrument this function when imported directly).
+ * The default export below is a one-line wrapper that preserves the
+ * `ExportedHandler<Env>` contract for the real deployment.
+ */
+export async function dispatch(request: Request, env: Env): Promise<Response> {
     console.log('🔍 [Index] 開始處理請求:', request.url);
     const url = new URL(request.url);
     console.log(url.pathname);
@@ -531,5 +538,8 @@ export default {
     }
 
 		return new Response(null, { status: 404 });
-  },
+}
+
+export default {
+  fetch: (request, env) => dispatch(request, env),
 } satisfies ExportedHandler<Env>;

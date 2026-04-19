@@ -60,9 +60,15 @@ The merge pipeline (`scripts/merge-coverage.mjs`) unifies three coverage sources
 Istanbul report:
 
 - **Unit** (vitest v8 provider) — per-statement attribution, written to `coverage/unit/`.
-- **Integration** (vitest v8 provider) — mostly empty on `src/api/**` because the worker runs in
-  Miniflare's separate workerd isolate, which vitest's collector can't see into. API handlers are
-  attributed via `tests/unit/api-handlers-direct.test.ts` which calls them directly with a mock R2.
+- **Integration** (vitest v8 provider) — mostly empty on `src/api/**` and `worker/**` because the
+  worker runs in Miniflare's separate workerd isolate, which vitest's collector can't see into.
+  API handlers are attributed via `tests/unit/api-handlers-direct.test.ts` which calls them
+  directly with a mock R2. The routing switch in `worker/index.ts` is similarly attributed via
+  `tests/unit/worker-dispatch.test.ts` — we export a pure `dispatch(request, env)` function that
+  both the default handler and the unit tests call, so the full 535-line routing table lights up
+  under vitest's instrumentation without needing workerd's inspector. (Miniflare exposes the CDP
+  inspector, but workerd doesn't implement `Profiler.*`, so precise V8 coverage extraction through
+  it isn't available — hence the refactor.)
 - **E2E** (Playwright `page.coverage.startJSCoverage`) — collected per-test by the fixture in
   `tests/e2e/_fixtures.ts`, then converted back to `src/**/*.ts` via `v8-to-istanbul` using Vite
   sourcemaps (emitted only when `E2E_COVERAGE=1` is set during the build).
@@ -73,9 +79,11 @@ reports ~96% combined statement coverage but two caveats:
 - **V8's "line" metric is coarse.** V8 reports function-level coverage and v8-to-istanbul maps
   function declarations (not bodies) to lines, so a file whose functions are loaded but never
   called can show up as 100% lines / 0% functions. Prefer the statement and function numbers.
-- **workerd isn't instrumented.** `worker/index.ts` and its direct dependencies still aren't
-  tracked during integration runs. Coverage on `src/api/**` comes from the direct-call unit tests,
-  not from Miniflare.
+- **workerd still isn't instrumented.** Integration runs don't attribute anything to `src/api/**`
+  or `worker/index.ts` at runtime — those files are covered instead by the direct-call unit tests
+  (`tests/unit/api-handlers-direct.test.ts` and `tests/unit/worker-dispatch.test.ts`). If you add
+  a new branch to worker/index.ts or a handler, make sure the matching direct-call test exercises
+  it; Miniflare integration alone won't move the coverage needle.
 
 ## 環境設定
 

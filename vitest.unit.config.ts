@@ -26,6 +26,7 @@ export default defineConfig({
         'src/ssr/**/*.ts',
         'src/utils/**/*.ts',
         'src/api/**/*.ts',
+        'worker/**/*.ts',
       ],
       exclude: [
         'src/utils/image-generation.ts',

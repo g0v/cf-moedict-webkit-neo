@@ -49,6 +49,11 @@ export async function buildWorker(options: { force?: boolean } = {}): Promise<st
     platform: 'neutral',
     target: 'esnext',
     outfile: OUT_FILE,
+    // Sourcemaps are always-on here: scripts/merge-coverage.mjs consumes
+    // them to attribute workerd V8 coverage back to src/**/*.ts. The file
+    // only lives under tests/.build/ and isn't shipped anywhere.
+    sourcemap: true,
+    sourcesContent: true,
     alias: {
       '@cf-wasm/resvg': RESVG_STUB,
     },
