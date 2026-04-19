@@ -30,11 +30,11 @@ interface DictionaryEntryLike {
   heteronyms?: DictionaryHeteronym[];
 }
 
-function stripTags(input: string): string {
+export function stripTags(input: string): string {
   return String(input || '').replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
 }
 
-function parseDictionaryRoute(pathname: string): { lang: DictionaryLang; text: string } | null {
+export function parseDictionaryRoute(pathname: string): { lang: DictionaryLang; text: string } | null {
   const raw = decodeURIComponent(String(pathname || '').replace(/^\/+/, '').replace(/\/+$/, ''));
   if (!raw) return null;
   if (raw === 'about' || raw === 'about.html') return null;
@@ -48,7 +48,7 @@ function parseDictionaryRoute(pathname: string): { lang: DictionaryLang; text: s
   return { lang: 'a', text: raw };
 }
 
-function buildDefinitionDescription(entry: DictionaryEntryLike | null): string | null {
+export function buildDefinitionDescription(entry: DictionaryEntryLike | null): string | null {
   if (!entry?.heteronyms || entry.heteronyms.length === 0) return null;
   const defs: string[] = [];
   for (const heteronym of entry.heteronyms) {
@@ -120,7 +120,7 @@ function isViteInternalRequest(url: URL): boolean {
   );
 }
 
-function shouldRenderHtmlShell(request: Request, url: URL): boolean {
+export function shouldRenderHtmlShell(request: Request, url: URL): boolean {
   const { pathname } = url;
   console.log('🔍 [Index] 判斷是否需要渲染 HTML 殼:', pathname);
   if (request.method !== 'GET' && request.method !== 'HEAD') return false;
@@ -529,8 +529,6 @@ export async function dispatch(request: Request, env: Env): Promise<Response> {
         return new Response('代理請求失敗', { status: 502 });
       });
     }
-
-    if (staticResponse && staticResponse.status !== 404) return staticResponse;
 
     const isPngRequest = url.pathname.endsWith('.png');
     if (isPngRequest && (!staticResponse || staticResponse.status === 404)) {

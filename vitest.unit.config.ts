@@ -36,10 +36,10 @@ export default defineConfig({
       // goal is a monotonically-non-decreasing ratchet toward 100%. See
       // CLAUDE.md "Combined coverage across tiers" for the workflow.
       thresholds: {
-        statements: 94,
-        branches: 89,
-        functions: 97,
-        lines: 96,
+        statements: 100,
+        branches: 100,
+        functions: 100,
+        lines: 100,
       },
     },
   },

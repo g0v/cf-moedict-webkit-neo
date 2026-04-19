@@ -20,6 +20,8 @@ import {
   bucketOf,
   handleDictionaryAPI,
   lookupDictionaryEntry,
+  performFuzzySearch,
+  stripAudioIdAndShape,
 } from '../../src/api/handleDictionaryAPI';
 
 interface R2Stub {
@@ -640,6 +642,175 @@ describe('fillBucket — recovery branches', () => {
     const { request, url } = makeRequest('/api/%E8%90%8C.json');
     const res = await handleDictionaryAPI(request, url, env);
     expect(res.status).toBe(404);
+  });
+});
+
+describe('stripAudioIdAndShape — null/non-object guard (line 652-654)', () => {
+  // When called with anything that isn't an object, returns the default
+  // `{ heteronyms: [] }` shape. The normal converter pipeline guarantees an
+  // object here, so this guard is only reachable via direct invocation.
+
+  it('returns { heteronyms: [] } for null input', () => {
+    expect(stripAudioIdAndShape(null)).toEqual({ heteronyms: [] });
+  });
+
+  it('returns { heteronyms: [] } for undefined input', () => {
+    expect(stripAudioIdAndShape(undefined)).toEqual({ heteronyms: [] });
+  });
+
+  it('returns { heteronyms: [] } for primitive inputs', () => {
+    expect(stripAudioIdAndShape(42)).toEqual({ heteronyms: [] });
+    expect(stripAudioIdAndShape('string')).toEqual({ heteronyms: [] });
+    expect(stripAudioIdAndShape(true)).toEqual({ heteronyms: [] });
+  });
+
+  it('passes an object through (non-null object branch)', () => {
+    const input = { title: 't', heteronyms: [{ a: 1, audio_id: 'x' }] };
+    const out = stripAudioIdAndShape(input);
+    expect(out.title).toBe('t');
+    expect(out.heteronyms).toEqual([{ a: 1 }]);
+  });
+});
+
+describe('performFuzzySearch — whitespace-only input (line 740 cleanText fallback)', () => {
+  // `terms` comes from Array.from(cleanText).filter(c.trim()), so whitespace
+  // chars get filtered. For input like '   ', terms is [] but cleanText is
+  // truthy, which exercises the `cleanText ? [cleanText] : []` arm.
+
+  it('returns [cleanText] when input is pure whitespace', async () => {
+    const out = await performFuzzySearch('   ');
+    expect(out).toEqual(['   ']);
+  });
+
+  it('returns [] when cleanText is empty after `~`/`\\`` stripping', async () => {
+    expect(await performFuzzySearch('')).toEqual([]);
+    expect(await performFuzzySearch('`~`~')).toEqual([]);
+  });
+});
+
+describe('convertDictionaryStructure — unmapped keys fallback (line 484)', () => {
+  // KEY_MAP is keyed by short codes (h, t, c, ...); keys not in the map fall
+  // back to themselves via `KEY_MAP[key] || key`. Feed a heteronym with a
+  // custom field to exercise the nested-object walker (top-level non-
+  // {title,heteronyms} fields are filtered by stripAudioIdAndShape, so the
+  // custom key must live inside a heteronym to survive to the response).
+
+  it('preserves an unmapped heteronym field via /raw', async () => {
+    const env = makeEnv({
+      [BUCKET_PATH]: makeBucketJson({
+        t: '萌',
+        h: [{ b: 'ㄇㄥˊ', d: [{ f: '發芽' }], customField: 'keepme' }],
+      }),
+    });
+    const { request, url } = makeRequest('/raw/%E8%90%8C.json');
+    const res = await handleDictionaryAPI(request, url, env);
+    expect(res.status).toBe(200);
+    const body = await res.json() as { heteronyms: Array<Record<string, unknown>> };
+    // customField isn't in KEY_MAP → walker falls back to the original key.
+    expect(body.heteronyms[0].customField).toBe('keepme');
+  });
+});
+
+describe('convertToUniFormat / convertToPuaFormat — Array.isArray false (L679, L689)', () => {
+  // When the pack entry has no `h` (heteronyms) key, convertDictionaryStructure
+  // still returns an object, so `Array.isArray(converted.heteronyms)` is false
+  // and addBopomofo2 is skipped. Cover both the /uni and /pua variants of
+  // that branch (the /raw variant is already covered elsewhere).
+
+  it('/uni on an entry without heteronyms returns heteronyms: []', async () => {
+    const env = makeEnv({
+      [BUCKET_PATH]: makeBucketJson({ t: '萌', c: 12, r: '艸' }),
+    });
+    const { request, url } = makeRequest('/uni/%E8%90%8C.json');
+    const res = await handleDictionaryAPI(request, url, env);
+    expect(res.status).toBe(200);
+    const body = await res.json() as { title?: unknown; heteronyms: unknown[] };
+    expect(body.title).toBe('萌');
+    expect(body.heteronyms).toEqual([]);
+  });
+
+  it('/pua on an entry without heteronyms returns heteronyms: []', async () => {
+    const env = makeEnv({
+      [BUCKET_PATH]: makeBucketJson({ t: '萌', c: 12, r: '艸' }),
+    });
+    const { request, url } = makeRequest('/pua/%E8%90%8C.json');
+    const res = await handleDictionaryAPI(request, url, env);
+    expect(res.status).toBe(200);
+    const body = await res.json() as { title?: unknown; heteronyms: unknown[] };
+    expect(body.title).toBe('萌');
+    expect(body.heteronyms).toEqual([]);
+  });
+});
+
+describe('handleSubRouteAPI — catch block (lines 152-158)', () => {
+  // `handleSubRouteAPI` now uses `return await`, so rejections from the
+  // language sub-route handlers propagate into the try/catch. The
+  // language handler's radical path (text starting with '@') calls
+  // env.DICTIONARY.get directly — outside fillBucket's swallowing catch —
+  // so a throwing env reaches this catch. That covers both arms of the
+  // `error instanceof Error ? error.message : ...` ternary on line 155.
+
+  function makeThrowingEnv(err: unknown): { DICTIONARY: R2Stub } {
+    return {
+      DICTIONARY: {
+        async get() {
+          throw err;
+        },
+      },
+    };
+  }
+
+  it('returns 500 with error.message when the handler throws a real Error', async () => {
+    const env = makeThrowingEnv(new Error('R2 exploded'));
+    // /a/@萌.json → sub-route → handleLanguageSubRoute radical branch →
+    // direct env.get throw → caught by handleSubRouteAPI.
+    const { request, url } = makeRequest('/a/%40%E8%90%8C.json');
+    const res = await handleDictionaryAPI(request, url, env);
+    expect(res.status).toBe(500);
+    const body = await res.json() as { error: string; message: string };
+    expect(body.error).toBe('Internal Server Error');
+    expect(body.message).toBe('R2 exploded');
+  });
+
+  it('returns 500 with the default message when the handler throws a non-Error', async () => {
+    const env = makeThrowingEnv({ kind: 'weird' });
+    const { request, url } = makeRequest('/a/%40%E8%90%8C.json');
+    const res = await handleDictionaryAPI(request, url, env);
+    expect(res.status).toBe(500);
+    const body = await res.json() as { error: string; message: string };
+    expect(body.message).toBe('Failed to process sub-route request');
+  });
+
+  it('also catches on the list (=) sub-route path', async () => {
+    // handleLanguageSubRoute's '=' branch calls env.get directly too, so
+    // the catch also fires for /a/=成語.json with a throwing env.
+    const env = makeThrowingEnv(new Error('list failure'));
+    const { request, url } = makeRequest('/a/%3D%E6%88%90%E8%AA%9E.json');
+    const res = await handleDictionaryAPI(request, url, env);
+    expect(res.status).toBe(500);
+  });
+});
+
+describe('handleDictionaryAPI — top-level catch non-Error branch (line 119)', () => {
+  // The top-level try/catch at line 91 catches throws from handleRadicalLookup,
+  // handleListLookup, and the fuzzy-search path. The `error instanceof Error`
+  // arm is already covered; feed a non-Error throw to hit the default-message
+  // arm. /api/@萌.json routes via the top-level radical branch (not sub-route),
+  // which calls env.get directly and re-throws.
+
+  it('returns 500 with the default message when a non-Error is thrown', async () => {
+    const env = {
+      DICTIONARY: {
+        async get() {
+          throw 'bare-string-thrown';
+        },
+      },
+    };
+    const { request, url } = makeRequest('/api/%40%E8%90%8C.json');
+    const res = await handleDictionaryAPI(request, url, env);
+    expect(res.status).toBe(500);
+    const body = await res.json() as { message: string };
+    expect(body.message).toBe('Failed to process dictionary request');
   });
 });
 

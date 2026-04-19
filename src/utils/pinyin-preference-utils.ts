@@ -68,7 +68,7 @@ function toneSandhi(segment: string): string {
   if (/[aeiou]\u0304r?h/i.test(segment)) {
     return segment.replace(/\u0304/g, '\u0300');
   }
-  return segment.replace(/([\u0300\u0332\u0306\u0304])/g, (tone) => DT_TONES_SANDHI[tone] ?? tone);
+  return segment.replace(/([\u0300\u0332\u0306\u0304])/g, (tone) => DT_TONES_SANDHI[tone]);
 }
 
 function tonePoj(segment: string): string {
@@ -179,7 +179,7 @@ function convertPinyinT(yin: string, isBody = true): string {
       .replace(/o([^.!?,\w\s\u2011]*)(?![^\w\s\u2011]*[knm])/g, 'o$1r')
       .replace(/O([^\w\s\u2011]*)O/g, 'o$1')
       .replace(/O([^.!?,\w\s\u2011]*)o([^.!?,\w\s\u2011]*)r?/g, 'O$1$2')
-      .replace(/([\u0300-\u0302\u0304\u0307\u030D])/g, (tone) => DT_TONES[tone] ?? tone)
+      .replace(/([\u0300-\u0302\u0304\u0307\u030D])/g, (tone) => DT_TONES[tone])
       .replace(/([aeiou])(r?[ptkh])/g, '$1\u0304$2')
       .replace(/\u200B/g, '')
       .replace(/[-\u2011][-\u2011]([aeiou])(?![\u0300\u0332\u0306\u0304])/g, '$1\u030A')
@@ -269,7 +269,7 @@ function convertPinyinA(yin: string): string {
   else if (/ui/.test(base)) base = base.replace(/i/, 'iīíǐìi'[tone]);
   else if (/u/.test(base)) base = base.replace(/u/, 'uūúǔùu'[tone]);
   else if (/ü/.test(base)) base = base.replace(/ü/, 'üǖǘǚǜü'[tone]);
-  else if (/i/.test(base)) base = base.replace(/i/, 'iīíǐìi'[tone]);
+  else base = base.replace(/i/, 'iīíǐìi'[tone]);
 
   return `${base}${rSuffix}`;
 }
@@ -318,17 +318,17 @@ export function trsToBpmf(lang: Lang, trs: string): string {
       let tone = '';
       let token = chunk.toLowerCase();
       token = token.replace(/([\u0300-\u0302\u0304\u030D])/g, (mark) => {
-        tone = TAIWANESE_TONES[mark] || tone;
+        tone = TAIWANESE_TONES[mark];
         return '';
       });
       token = token.replace(/^(tsh?|[sj])i/, '$1ii');
       token = token.replace(/ok$/, 'ook');
-      token = token.replace(CV_RE, (_, consonant: string, rest: string) => `${TAIWANESE_CONSONANTS[consonant] || consonant}${rest}`);
+      token = token.replace(CV_RE, (_, consonant: string, rest: string) => `${TAIWANESE_CONSONANTS[consonant]}${rest}`);
       token = token.replace(/[ptkh]$/, (ending) => {
         tone = TAIWANESE_TONES[`${ending}${tone}`] || tone;
         return '';
       });
-      token = token.replace(V_RE, (vowel) => TAIWANESE_VOWELS[vowel] || vowel);
+      token = token.replace(V_RE, (vowel) => TAIWANESE_VOWELS[vowel]);
       return token + (tone || '\uFFFD');
     })
     .replace(/[- ]/g, '')

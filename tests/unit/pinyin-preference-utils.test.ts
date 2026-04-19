@@ -493,6 +493,16 @@ describe('convertPinyinByLang — lang t (Taiwanese)', () => {
       expect(out.length).toBeGreaterThan(0);
     });
 
+    it('tonePoj: places tone on plain o when no oa[inht]/oeh cluster matches', () => {
+      // 'to\u0301' → noTone='to'; no oa[inht], no oeh, but /o/ matches → places tone on o.
+      expect(convertPinyinByLang('t', 'to\u0301')).toBe('to\u0301');
+    });
+
+    it('tonePoj: places tone on plain e when no o present', () => {
+      // 'pe\u0301' → noTone='pe'; no oa/oeh/o, but /e/ matches → places tone on e.
+      expect(convertPinyinByLang('t', 'pe\u0301')).toBe('pe\u0301');
+    });
+
     it('tonePoj: fallbacks to a/u/i/ng/m when no o/e present', () => {
       // Output uses combining tone marks (U+0301 after the vowel), not precomposed chars.
       expect(convertPinyinByLang('t', 'a\u0301')).toBe('a\u0301');

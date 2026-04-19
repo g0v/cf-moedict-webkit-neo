@@ -115,7 +115,7 @@ function lookupXref(
           return normalizedTarget;
         }
       }
-      console.log('[xref-switch] lookupXref miss (xref.json)', { fromLang, toLang, fromWord, hasToLangMap: true, raw: raw ?? '(no key)' });
+      console.log('[xref-switch] lookupXref miss (xref.json)', { fromLang, toLang, fromWord, hasToLangMap: true, raw: raw || '(no key)' });
     } else {
       console.log('[xref-switch] lookupXref miss (xref.json)', { fromLang, toLang, fromWord, hasToLangMap: false, xrefKeys: Object.keys(xrefData) });
     }

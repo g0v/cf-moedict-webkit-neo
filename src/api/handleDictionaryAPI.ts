@@ -140,15 +140,15 @@ async function handleSubRouteAPI(
 ): Promise<Response> {
   try {
     if (routeType === 'a' || routeType === 't' || routeType === 'h' || routeType === 'c') {
-      return handleLanguageSubRoute(request, routeType, text, env);
+      return await handleLanguageSubRoute(request, routeType, text, env);
     }
     if (routeType === 'raw') {
-      return handleRawRoute(request, text, env);
+      return await handleRawRoute(request, text, env);
     }
     if (routeType === 'uni') {
-      return handleUniRoute(request, text, env);
+      return await handleUniRoute(request, text, env);
     }
-    return handlePuaRoute(request, text, env);
+    return await handlePuaRoute(request, text, env);
   } catch (error) {
     const errorResponse: ErrorResponse = {
       error: 'Internal Server Error',
@@ -451,7 +451,7 @@ function decodeLangPart(lang: DictionaryLang, part = ''): string {
   part = part.replace(/"([hbpdcnftrelsaqETAVCDS_=])":/g, (_m, k: string) => `"${KEY_MAP[k]}":`);
 
   const HASH_OF: Record<DictionaryLang, string> = { a: '#', t: "#'", h: '#:', c: '#~' };
-  const h = `./#${HASH_OF[lang] || '#'}`;
+  const h = `./#${HASH_OF[lang]}`;
 
   part = part.replace(
     /([「【『（《])`([^~]+)~([。，、；：？！─…．·－」』》〉]+)/g,
@@ -648,7 +648,7 @@ export function addBopomofo2(heteronyms: Array<Record<string, unknown>>): Array<
   });
 }
 
-function stripAudioIdAndShape(data: unknown): { title?: unknown; heteronyms: Array<Record<string, unknown>> } {
+export function stripAudioIdAndShape(data: unknown): { title?: unknown; heteronyms: Array<Record<string, unknown>> } {
   if (!data || typeof data !== 'object') {
     return { heteronyms: [] };
   }
