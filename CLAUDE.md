@@ -28,20 +28,27 @@ commands/         # 上傳腳本（upload_dictionary.sh、upload_assets.sh）
 
 ## 常用指令
 
-```bash
-npm run dev       # 本地開發
-npm run build     # 建置
-npm run deploy    # 建置並部署至 Cloudflare
-npm run lint      # ESLint 檢查
-npm run typecheck # tsc -b --noEmit
+Package manager is **Bun** (`bun install`, `bun run <script>`). Lockfile is `bun.lock`. Anything
+that used to be `npm run X` now runs as `bun run X`; `npm install` still works if needed for
+tooling that doesn't understand `bun.lock`, but CI and the documented flow use Bun.
 
-# Tests (three tiers)
-npm run test:unit          # Vitest + happy-dom (src/utils, src/ssr, src/api)
-npm run test:integration   # Miniflare-backed worker API tests (hermetic, seeded from data/dictionary/)
-npm run test:e2e           # Playwright browser tests (excludes visual regression)
-npm run test:e2e:visual    # Playwright visual regression (baselines per-OS)
-npm run test:e2e:update    # Regenerate Playwright snapshots for current platform
-npm run test               # Run all three tiers sequentially
+```bash
+bun install       # install dependencies (replaces npm install)
+bun run dev       # 本地開發
+bun run build     # 建置
+bun run deploy    # 建置並部署至 Cloudflare
+bun run lint      # ESLint 檢查
+bun run typecheck # tsc -b --noEmit
+
+# Tests (three tiers) — runner is still Vitest + Playwright under the hood;
+# Bun is just the script host. `bun test` migration is blocked on oven-sh/bun#16140
+# (`vi.resetModules` missing), so stay on Vitest for now.
+bun run test:unit          # Vitest + happy-dom (src/utils, src/ssr, src/api, worker)
+bun run test:integration   # Miniflare-backed worker API tests (hermetic, seeded from data/dictionary/)
+bun run test:e2e           # Playwright browser tests (excludes visual regression)
+bun run test:e2e:visual    # Playwright visual regression (baselines per-OS)
+bun run test:e2e:update    # Regenerate Playwright snapshots for current platform
+bun run test               # Run all three tiers sequentially
 ```
 
 ### Visual regression baselines
