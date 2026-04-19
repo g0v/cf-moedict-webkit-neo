@@ -53,7 +53,7 @@ function createTextResponse(request: Request, payload: string, cacheControl: str
 	});
 }
 
-function normalizeLookupTerm(input: string): string {
+export function normalizeLookupTerm(input: string): string {
 	return String(input || '')
 		.toLowerCase()
 		.normalize('NFD')
@@ -63,7 +63,7 @@ function normalizeLookupTerm(input: string): string {
 		.replace(/[^a-z]/g, '');
 }
 
-function parsePinyinLookupPath(pathname: string): { lang: LookupLang; type: string; term: string } | null {
+export function parsePinyinLookupPath(pathname: string): { lang: LookupLang; type: string; term: string } | null {
 	const match = pathname.match(/^\/api\/lookup\/pinyin\/([athc])\/([^/]+)\/(.+)\.json$/);
 	if (!match) return null;
 	const [, lang, rawType, rawTerm] = match;
@@ -77,7 +77,7 @@ function parsePinyinLookupPath(pathname: string): { lang: LookupLang; type: stri
 	};
 }
 
-function parseTrsLookupPath(pathname: string): { term: string } | null {
+export function parseTrsLookupPath(pathname: string): { term: string } | null {
 	const noApi = pathname.match(/^\/api\/lookup\/trs\/(.+)$/);
 	if (noApi) {
 		const term = normalizeLookupTerm(decodeURIComponent(noApi[1]));

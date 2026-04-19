@@ -1,0 +1,248 @@
+import { describe, expect, it } from 'vitest';
+import {
+  resolveHeadByPath,
+  applyHeadToDocument,
+  applyHeadByPath,
+  getDictionaryHead,
+  escapeHeadContent,
+} from '../../src/ssr/head';
+
+const DEFAULT_DESCRIPTION =
+  '共收錄十六萬筆國語、兩萬筆臺語、一萬四千筆客語條目，每個字詞都可以輕按連到說明，並提供 Android 及 iOS 離線 App。';
+const DEFAULT_IMAGE = 'https://www.moedict.tw/assets/images/icon.png';
+
+describe('resolveHeadByPath', () => {
+  describe('default / home route', () => {
+    it('returns default head for /', () => {
+      const head = resolveHeadByPath('/');
+      expect(head.title).toBe('萌典');
+      expect(head.description).toBe(DEFAULT_DESCRIPTION);
+      expect(head.ogUrl).toBe('https://www.moedict.tw');
+      expect(head.ogImage).toBe(DEFAULT_IMAGE);
+      expect(head.twitterSite).toBe('@moedict');
+      expect(head.twitterCreator).toBe('@audreyt');
+    });
+
+    it('returns default head for empty pathname', () => {
+      expect(resolveHeadByPath('').title).toBe('萌典');
+    });
+
+    it('strips query string before routing', () => {
+      expect(resolveHeadByPath('/?foo=bar').title).toBe('萌典');
+    });
+
+    it('strips trailing slashes', () => {
+      expect(resolveHeadByPath('///').title).toBe('萌典');
+    });
+  });
+
+  describe('about / privacy routes', () => {
+    it('returns about head for /about', () => {
+      const head = resolveHeadByPath('/about');
+      expect(head.title).toBe('關於本站 - 萌典');
+      expect(head.description).toContain('萌典資料來源');
+      expect(head.ogUrl).toBe('https://www.moedict.tw/about');
+    });
+
+    it('returns about head for /about.html (legacy alias)', () => {
+      expect(resolveHeadByPath('/about.html').title).toBe('關於本站 - 萌典');
+    });
+  });
+
+  describe('radical routes', () => {
+    it('returns empty-radical head for /@', () => {
+      const head = resolveHeadByPath('/@');
+      expect(head.title).toBe('部首表 - 萌典');
+      expect(head.description).toContain('部首索引');
+    });
+
+    it('returns empty-radical head for /~@ with 兩岸 brand', () => {
+      const head = resolveHeadByPath('/~@');
+      expect(head.title).toBe('部首表 - 兩岸萌典');
+      expect(head.description).toContain('兩岸');
+    });
+
+    it('resolves specific radical /@木 to 木 部', () => {
+      const head = resolveHeadByPath('/@木');
+      expect(head.title).toBe('木 部 - 萌典');
+    });
+
+    it('resolves radical with 兩岸 brand /~@水', () => {
+      const head = resolveHeadByPath('/~@水');
+      expect(head.title).toBe('水 部 - 兩岸萌典');
+    });
+
+    it('decodes percent-encoded radical', () => {
+      expect(resolveHeadByPath('/@%E6%9C%A8').title).toBe('木 部 - 萌典');
+    });
+  });
+
+  describe('starred routes', () => {
+    it('routes /=* to starred page (a)', () => {
+      expect(resolveHeadByPath('/=*').title).toBe('字詞紀錄簿 - 萌典');
+    });
+
+    it("routes /'=* to starred page (t)", () => {
+      expect(resolveHeadByPath("/'=*").title).toBe('字詞紀錄簿 - 台語萌典');
+    });
+
+    it('routes /:=* to starred page (h)', () => {
+      expect(resolveHeadByPath('/:=*').title).toBe('字詞紀錄簿 - 客語萌典');
+    });
+
+    it('routes /~=* to starred page (c)', () => {
+      expect(resolveHeadByPath('/~=*').title).toBe('字詞紀錄簿 - 兩岸萌典');
+    });
+  });
+
+  describe('group / category routes', () => {
+    it('routes /=近義詞 as group list', () => {
+      expect(resolveHeadByPath('/=近義詞').title).toBe('近義詞 - 分類索引 - 萌典');
+    });
+
+    it("routes /'=台諺語 as group list (t)", () => {
+      expect(resolveHeadByPath("/'=台諺語").title).toBe('台諺語 - 分類索引 - 台語萌典');
+    });
+
+    it('routes /~=成語 as group list (c)', () => {
+      expect(resolveHeadByPath('/~=成語').title).toBe('成語 - 分類索引 - 兩岸萌典');
+    });
+
+    it('handles empty category (=)', () => {
+      expect(resolveHeadByPath('/=').title).toBe('分類索引 - 萌典');
+    });
+  });
+
+  describe('dictionary routes', () => {
+    it('routes /萌 to 萌 - 萌典', () => {
+      const head = resolveHeadByPath('/萌');
+      expect(head.title).toBe('萌 - 萌典');
+      expect(head.ogImage).toBe('https://www.moedict.tw/%E8%90%8C.png');
+      expect(head.twitterImage).toBe(head.ogImage);
+    });
+
+    it("routes /'食 to Taiwanese dictionary head", () => {
+      const head = resolveHeadByPath("/'食");
+      expect(head.title).toBe('食 - 台語萌典');
+      expect(head.description).toContain('台語');
+    });
+
+    it('routes /:字 to Hakka dictionary head', () => {
+      expect(resolveHeadByPath('/:字').title).toBe('字 - 客語萌典');
+    });
+
+    it('routes /~上訴 to 兩岸 dictionary head', () => {
+      expect(resolveHeadByPath('/~上訴').title).toBe('上訴 - 兩岸萌典');
+    });
+
+    it('decodes percent-encoded word in path', () => {
+      expect(resolveHeadByPath('/%E8%90%8C').title).toBe('萌 - 萌典');
+    });
+
+    it('canonical URL is percent-encoded even though segment is decoded', () => {
+      const head = resolveHeadByPath('/萌');
+      expect(head.ogUrl).toMatch(/^https:\/\/www\.moedict\.tw\//);
+      expect(head.ogUrl).toContain(encodeURI('/萌'));
+    });
+
+    it('ignores invalid percent-encoding gracefully (does not throw)', () => {
+      const head = resolveHeadByPath('/%E8');
+      expect(head.title.endsWith('- 萌典')).toBe(true);
+    });
+  });
+
+  describe('getDictionaryHead direct API', () => {
+    it('produces the same head as router for a plain word', () => {
+      const fromRoute = resolveHeadByPath('/萌');
+      const direct = getDictionaryHead('萌', 'a', '/萌');
+      expect(direct).toEqual(fromRoute);
+    });
+
+    it('falls back to 萌 image when word is blank', () => {
+      const head = getDictionaryHead('', 'a');
+      expect(head.title).toBe('萌典');
+      expect(head.ogImage).toBe('https://www.moedict.tw/%E8%90%8C.png');
+    });
+
+    it('strips HTML tags from word input', () => {
+      const head = getDictionaryHead('<b>萌</b>', 'a');
+      expect(head.title).toBe('萌 - 萌典');
+    });
+  });
+
+  describe('escapeHeadContent', () => {
+    it('escapes HTML metacharacters', () => {
+      expect(escapeHeadContent('<a href="x">&\'</a>')).toBe(
+        '&lt;a href=&quot;x&quot;&gt;&amp;&#39;&lt;/a&gt;',
+      );
+    });
+
+    it('handles null/undefined safely', () => {
+      expect(escapeHeadContent('')).toBe('');
+      expect(escapeHeadContent(null as unknown as string)).toBe('');
+    });
+  });
+});
+
+describe('applyHeadToDocument / applyHeadByPath', () => {
+  function resetDocument() {
+    document.head.innerHTML = `
+      <meta name="description" content="" />
+      <meta property="og:title" content="" />
+      <meta property="og:description" content="" />
+      <meta property="og:url" content="" />
+      <meta property="og:image" content="" />
+      <meta property="og:image:type" content="" />
+      <meta property="og:image:width" content="" />
+      <meta property="og:image:height" content="" />
+      <meta name="twitter:title" content="" />
+      <meta name="twitter:description" content="" />
+      <meta name="twitter:image" content="" />
+      <meta name="twitter:site" content="" />
+      <meta name="twitter:creator" content="" />
+    `;
+    document.title = '';
+  }
+
+  it('writes every meta tag when applying a dictionary head', () => {
+    resetDocument();
+    applyHeadByPath('/萌');
+    expect(document.title).toBe('萌 - 萌典');
+    expect(document.head.querySelector('meta[name="description"]')?.getAttribute('content'))
+      .toBe(DEFAULT_DESCRIPTION);
+    expect(document.head.querySelector('meta[property="og:image"]')?.getAttribute('content'))
+      .toBe('https://www.moedict.tw/%E8%90%8C.png');
+    expect(document.head.querySelector('meta[name="twitter:site"]')?.getAttribute('content'))
+      .toBe('@moedict');
+  });
+
+  it('updates existing tags in place without appending duplicates', () => {
+    resetDocument();
+    applyHeadByPath('/萌');
+    applyHeadByPath('/about');
+    const descriptions = document.head.querySelectorAll('meta[name="description"]');
+    expect(descriptions.length).toBe(1);
+    expect(descriptions[0].getAttribute('content')).toContain('萌典資料來源');
+  });
+
+  it('applyHeadToDocument does nothing when document is missing', () => {
+    const saved = globalThis.document;
+    // @ts-expect-error – deliberately deleting document for test
+    delete globalThis.document;
+    expect(() => applyHeadToDocument({
+      title: 'x',
+      description: 'x',
+      ogTitle: 'x',
+      ogDescription: 'x',
+      ogUrl: 'x',
+      ogImage: 'x',
+      ogImageType: 'x',
+      ogImageWidth: 'x',
+      ogImageHeight: 'x',
+      twitterImage: 'x',
+      twitterSite: 'x',
+      twitterCreator: 'x',
+    })).not.toThrow();
+    globalThis.document = saved;
+  });
+});

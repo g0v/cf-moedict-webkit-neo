@@ -122,7 +122,7 @@ export async function handleDictionaryAPI(
   }
 }
 
-function parseSubRoute(pathname: string): { routeType: SubRouteType; text: string } | null {
+export function parseSubRoute(pathname: string): { routeType: SubRouteType; text: string } | null {
   const match = pathname.match(/^\/(a|t|h|c|raw|uni|pua)\/(.+?)\.json$/);
   if (!match) return null;
   const [, routeType, encodedText] = match;
@@ -253,7 +253,7 @@ async function lookupRawSource(text: string, env: DictionaryEnv): Promise<Dictio
   return bucketResult.err ? null : bucketResult.data;
 }
 
-function parseTextFromUrl(pathname: string): { lang: DictionaryLang; cleanText: string } {
+export function parseTextFromUrl(pathname: string): { lang: DictionaryLang; cleanText: string } {
   const noSuffix = pathname.replace('/api/', '').replace(/\.json$/, '');
   const noLeadingSlash = noSuffix.replace(/^\//, '');
   const decoded = decodeURIComponent(noLeadingSlash);
@@ -310,7 +310,7 @@ function jsonResponse(request: Request, payload: unknown, status = 200, pretty =
   });
 }
 
-function bucketOf(text: string, lang: DictionaryLang): string {
+export function bucketOf(text: string, lang: DictionaryLang): string {
   if (/^[=@]/.test(text)) {
     return text[0];
   }
@@ -516,7 +516,7 @@ function cleanRawData(data: unknown): unknown {
   return cleanObject(data);
 }
 
-function convertPuaToIDS(data: unknown): unknown {
+export function convertPuaToIDS(data: unknown): unknown {
   function convertObject(obj: unknown): unknown {
     if (Array.isArray(obj)) {
       return obj.map(convertObject);
@@ -541,7 +541,7 @@ function convertPuaToIDS(data: unknown): unknown {
   return convertObject(data);
 }
 
-function convertPuaToCharCode(data: unknown): unknown {
+export function convertPuaToCharCode(data: unknown): unknown {
   function convertString(value: string): string {
     let output = '';
     for (const char of value) {
@@ -575,7 +575,7 @@ function convertPuaToCharCode(data: unknown): unknown {
   return convertObject(data);
 }
 
-function addBopomofo2(heteronyms: Array<Record<string, unknown>>): Array<Record<string, unknown>> {
+export function addBopomofo2(heteronyms: Array<Record<string, unknown>>): Array<Record<string, unknown>> {
   function applyTone(syllable: string, tone: string): string {
     if (!tone || tone === '˙') return syllable;
     const toneMap: Record<string, Record<string, string>> = {
@@ -734,7 +734,7 @@ async function getCrossReferences(
   }
 }
 
-async function performFuzzySearch(text: string): Promise<string[]> {
+export async function performFuzzySearch(text: string): Promise<string[]> {
   const cleanText = text.replace(/[`~]/g, '');
   const terms = Array.from(cleanText).filter((char) => char.trim());
   return terms.length > 0 ? terms : cleanText ? [cleanText] : [];

@@ -1,0 +1,147 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '22'
+
+jobs:
+  static:
+    name: Lint / typecheck / build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - run: npm run lint
+      - run: npx tsc -b --noEmit
+      - run: npm run build
+
+  unit:
+    name: Unit tests (vitest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - run: npm run test:unit -- --reporter=default --reporter=junit --outputFile=unit-report.xml
+      - name: Upload unit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-report
+          path: unit-report.xml
+          if-no-files-found: ignore
+
+  integration:
+    name: Worker integration tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - run: npm run test:integration
+
+  e2e:
+    name: E2E (playwright chromium)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      E2E_SKIP_BUILD: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Get Playwright version
+        id: pw
+        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        id: pw-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: pw-${{ runner.os }}-${{ steps.pw.outputs.version }}
+      - name: Install Playwright browsers
+        if: steps.pw-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+      - name: Install Playwright OS deps (for cached browsers)
+        if: steps.pw-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+      - run: npm run build
+      - run: npm run test:e2e
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  visual:
+    name: Visual regression (playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Visual tests are opt-in: they require committed linux baselines in
+    # tests/e2e/visual-snapshots.spec.ts-snapshots/*-chromium-linux.png. If the
+    # baseline is missing, the job is a no-op (exit 0). See README for how
+    # to regenerate (needs Linux: use `act`, Codespaces, or a Linux runner).
+    continue-on-error: true
+    env:
+      E2E_SKIP_BUILD: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Check if linux baselines exist
+        id: baselines
+        run: |
+          if ls tests/e2e/visual-snapshots.spec.ts-snapshots/*-chromium-linux.png 2>/dev/null; then
+            echo "exist=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exist=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Install Playwright
+        if: steps.baselines.outputs.exist == 'true'
+        run: npx playwright install --with-deps chromium
+      - run: npm run build
+        if: steps.baselines.outputs.exist == 'true'
+      - run: npm run test:e2e:visual
+        if: steps.baselines.outputs.exist == 'true'
+      - name: Upload visual diff report
+        if: always() && steps.baselines.outputs.exist == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-report
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 14

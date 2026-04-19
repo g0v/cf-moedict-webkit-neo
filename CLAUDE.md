@@ -33,7 +33,22 @@ npm run dev       # 本地開發
 npm run build     # 建置
 npm run deploy    # 建置並部署至 Cloudflare
 npm run lint      # ESLint 檢查
+npm run typecheck # tsc -b --noEmit
+
+# Tests (three tiers)
+npm run test:unit          # Vitest + happy-dom (src/utils, src/ssr, src/api)
+npm run test:integration   # Miniflare-backed worker API tests (hermetic, seeded from data/dictionary/)
+npm run test:e2e           # Playwright browser tests (excludes visual regression)
+npm run test:e2e:visual    # Playwright visual regression (baselines per-OS)
+npm run test:e2e:update    # Regenerate Playwright snapshots for current platform
+npm run test               # Run all three tiers sequentially
 ```
+
+### Visual regression baselines
+
+Visual snapshots live at `tests/e2e/visual-snapshots.spec.ts-snapshots/`. Only `*-chromium-linux.png`
+is committed (see `.gitignore`); darwin/win32 variants are developer-local. To update Linux
+baselines, run the `visual` CI job with `--update-snapshots` (or use a Linux runner/Codespace).
 
 ## 環境設定
 

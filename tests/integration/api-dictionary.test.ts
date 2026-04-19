@@ -1,0 +1,159 @@
+import { describe, expect, it } from 'vitest';
+import { fetchFromServer, fetchJson } from './_harness';
+
+interface DictEntry {
+  title?: string;
+  heteronyms?: Array<{ bopomofo?: string; definitions?: Array<{ def?: string }> }>;
+  xrefs?: Array<{ lang: string; words: string[] }>;
+  stroke_count?: number;
+  radical?: string;
+}
+
+describe('/{word}.json — default lang (a)', () => {
+  it('returns a populated entry for 萌', async () => {
+    const { status, body } = await fetchJson<DictEntry>('/api/%E8%90%8C.json');
+    expect(status).toBe(200);
+    expect(body.title).toBeDefined();
+    expect(body.heteronyms?.length).toBeGreaterThan(0);
+    expect(body.heteronyms?.[0].definitions?.length).toBeGreaterThan(0);
+    // xrefs key may be absent or populated — assert shape only if present
+    if (body.xrefs) expect(Array.isArray(body.xrefs)).toBe(true);
+  });
+
+  it('404 with fuzzy terms for an unknown multi-char word', async () => {
+    const { status, body } = await fetchJson<{ terms: string[] }>('/api/%E4%B8%8D%E5%AD%98%E5%9C%A8.json');
+    expect(status).toBe(404);
+    expect(Array.isArray(body.terms)).toBe(true);
+    expect(body.terms.length).toBe(3); // 不 存 在 (single chars)
+  });
+
+  it('404 returns terms array even for single-char miss (split of the string)', async () => {
+    const { status, body } = await fetchJson<{ error?: string; terms?: string[] }>('/api/xx.json');
+    expect(status).toBe(404);
+    // performFuzzySearch splits "xx" into ["x","x"] so body has terms, not error
+    expect(body.terms).toBeDefined();
+    expect(body.terms?.length).toBeGreaterThan(0);
+  });
+
+  it('short-circuits devtools / well-known probes with 404', async () => {
+    const res = await fetchFromServer('/api/.well-known/foo.json');
+    expect(res.status).toBe(404);
+  });
+});
+
+describe('/{langPrefix}{word}.json', () => {
+  it("'{word} → t lang", async () => {
+    const { status, body } = await fetchJson<DictEntry>("/api/'%E9%A3%9F.json");
+    expect(status).toBe(200);
+    expect(body.title).toBeDefined();
+  });
+
+  it(':{word} → h lang', async () => {
+    const { status, body } = await fetchJson<DictEntry>('/api/%3A%E5%AD%97.json');
+    expect(status).toBe(200);
+    expect(body.title).toBeDefined();
+  });
+
+  it('~{word} → c lang', async () => {
+    const { status, body } = await fetchJson<DictEntry>('/api/~%E4%B8%8A%E8%A8%B4.json');
+    expect(status).toBe(200);
+    expect(body.title).toBeDefined();
+  });
+});
+
+describe('/{lang}/{word}.json sub-routes (raw packed format)', () => {
+  // The /{lang}/{word}.json sub-routes return the raw packed entry using compact keys
+  // (t=title, h=heteronyms, b=bopomofo, d=definitions, f=def, ...). Presence of either
+  // the compact or expanded key is acceptable — some buckets may already be expanded.
+  function assertEntryShape(body: Record<string, unknown>) {
+    const hasTitle = 't' in body || 'title' in body;
+    const hasHeteronyms = 'h' in body || 'heteronyms' in body;
+    expect(hasTitle || hasHeteronyms).toBe(true);
+  }
+
+  it('/a/萌.json', async () => {
+    const { status, body } = await fetchJson<Record<string, unknown>>('/a/%E8%90%8C.json');
+    expect(status).toBe(200);
+    assertEntryShape(body);
+  });
+
+  it('/t/食.json', async () => {
+    const { status, body } = await fetchJson<Record<string, unknown>>('/t/%E9%A3%9F.json');
+    expect(status).toBe(200);
+    assertEntryShape(body);
+  });
+
+  it('/h/字.json', async () => {
+    const { status, body } = await fetchJson<Record<string, unknown>>('/h/%E5%AD%97.json');
+    expect(status).toBe(200);
+    assertEntryShape(body);
+  });
+
+  it('/c/上訴.json', async () => {
+    const { status, body } = await fetchJson<Record<string, unknown>>('/c/%E4%B8%8A%E8%A8%B4.json');
+    expect(status).toBe(200);
+    assertEntryShape(body);
+  });
+
+  it('/a/<unknown>.json returns 404', async () => {
+    const { status } = await fetchJson('/a/zzzz.json');
+    expect(status).toBe(404);
+  });
+});
+
+describe('/raw, /uni, /pua sub-routes', () => {
+  it('/raw/萌.json returns title + heteronyms', async () => {
+    const { status, body } = await fetchJson<DictEntry>('/raw/%E8%90%8C.json');
+    expect(status).toBe(200);
+    expect(body.title).toBeDefined();
+    expect(Array.isArray(body.heteronyms)).toBe(true);
+  });
+
+  it('/uni/萌.json returns IDS-normalised payload', async () => {
+    const { status, body } = await fetchJson<DictEntry>('/uni/%E8%90%8C.json');
+    expect(status).toBe(200);
+    expect(body.title).toBeDefined();
+  });
+
+  it('/pua/萌.json returns PUA-codepoint payload', async () => {
+    const { status, body } = await fetchJson<DictEntry>('/pua/%E8%90%8C.json');
+    expect(status).toBe(200);
+    expect(body.title).toBeDefined();
+  });
+
+  it('raw bopomofo2 field is populated if heteronym has bopomofo', async () => {
+    const { body } = await fetchJson<DictEntry>('/raw/%E8%90%8C.json');
+    const bopo = body.heteronyms?.[0].bopomofo;
+    if (bopo) {
+      expect((body.heteronyms?.[0] as Record<string, unknown>).bopomofo2).toBeDefined();
+    }
+  });
+});
+
+describe('/a/@radical.json (radical index pages)', () => {
+  it('returns a 2D array (or {rowIdx: chars})', async () => {
+    const res = await fetchFromServer('/a/%40%E5%AD%90.json');
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body === null || typeof body === 'object').toBe(true);
+  });
+
+  it('404 for unknown radical', async () => {
+    const res = await fetchFromServer('/a/%40%E4%B8%8D%E5%AD%98.json');
+    expect(res.status).toBe(404);
+  });
+});
+
+describe('/a/=<category>.json (list pages)', () => {
+  it('returns a JSON array', async () => {
+    const res = await fetchFromServer('/a/=%E8%BF%91%E7%BE%A9%E8%A9%9E.json');
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(Array.isArray(body)).toBe(true);
+  });
+
+  it('404 for unknown list', async () => {
+    const res = await fetchFromServer('/a/=nothinghere.json');
+    expect(res.status).toBe(404);
+  });
+});

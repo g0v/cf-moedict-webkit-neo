@@ -33,3 +33,20 @@ dist-ssr
 # wrangler.jsonc
 public/search-index
 data/dictionary/search-index
+
+# Test artifacts
+tests/.build/
+playwright-report/
+test-results/
+coverage/
+unit-report.xml
+
+# Visual-regression: commit only linux baselines; local runs generate darwin/win32 variants.
+tests/e2e/**/*-chromium-darwin.png
+tests/e2e/**/*-chromium-win32.png
+tests/e2e/**/*-webkit-darwin.png
+tests/e2e/**/*-webkit-linux.png
+tests/e2e/**/*-webkit-win32.png
+tests/e2e/**/*-firefox-darwin.png
+tests/e2e/**/*-firefox-linux.png
+tests/e2e/**/*-firefox-win32.png

@@ -211,7 +211,7 @@ export async function handleImageGeneration(url: URL, env: Env): Promise<Respons
  * 根據字體參數獲取字體名稱
  * 複製原本 moedict-webkit 的 font-of 函數邏輯
  */
-function getFontName(fontParam: string): string {
+export function getFontName(fontParam: string): string {
 	// 全字庫字體
 	if (/sung/i.test(fontParam)) return 'TW-Sung';
 	if (/ebas/i.test(fontParam)) return 'EBAS';
