@@ -77,4 +77,57 @@ describe('decorateRuby', () => {
   it('handles missing input gracefully (no crash)', () => {
     expect(() => decorateRuby({ LANG: 'a' })).not.toThrow();
   });
+
+  it('clears bopomofo for Hakka (LANG=h)', () => {
+    const result = decorateRuby({
+      LANG: 'h',
+      title: '字',
+      bopomofo: 'ㄘˋ',
+      pinyin: 'cii^',
+    });
+    // Hakka pipeline always blanks bopomofo (the zhuyin column isn't shown
+    // for Hakka entries in the UI).
+    expect(result.bopomofo).toBe('');
+  });
+
+  it('clears both bopomofo and pinyin for LANG=c without <br>', () => {
+    const result = decorateRuby({
+      LANG: 'c',
+      title: '萌',
+      bopomofo: 'ㄇㄥˊ',
+      pinyin: 'méng',
+    });
+    // 兩岸詞典 only shows pronunciation for entries whose data carries a
+    // Mainland-specific form (the `<br>陸…` block). Plain entries get blanked.
+    expect(result.bopomofo).toBe('');
+    expect(result.pinyin).toBe('');
+  });
+
+  it('extracts the Mainland pronunciation after <br> for LANG=c', () => {
+    const result = decorateRuby({
+      LANG: 'c',
+      title: '萌',
+      bopomofo: 'ㄇㄥˊ<br>陸 ㄇㄥ',
+      pinyin: 'méng<br>陸 meng',
+    });
+    // The Mainland-form branch keeps content *after* <br>, stripped of the 陸
+    // marker — non-empty output proves we took the `if (processedBopomofo.match(/<br>/))`
+    // branch rather than the blanking else.
+    expect(result.bopomofo.length).toBeGreaterThan(0);
+    expect(result.pinyin.length).toBeGreaterThan(0);
+    expect(result.bopomofo).not.toContain('<br>');
+    expect(result.pinyin).not.toContain('<br>');
+    expect(result.cnSpecific).toBe('cn-specific');
+  });
+
+  it('computes rbspan for Taiwanese (LANG=t) hyphenated trs', () => {
+    // tsia̍h has no hyphen; use a compound like "tsia̍h-pn̄g" to exercise the
+    // rbspan counting branch for LANG=t.
+    const result = decorateRuby({
+      LANG: 't',
+      title: '食飯',
+      trs: 'tsia̍h-pn̄g',
+    });
+    expect(result.ruby).toMatch(/rbspan="\d+"/);
+  });
 });

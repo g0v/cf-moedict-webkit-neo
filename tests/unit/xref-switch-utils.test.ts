@@ -57,6 +57,25 @@ describe('computeLangSwitchPath', () => {
     setCurrentXrefs('萌', 'a', [{ lang: 't', words: ['發穎'] }]);
     expect(computeLangSwitchPath('a', 't', '%E8%90%8C')).toBe("/'發穎");
   });
+
+  it('tolerates malformed percent-encoded input (decodeURIComponent throws)', () => {
+    // "%E8%90" is truncated UTF-8 and raises URIError — the decodeWord
+    // try/catch falls back to normalizeWordToken on the raw input.
+    // No xrefs / LRU set → expect the default for target lang.
+    expect(computeLangSwitchPath('a', 't', '%E8%90')).toBe("/'發穎");
+  });
+
+  it("t → c falls back via 華語 xref (t→a), then slaps the ~ prefix", () => {
+    // entry.xrefs on the t entry says the Mandarin equivalent is 萌. With
+    // no direct t→c xref we expect the two-step path to produce /~萌.
+    setCurrentXrefs('發穎', 't', [{ lang: 'a', words: ['萌'] }]);
+    expect(computeLangSwitchPath('t', 'c', '發穎')).toBe('/~萌');
+  });
+
+  it('h → c also takes the 華語-bridge path when no direct xref exists', () => {
+    setCurrentXrefs('發芽', 'h', [{ lang: 'a', words: ['萌'] }]);
+    expect(computeLangSwitchPath('h', 'c', '發芽')).toBe('/~萌');
+  });
 });
 
 describe('computeLangSwitchPathAsync', () => {
