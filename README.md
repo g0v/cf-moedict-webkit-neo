@@ -192,3 +192,22 @@ bunx wrangler deploy
 - https://github.com/g0v/moedict-data
 
 建議更新順序可先從 `moedict-data`（原始/整理資料）→ `moedict-process`（資料轉換流程）→ `moedict-webkit`（前端與打包整合）開始檢查。
+
+
+## 自動測試
+
+```bash
+bun run test:unit
+```
+
+或用以下程序執行完整測試：
+
+1. 先安裝playwright： 
+```bash
+bunx playwright install
+```
+
+2. 執行：
+```bash
+bun run test
+```
