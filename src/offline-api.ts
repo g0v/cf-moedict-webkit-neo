@@ -118,7 +118,7 @@ XMLHttpRequest.prototype.open = function (
 };
 
 // Monkey-patch fetch to intercept /api/ requests
-window.fetch = async function (input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+const offlineFetch = async function (input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   let url: string;
   if (typeof input === 'string') {
     url = input;
@@ -142,5 +142,6 @@ window.fetch = async function (input: RequestInfo | URL, init?: RequestInit): Pr
 
   return originalFetch(input, init);
 };
+window.fetch = Object.assign(offlineFetch, window.fetch) as typeof window.fetch;
 
 } // end Capacitor guard

@@ -9,7 +9,7 @@
  * Raise MAX_IGNORED deliberately in a PR when a new ignore is legitimately
  * justified; never raise it just to make the check pass.
  *
- * Run: `node scripts/check-v8-ignore-count.mjs`
+ * Run: `bun scripts/check-v8-ignore-count.mjs`
  * CI:  static job.
  */
 
