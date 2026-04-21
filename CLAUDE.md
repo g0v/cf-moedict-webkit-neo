@@ -60,7 +60,7 @@ baselines, run the `visual` CI job with `--update-snapshots` (or use a Linux run
 ### Combined coverage across tiers
 
 ```bash
-npm run test:coverage   # unit + integration + e2e, merged into coverage/combined/
+bun run test:coverage   # unit + integration + e2e, merged into coverage/combined/
 ```
 
 The merge pipeline (`scripts/merge-coverage.mjs`) unifies three coverage sources into a single
@@ -130,7 +130,7 @@ The static CI job runs this check.
 2. 建立 R2 buckets（首次）
 3. 上傳字典資料：`sh commands/upload_dictionary.sh`
 4. 上傳資產：`sh commands/upload_assets.sh`
-5. `npm run deploy`
+5. `bun run deploy`
 
 ## 注意事項
 
