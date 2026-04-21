@@ -170,6 +170,27 @@ describe('dispatch — /manifest.appcache', () => {
   });
 });
 
+describe('dispatch — /robots.txt', () => {
+  it('returns plain text directives instead of HTML shell', async () => {
+    const res = await dispatch(req('/robots.txt'), makeEnv());
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toBe('text/plain; charset=utf-8');
+    const body = await res.text();
+    expect(body).toContain('User-agent: *');
+    expect(body).toContain('Disallow: /api/');
+    expect(body).toContain('Disallow: /*.json$');
+    expect(body).toContain('Disallow: /*.png$');
+    expect(body).toContain('Allow: /');
+  });
+
+  it('HEAD returns headers only', async () => {
+    const res = await dispatch(req('/robots.txt', { method: 'HEAD' }), makeEnv());
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toBe('text/plain; charset=utf-8');
+    expect(await res.text()).toBe('');
+  });
+});
+
 describe('dispatch — /images/Download_on_the_App_Store_Badge_HK_TW_135x40.png', () => {
   it('serves the PNG from ASSETS R2 with caching + etag', async () => {
     const env = makeEnv({

@@ -226,6 +226,24 @@ export async function dispatch(request: Request, env: Env): Promise<Response> {
       });
     }
 
+    if (url.pathname === '/robots.txt' && (request.method === 'GET' || request.method === 'HEAD')) {
+      const body = [
+        'User-agent: *',
+        'Disallow: /api/',
+        'Disallow: /*.json$',
+        'Disallow: /*.png$',
+        'Allow: /',
+      ].join('\n');
+      const headers = new Headers({
+        'Content-Type': 'text/plain; charset=utf-8',
+        'Cache-Control': 'public, max-age=3600',
+      });
+      if (request.method === 'HEAD') {
+        return new Response(null, { status: 200, headers });
+      }
+      return new Response(body, { status: 200, headers });
+    }
+
     // lookup API（台語羅馬拼音索引 / 舊站 trs 相容）
     const lookupResponse = await handleLookupAPI(request, url, env);
     if (lookupResponse) {
