@@ -59,6 +59,22 @@ export function InlineStyles({ r2Endpoint, onReady }: InlineStylesProps) {
 			padding-top: calc(50px + env(safe-area-inset-top)); /* 為固定導航列 + iOS safe area 留出空間 */
 		}
 
+		/* 根版面：給非 fixed 的子元素一個定位參考 */
+		.app-shell {
+			position: relative;
+		}
+
+		/* 偏好設定浮層：緊貼導覽列下緣（含 iOS safe area），避免壓到 navbar */
+		#user-pref {
+			position: fixed !important;
+			top: calc(45px + env(safe-area-inset-top, 0px)) !important;
+			z-index: 1050;
+			max-height: calc(100vh - 45px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+			overflow: auto;
+			-webkit-overflow-scrolling: touch;
+			box-sizing: border-box;
+		}
+
 		/* 確保導航列背景正確顯示 */
 		.nav-bg {
 			height: calc(50px + env(safe-area-inset-top));
@@ -332,6 +348,12 @@ export function InlineStyles({ r2Endpoint, onReady }: InlineStylesProps) {
 
 			.nav-bg {
 				position: static;
+			}
+
+			/* 手機版導覽下緣以 50px 對齊，避免與 #main-content 跑版 */
+			#user-pref {
+				top: calc(50px + env(safe-area-inset-top, 0px)) !important;
+				max-height: calc(100vh - 50px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
 			}
 		}
 
