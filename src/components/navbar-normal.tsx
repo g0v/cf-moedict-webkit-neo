@@ -755,36 +755,6 @@ export function NavbarNormal({ currentLang }: NavbarNormalProps) {
 							<SvgIcon name="cogs" size="1em" className={styled.navIcon} aria-hidden="true" />
 						</a>
 					</li>
-
-					{/* 字體大小調整按鈕（僅 App 版） */}
-					<li
-						style={{ position: 'absolute', top: '2px', left: '8em', padding: '3px' }}
-						className="resize-btn app-only"
-					>
-						<a
-							style={{ paddingLeft: '5px', paddingRight: '5px', marginRight: '30px' }}
-							onClick={(e) => {
-								e.preventDefault();
-								// TODO: 實現字體大小調整功能
-							}}
-						>
-							<SvgIcon name="resizeSmall" size="1em" className={styled.navIcon} aria-hidden="true" />
-						</a>
-					</li>
-					<li
-						style={{ position: 'absolute', top: '2px', left: '8em', padding: '3px', marginLeft: '30px' }}
-						className="resize-btn app-only"
-					>
-						<a
-							style={{ paddingLeft: '5px', paddingRight: '5px' }}
-							onClick={(e) => {
-								e.preventDefault();
-								// TODO: 實現字體大小調整功能
-							}}
-						>
-							<SvgIcon name="resizeFull" size="1em" className={styled.navIcon} aria-hidden="true" />
-						</a>
-					</li>
 				</ul>
 
 				{/* 右側區域 - 下載連結、搜尋框、社群連結 */}
