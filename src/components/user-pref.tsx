@@ -1,5 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
+import {
+	FONT_SIZE_MAX_PT,
+	FONT_SIZE_MIN_PT,
+	applyFontSize,
+	clampFontSize,
+	readFontSize,
+	writeFontSize,
+} from '../utils/font-size-utils';
+import { SvgIcon } from './SvgIcon';
 
 type Lang = 'a' | 't' | 'h' | 'c';
 type PrefKey = 'phonetics' | 'pinyin_a' | 'pinyin_t' | 'pinyin_h';
@@ -166,6 +175,7 @@ export function UserPref() {
 	const [pinyinA, setPinyinA] = useState(() => getStoredPref('pinyin_a', 'HanYu'));
 	const [pinyinT, setPinyinT] = useState(() => getStoredPref('pinyin_t', 'TL'));
 	const [pinyinH, setPinyinH] = useState(() => getStoredPref('pinyin_h', 'TH'));
+	const [fontSize, setFontSize] = useState<number>(() => readFontSize());
 
 	useEffect(() => {
 		const classList = document.body.classList;
@@ -181,8 +191,16 @@ export function UserPref() {
 		setStoredPref('phonetics', phonetics);
 	}, [phonetics]);
 
+	useEffect(() => {
+		applyFontSize(fontSize);
+	}, [fontSize]);
+
 	const closePanel = useCallback(() => {
 		hideUserPrefPanel();
+	}, []);
+
+	const adjustFontSize = useCallback((offset: number) => {
+		setFontSize((current) => writeFontSize(clampFontSize(current) + offset));
 	}, []);
 
 	return (
@@ -239,6 +257,31 @@ export function UserPref() {
 						value={phonetics}
 						onChange={setPhonetics}
 					/>
+					<li className="btn-group" id="pref-font-size">
+						<label htmlFor="pref-font-size-dec">字體大小</label>
+						<span className="font-size-controls">
+							<button
+								id="pref-font-size-dec"
+								type="button"
+								className="btn btn-default btn-font-size"
+								onClick={() => adjustFontSize(-1)}
+								disabled={fontSize <= FONT_SIZE_MIN_PT}
+								aria-label="縮小字體"
+							>
+								<SvgIcon name="resizeSmall" title="縮小字體" />
+							</button>
+							<span className="font-size-current" aria-live="polite">{fontSize}pt</span>
+							<button
+								type="button"
+								className="btn btn-default btn-font-size"
+								onClick={() => adjustFontSize(1)}
+								disabled={fontSize >= FONT_SIZE_MAX_PT}
+								aria-label="放大字體"
+							>
+								<SvgIcon name="resizeFull" title="放大字體" />
+							</button>
+						</span>
+					</li>
 				</ul>
 				<button className="btn btn-primary btn-block btn-close" type="button" onClick={closePanel}>
 					關閉
