@@ -15,12 +15,13 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+	min-height: 100dvh;
   width: 100%;
   /* iOS safe area: push content below status bar / notch */
-  padding-top: env(safe-area-inset-top);
-  padding-left: env(safe-area-inset-left);
-  padding-right: env(safe-area-inset-right);
-  padding-bottom: env(safe-area-inset-bottom);
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-left: env(safe-area-inset-left, 0px);
 }
 
 .sr-only {

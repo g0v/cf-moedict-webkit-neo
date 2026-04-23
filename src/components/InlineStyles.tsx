@@ -77,10 +77,10 @@ export function InlineStyles({ r2Endpoint, onReady }: InlineStylesProps) {
 
 		/* 確保導航列背景正確顯示 */
 		.nav-bg {
-			height: calc(50px + env(safe-area-inset-top));
-			padding-top: env(safe-area-inset-top);
+			height: 50px;
+			padding-top: 0;
 			position: fixed;
-			top: 0;
+			top: env(safe-area-inset-top, 0px);
 			left: 0;
 			right: 0;
 			z-index: 1029;
@@ -89,7 +89,7 @@ export function InlineStyles({ r2Endpoint, onReady }: InlineStylesProps) {
 		/* 確保導航列在背景之上 */
 		.navbar-fixed-top {
 			z-index: 1030;
-			top: env(safe-area-inset-top);
+			top: env(safe-area-inset-top, 0px);
 		}
 
 		/* 確保主內容區域不會被左側欄遮擋 */
@@ -140,7 +140,7 @@ export function InlineStyles({ r2Endpoint, onReady }: InlineStylesProps) {
 			width: 260px;
 			position: fixed;
 			border-right: 1px solid hsl(360, 1%, 83%);
-			top: calc(45px + env(safe-area-inset-top));
+			top: calc(50px + env(safe-area-inset-top));
 			bottom: 0;
 			z-index: 9;
 			padding: 20px;
@@ -179,7 +179,7 @@ export function InlineStyles({ r2Endpoint, onReady }: InlineStylesProps) {
 			#query-box.query-box {
 				right: auto !important;
 				width: 100% !important;
-				top: calc(40px + env(safe-area-inset-top)) !important;
+				top: calc(45px + env(safe-area-inset-top)) !important;
 				height: 65px !important;
 				bottom: auto !important;
 				padding: 15px !important;
