@@ -107,6 +107,11 @@ export function About({ assetBaseUrl }: AboutProps) {
 					</a>{' '}
 					取得。
 				</p>
+				{import.meta.env.VITE_MOEDICT_SHA ? (
+					<p className="build-info" style={{ opacity: 0.6, fontSize: '0.85em', marginTop: '1em' }}>
+						Build: {import.meta.env.VITE_MOEDICT_SHA}
+					</p>
+				) : null}
 				<p>
 					原始資料來源為教育部《
 					<a target="_blank" href="https://dict.revised.moe.edu.tw/" rel="noopener noreferrer">
