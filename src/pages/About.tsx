@@ -30,12 +30,17 @@ interface AboutProps {
 	assetBaseUrl?: string;
 }
 
+function isCapacitorApp() {
+	return typeof window !== 'undefined' && Boolean((window as Window & { Capacitor?: unknown }).Capacitor);
+}
+
 /**
  * 關於頁面組件
  */
 export function About({ assetBaseUrl }: AboutProps) {
 	const [r2Endpoint, setR2Endpoint] = useState<string>('');
 	const [bookmarkHint, setBookmarkHint] = useState<string>('');
+	const showWebOnlyActions = !isCapacitorApp();
 
 	useEffect(() => {
 		// 如果沒有傳入 assetBaseUrl，從 API 取得
@@ -436,7 +441,7 @@ export function About({ assetBaseUrl }: AboutProps) {
 			</div>
 
 			{/* 下載按鈕 */}
-			{R2_ENDPOINT && (
+			{showWebOnlyActions && R2_ENDPOINT && (
 				<div style={{ position: 'fixed', bottom: '10px', left: '10px', zIndex: 2 }} className="web-only">
 					<a
 						target="_blank"
@@ -469,33 +474,35 @@ export function About({ assetBaseUrl }: AboutProps) {
 			)}
 
 			{/* 加入書籤按鈕 */}
-			<div style={{ position: 'fixed', bottom: '10px', right: '10px', zIndex: 1 }} className="web-only">
-				<a
-					id="opensearch"
-					onClick={async (e) => {
-						e.preventDefault();
-						const url = window.location.href;
-						try {
-							await navigator.clipboard.writeText(url);
-							setBookmarkHint('已複製網址，請按 Cmd+D (Mac) 或 Ctrl+D (Windows) 加入書籤');
-						} catch {
-							setBookmarkHint('請按 Cmd+D (Mac) 或 Ctrl+D (Windows) 將此頁加入書籤');
-						}
-						setTimeout(() => setBookmarkHint(''), 4000);
-					}}
-					className="btn btn-default btn-info"
-					href="#"
-					title="將此頁加入瀏覽器書籤"
-				>
-					<SvgIcon name="plusCircle" size={14} style={{ marginRight: 4 }} aria-hidden="true" />
-					加入書籤
-				</a>
-				{bookmarkHint && (
-					<div style={{ marginTop: 6, fontSize: 12, color: 'var(--color-fg-muted)', maxWidth: 260 }}>
-						{bookmarkHint}
+			{showWebOnlyActions && (
+				<div style={{ position: 'fixed', bottom: '10px', right: '10px', zIndex: 1 }} className="web-only">
+					<a
+						id="opensearch"
+						onClick={async (e) => {
+							e.preventDefault();
+							const url = window.location.href;
+							try {
+								await navigator.clipboard.writeText(url);
+								setBookmarkHint('已複製網址，請按 Cmd+D (Mac) 或 Ctrl+D (Windows) 加入書籤');
+							} catch {
+								setBookmarkHint('請按 Cmd+D (Mac) 或 Ctrl+D (Windows) 將此頁加入書籤');
+							}
+							setTimeout(() => setBookmarkHint(''), 4000);
+						}}
+						className="btn btn-default btn-info"
+						href="#"
+						title="將此頁加入瀏覽器書籤"
+					>
+						<SvgIcon name="plusCircle" size={14} style={{ marginRight: 4 }} aria-hidden="true" />
+						加入書籤
+					</a>
+					{bookmarkHint && (
+						<div style={{ marginTop: 6, fontSize: 12, color: 'var(--color-fg-muted)', maxWidth: 260 }}>
+							{bookmarkHint}
+						</div>
+					)}
 					</div>
-				)}
-			</div>
+			)}
 		</div>
 	);
 }
