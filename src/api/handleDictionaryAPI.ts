@@ -1,3 +1,5 @@
+import { dedupeHeteronyms } from '../utils/heteronym-dedup';
+
 type DictionaryLang = 'a' | 't' | 'h' | 'c';
 type SubRouteType = DictionaryLang | 'raw' | 'uni' | 'pua';
 
@@ -429,7 +431,9 @@ function processDictionaryEntry(entry: DictionaryEntry, lang: DictionaryLang): D
   if (parsedEntry.Deutsch) result.Deutsch = parsedEntry.Deutsch;
   if (parsedEntry.English || parsedEntry.english) result.English = parsedEntry.English || parsedEntry.english;
   if (parsedEntry.francais) result.francais = parsedEntry.francais;
-  if (parsedEntry.heteronyms) result.heteronyms = parsedEntry.heteronyms;
+  if (Array.isArray(parsedEntry.heteronyms)) {
+    result.heteronyms = dedupeHeteronyms(parsedEntry.heteronyms as Array<Record<string, unknown>>);
+  }
   if (parsedEntry.radical) result.radical = parsedEntry.radical;
   if (parsedEntry.stroke_count) result.stroke_count = parsedEntry.stroke_count;
   if (parsedEntry.non_radical_stroke_count) result.non_radical_stroke_count = parsedEntry.non_radical_stroke_count;
