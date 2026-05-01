@@ -54,9 +54,14 @@ export function InlineStyles({ r2Endpoint, onReady }: InlineStylesProps) {
 		<style
 			dangerouslySetInnerHTML={{
 				__html: `
+		:root {
+			--moe-safe-area-top: env(safe-area-inset-top, 0px);
+			--moe-safe-area-bottom: env(safe-area-inset-bottom, 0px);
+		}
+
 		/* 修正導航列壓版問題 */
 		body {
-			padding-top: calc(50px + env(safe-area-inset-top)); /* 為固定導航列 + iOS safe area 留出空間 */
+			padding-top: calc(50px + var(--moe-safe-area-top)); /* 為固定導航列 + iOS safe area 留出空間 */
 		}
 
 		/* 根版面：給非 fixed 的子元素一個定位參考 */
@@ -67,9 +72,9 @@ export function InlineStyles({ r2Endpoint, onReady }: InlineStylesProps) {
 		/* 偏好設定浮層：緊貼導覽列下緣（含 iOS safe area），避免壓到 navbar */
 		#user-pref {
 			position: fixed !important;
-			top: calc(45px + env(safe-area-inset-top, 0px)) !important;
+			top: calc(45px + var(--moe-safe-area-top)) !important;
 			z-index: 1050;
-			max-height: calc(100vh - 45px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+			max-height: calc(100vh - 45px - var(--moe-safe-area-top) - var(--moe-safe-area-bottom));
 			overflow: auto;
 			-webkit-overflow-scrolling: touch;
 			box-sizing: border-box;
@@ -80,7 +85,7 @@ export function InlineStyles({ r2Endpoint, onReady }: InlineStylesProps) {
 			height: 50px;
 			padding-top: 0;
 			position: fixed;
-			top: env(safe-area-inset-top, 0px);
+			top: var(--moe-safe-area-top);
 			left: 0;
 			right: 0;
 			z-index: 1029;
@@ -89,7 +94,7 @@ export function InlineStyles({ r2Endpoint, onReady }: InlineStylesProps) {
 		/* 確保導航列在背景之上 */
 		.navbar-fixed-top {
 			z-index: 1030;
-			top: env(safe-area-inset-top, 0px);
+			top: var(--moe-safe-area-top);
 		}
 
 		/* 確保主內容區域不會被左側欄遮擋 */
@@ -131,7 +136,7 @@ export function InlineStyles({ r2Endpoint, onReady }: InlineStylesProps) {
 		@media only screen and (max-width: 767px) {
 			#main-content {
 				margin-left: 0;
-				margin-top: 55px;
+				margin-top: calc(65px + var(--moe-safe-area-top));
 			}
 		}
 
@@ -140,7 +145,7 @@ export function InlineStyles({ r2Endpoint, onReady }: InlineStylesProps) {
 			width: 260px;
 			position: fixed;
 			border-right: 1px solid hsl(360, 1%, 83%);
-			top: calc(50px + env(safe-area-inset-top));
+			top: calc(50px + var(--moe-safe-area-top));
 			bottom: 0;
 			z-index: 9;
 			padding: 20px;
@@ -179,7 +184,7 @@ export function InlineStyles({ r2Endpoint, onReady }: InlineStylesProps) {
 			#query-box.query-box {
 				right: auto !important;
 				width: 100% !important;
-				top: calc(45px + env(safe-area-inset-top)) !important;
+				top: calc(45px + var(--moe-safe-area-top)) !important;
 				height: 65px !important;
 				bottom: auto !important;
 				padding: 15px !important;
@@ -352,8 +357,8 @@ export function InlineStyles({ r2Endpoint, onReady }: InlineStylesProps) {
 
 			/* 手機版導覽下緣以 50px 對齊，避免與 #main-content 跑版 */
 			#user-pref {
-				top: calc(50px + env(safe-area-inset-top, 0px)) !important;
-				max-height: calc(100vh - 50px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+				top: calc(50px + var(--moe-safe-area-top)) !important;
+				max-height: calc(100vh - 50px - var(--moe-safe-area-top) - var(--moe-safe-area-bottom));
 			}
 		}
 
