@@ -105,6 +105,7 @@ interface TermSegment {
 
 interface DrawState {
   drawing: boolean;
+  input: 'pointer' | 'touch' | 'mouse';
   pointerId: number | null;
   lastX: number;
   lastY: number;
@@ -140,6 +141,36 @@ function resetPracticeCanvas(canvas: HTMLCanvasElement, width: number, height: n
   const context = canvas.getContext('2d');
   if (!context) return;
   setDrawingStyle(context, ratio, width, height);
+}
+
+function getCanvasPoint(canvas: HTMLCanvasElement, clientX: number, clientY: number): { x: number; y: number } {
+  const rect = canvas.getBoundingClientRect();
+  return {
+    x: clientX - rect.left,
+    y: clientY - rect.top,
+  };
+}
+
+function isTouchPointerEvent(event: React.PointerEvent<HTMLCanvasElement>): boolean {
+  return event.pointerType === 'touch' && typeof window !== 'undefined' && 'TouchEvent' in window;
+}
+
+function trySetPointerCapture(canvas: HTMLCanvasElement, pointerId: number): void {
+  try {
+    canvas.setPointerCapture?.(pointerId);
+  } catch {
+    // iOS WKWebView can reject pointer capture even when PointerEvent exists.
+  }
+}
+
+function tryReleasePointerCapture(canvas: HTMLCanvasElement, pointerId: number): void {
+  try {
+    if (canvas.hasPointerCapture?.(pointerId)) {
+      canvas.releasePointerCapture?.(pointerId);
+    }
+  } catch {
+    // Ignore platform-specific capture state mismatches.
+  }
 }
 
 function mergeEnglishTerms(terms: string[]): string[] {
@@ -279,18 +310,49 @@ export function CharacterImageView({ queryWord, terms, lang, langTokenPrefix }: 
     [],
   );
 
-  const drawPoint = useCallback((key: string, event: React.PointerEvent<HTMLCanvasElement>) => {
+  const beginDrawing = useCallback((
+    key: string,
+    input: DrawState['input'],
+    pointerId: number | null,
+    clientX: number,
+    clientY: number,
+  ) => {
     const canvas = canvasRefs.current[key];
     if (!canvas) return;
-    const state = drawStates.current[key];
-    if (!state?.drawing || state.pointerId !== event.pointerId) return;
 
     const context = canvas.getContext('2d');
     if (!context) return;
 
-    const rect = canvas.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
+    const { x, y } = getCanvasPoint(canvas, clientX, clientY);
+    drawStates.current[key] = {
+      drawing: true,
+      input,
+      pointerId,
+      lastX: x,
+      lastY: y,
+    };
+
+    context.beginPath();
+    context.arc(x, y, 1.4, 0, Math.PI * 2);
+    context.fill();
+  }, []);
+
+  const drawPoint = useCallback((
+    key: string,
+    input: DrawState['input'],
+    pointerId: number | null,
+    clientX: number,
+    clientY: number,
+  ) => {
+    const canvas = canvasRefs.current[key];
+    if (!canvas) return;
+    const state = drawStates.current[key];
+    if (!state?.drawing || state.input !== input || state.pointerId !== pointerId) return;
+
+    const context = canvas.getContext('2d');
+    if (!context) return;
+
+    const { x, y } = getCanvasPoint(canvas, clientX, clientY);
     context.beginPath();
     context.moveTo(state.lastX, state.lastY);
     context.lineTo(x, y);
@@ -299,46 +361,83 @@ export function CharacterImageView({ queryWord, terms, lang, langTokenPrefix }: 
     state.lastY = y;
   }, []);
 
+  const finishDrawingState = useCallback((key: string, input: DrawState['input'], pointerId: number | null) => {
+    const state = drawStates.current[key];
+    if (!state || !state.drawing || state.input !== input || state.pointerId !== pointerId) return;
+    state.drawing = false;
+    state.pointerId = null;
+  }, []);
+
   const handleCanvasPointerDown = useCallback((key: string, event: React.PointerEvent<HTMLCanvasElement>) => {
+    if (isTouchPointerEvent(event)) return;
     const canvas = canvasRefs.current[key];
     if (!canvas) return;
     event.preventDefault();
-    canvas.setPointerCapture(event.pointerId);
-
-    const rect = canvas.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
-    drawStates.current[key] = {
-      drawing: true,
-      pointerId: event.pointerId,
-      lastX: x,
-      lastY: y,
-    };
-
-    const context = canvas.getContext('2d');
-    if (!context) return;
-    context.beginPath();
-    context.arc(x, y, 1.4, 0, Math.PI * 2);
-    context.fill();
-  }, []);
+    trySetPointerCapture(canvas, event.pointerId);
+    beginDrawing(key, 'pointer', event.pointerId, event.clientX, event.clientY);
+  }, [beginDrawing]);
 
   const handleCanvasPointerMove = useCallback(
     (key: string, event: React.PointerEvent<HTMLCanvasElement>) => {
+      if (isTouchPointerEvent(event)) return;
       event.preventDefault();
-      drawPoint(key, event);
+      drawPoint(key, 'pointer', event.pointerId, event.clientX, event.clientY);
     },
     [drawPoint],
   );
 
-  const finishDrawing = useCallback((key: string, event: React.PointerEvent<HTMLCanvasElement>) => {
+  const finishPointerDrawing = useCallback((key: string, event: React.PointerEvent<HTMLCanvasElement>) => {
+    if (isTouchPointerEvent(event)) return;
     const canvas = canvasRefs.current[key];
+    finishDrawingState(key, 'pointer', event.pointerId);
+    if (canvas) tryReleasePointerCapture(canvas, event.pointerId);
+  }, [finishDrawingState]);
+
+  const handleCanvasTouchStart = useCallback((key: string, event: React.TouchEvent<HTMLCanvasElement>) => {
+    const touch = event.changedTouches[0];
+    if (!touch) return;
+    event.preventDefault();
+    beginDrawing(key, 'touch', touch.identifier, touch.clientX, touch.clientY);
+  }, [beginDrawing]);
+
+  const handleCanvasTouchMove = useCallback((key: string, event: React.TouchEvent<HTMLCanvasElement>) => {
     const state = drawStates.current[key];
-    if (!state || !state.drawing || state.pointerId !== event.pointerId) return;
-    state.drawing = false;
-    state.pointerId = null;
-    if (canvas && canvas.hasPointerCapture(event.pointerId)) {
-      canvas.releasePointerCapture(event.pointerId);
-    }
+    if (!state || state.input !== 'touch' || state.pointerId === null) return;
+    const touch = Array.from(event.touches).find((item) => item.identifier === state.pointerId);
+    if (!touch) return;
+    event.preventDefault();
+    drawPoint(key, 'touch', touch.identifier, touch.clientX, touch.clientY);
+  }, [drawPoint]);
+
+  const finishTouchDrawing = useCallback((key: string, event: React.TouchEvent<HTMLCanvasElement>) => {
+    const state = drawStates.current[key];
+    if (!state || state.input !== 'touch' || state.pointerId === null) return;
+    const touch = Array.from(event.changedTouches).find((item) => item.identifier === state.pointerId);
+    if (!touch) return;
+    event.preventDefault();
+    finishDrawingState(key, 'touch', touch.identifier);
+  }, [finishDrawingState]);
+
+  const handleCanvasMouseDown = useCallback((key: string, event: React.MouseEvent<HTMLCanvasElement>) => {
+    if (typeof window !== 'undefined' && 'PointerEvent' in window) return;
+    event.preventDefault();
+    beginDrawing(key, 'mouse', null, event.clientX, event.clientY);
+  }, [beginDrawing]);
+
+  const handleCanvasMouseMove = useCallback((key: string, event: React.MouseEvent<HTMLCanvasElement>) => {
+    if (typeof window !== 'undefined' && 'PointerEvent' in window) return;
+    event.preventDefault();
+    drawPoint(key, 'mouse', null, event.clientX, event.clientY);
+  }, [drawPoint]);
+
+  const finishMouseDrawing = useCallback((key: string, event: React.MouseEvent<HTMLCanvasElement>) => {
+    if (typeof window !== 'undefined' && 'PointerEvent' in window) return;
+    event.preventDefault();
+    finishDrawingState(key, 'mouse', null);
+  }, [finishDrawingState]);
+
+  const preventCanvasGesture = useCallback((event: React.MouseEvent<HTMLCanvasElement>) => {
+    event.preventDefault();
   }, []);
 
   const handleClearDrawings = useCallback(() => {
@@ -352,6 +451,39 @@ export function CharacterImageView({ queryWord, terms, lang, langTokenPrefix }: 
   const handlePrint = useCallback(() => {
     window.print();
   }, []);
+
+  const renderPracticeCanvas = useCallback((key: string, width: number, height: number) => (
+    <canvas
+      className="charimg-draw-canvas"
+      ref={registerCanvas(key, width, height)}
+      onContextMenu={preventCanvasGesture}
+      onPointerDown={(event) => handleCanvasPointerDown(key, event)}
+      onPointerMove={(event) => handleCanvasPointerMove(key, event)}
+      onPointerUp={(event) => finishPointerDrawing(key, event)}
+      onPointerLeave={(event) => finishPointerDrawing(key, event)}
+      onPointerCancel={(event) => finishPointerDrawing(key, event)}
+      onTouchStart={(event) => handleCanvasTouchStart(key, event)}
+      onTouchMove={(event) => handleCanvasTouchMove(key, event)}
+      onTouchEnd={(event) => finishTouchDrawing(key, event)}
+      onTouchCancel={(event) => finishTouchDrawing(key, event)}
+      onMouseDown={(event) => handleCanvasMouseDown(key, event)}
+      onMouseMove={(event) => handleCanvasMouseMove(key, event)}
+      onMouseUp={(event) => finishMouseDrawing(key, event)}
+      onMouseLeave={(event) => finishMouseDrawing(key, event)}
+    />
+  ), [
+    finishMouseDrawing,
+    finishPointerDrawing,
+    finishTouchDrawing,
+    handleCanvasMouseDown,
+    handleCanvasMouseMove,
+    handleCanvasPointerDown,
+    handleCanvasPointerMove,
+    handleCanvasTouchMove,
+    handleCanvasTouchStart,
+    preventCanvasGesture,
+    registerCanvas,
+  ]);
 
   return (
     <div className={`result charimg-result${hollowMode ? ' charimg-hollow' : ''}`}>
@@ -453,16 +585,7 @@ export function CharacterImageView({ queryWord, terms, lang, langTokenPrefix }: 
             alt={queryWord}
             style={{ width: mainImageSize, height: mainImageSize }}
           />
-          <canvas
-            className="charimg-draw-canvas"
-            ref={registerCanvas(`main:${queryWord}`, mainImageSize, mainImageSize)}
-            onContextMenu={(event) => event.preventDefault()}
-            onPointerDown={(event) => handleCanvasPointerDown(`main:${queryWord}`, event)}
-            onPointerMove={(event) => handleCanvasPointerMove(`main:${queryWord}`, event)}
-            onPointerUp={(event) => finishDrawing(`main:${queryWord}`, event)}
-            onPointerLeave={(event) => finishDrawing(`main:${queryWord}`, event)}
-            onPointerCancel={(event) => finishDrawing(`main:${queryWord}`, event)}
-          />
+          {renderPracticeCanvas(`main:${queryWord}`, mainImageSize, mainImageSize)}
         </div>
 
         <div className="charimg-controls">
@@ -550,16 +673,7 @@ export function CharacterImageView({ queryWord, terms, lang, langTokenPrefix }: 
                         alt={segment.part}
                         style={{ width: SEGMENT_IMAGE_SIZE, height: SEGMENT_IMAGE_SIZE }}
                       />
-                      <canvas
-                        className="charimg-draw-canvas"
-                        ref={registerCanvas(`segment:${segment.part}`, SEGMENT_IMAGE_SIZE, SEGMENT_IMAGE_SIZE)}
-                        onContextMenu={(event) => event.preventDefault()}
-                        onPointerDown={(event) => handleCanvasPointerDown(`segment:${segment.part}`, event)}
-                        onPointerMove={(event) => handleCanvasPointerMove(`segment:${segment.part}`, event)}
-                        onPointerUp={(event) => finishDrawing(`segment:${segment.part}`, event)}
-                        onPointerLeave={(event) => finishDrawing(`segment:${segment.part}`, event)}
-                        onPointerCancel={(event) => finishDrawing(`segment:${segment.part}`, event)}
-                      />
+                      {renderPracticeCanvas(`segment:${segment.part}`, SEGMENT_IMAGE_SIZE, SEGMENT_IMAGE_SIZE)}
                     </div>
                   </td>
                   <td
