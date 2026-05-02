@@ -5,6 +5,7 @@ import {
   removeBopomofo,
   decorateRuby,
 } from '../../src/utils/bopomofo-pinyin-utils';
+import { rightAngle } from '../../src/utils/ruby2hruby';
 
 describe('removeBopomofo', () => {
   it('strips the zhuyin block (U+3105-312F) and modifiers', () => {
@@ -133,6 +134,22 @@ describe('decorateRuby', () => {
       trs: 'tsia̍h-pn̄g',
     });
     expect(result.ruby).toMatch(/rbspan="\d+"/);
+  });
+
+  it('keeps punctuation out of ruby bases so Taiwanese readings stay aligned after semicolons', () => {
+    const result = decorateRuby({
+      LANG: 't',
+      title: '嚴官府出厚賊；嚴爸母出阿里不達。',
+      trs: 'Giâm kuann-hú tshut kāu tsha̍t; giâm pē-bú tshut a-lí-put-ta̍t. ',
+    });
+
+    expect(result.ruby).toContain('<rb><a href="./#%E8%B3%8A">賊</a></rb>；<rb><a href="./#%E5%9A%B4">嚴</a></rb>');
+    expect(result.ruby).not.toContain('<rb><a href="./#%EF%BC%9B">；</a></rb>');
+    expect(result.ruby).not.toContain('<rb><a href="./#%E3%80%82">。</a></rb>');
+    expect(result.ruby.match(/<rb/g) || []).toHaveLength(14);
+
+    const rendered = rightAngle(result.ruby);
+    expect(rendered).toMatch(/<rb><a href=".\/#%E8%B3%8A">賊<\/a><\/rb>[\s\S]*<rt[^>]*>tsha̍t<\/rt>[\s\S]*；[\s\S]*annotation="giâm"[\s\S]*<rb><a href=".\/#%E5%9A%B4">嚴<\/a><\/rb>/);
   });
 });
 

@@ -27,6 +27,32 @@ function escapeAttr(text: string): string {
   return escapeHtml(text).replace(/'/g, '&#39;');
 }
 
+const RUBY_BASE_PUNCTUATION_RE = /^\p{P}$/u;
+const RUBY_ANNOTATION_PUNCTUATION_RE = /[,.!?;:，、；：？！。．·・－—─…﹔]\s?/g;
+
+function buildRubyBaseChunk(ch: string, href?: string): string {
+  if (RUBY_BASE_PUNCTUATION_RE.test(ch)) {
+    return escapeHtml(ch);
+  }
+
+  if (href !== undefined) {
+    return `<rb><a href="${escapeAttr(href)}">${escapeHtml(ch)}</a></rb>`;
+  }
+
+  return `<rb>${escapeHtml(ch)}</rb>`;
+}
+
+function buildRubyBaseChunks(text: string, href?: string | ((ch: string) => string)): string {
+  return Array.from(String(text || '').replace(/\s+/g, ''))
+    .map((ch) => buildRubyBaseChunk(ch, typeof href === 'function' ? href(ch) : href))
+    .join('');
+}
+
+function splitAnnotationTokens(input: string): string[] {
+  const normalized = String(input || '').replace(RUBY_ANNOTATION_PUNCTUATION_RE, ' ').trim();
+  return normalized ? normalized.split(/\s+/) : [];
+}
+
 function buildRubyBases(titleHtml: string): string {
   try {
     if (typeof DOMParser === 'undefined') {
@@ -40,10 +66,8 @@ function buildRubyBases(titleHtml: string): string {
     const out: string[] = [];
     wrap.childNodes.forEach((node) => {
       if (node.nodeType === Node.TEXT_NODE) {
-        const text = (node.textContent || '').replace(/\s+/g, '');
-        for (const ch of Array.from(text)) {
-          out.push(`<rb><a href="./#${encodeURIComponent(ch)}">${escapeHtml(ch)}</a></rb>`);
-        }
+        const text = node.textContent || '';
+        out.push(buildRubyBaseChunks(text, (ch) => `./#${encodeURIComponent(ch)}`));
         return;
       }
 
@@ -51,22 +75,16 @@ function buildRubyBases(titleHtml: string): string {
       const element = node as HTMLElement;
       if (element.tagName.toLowerCase() === 'a') {
         const href = element.getAttribute('href') || '';
-        const text = (element.textContent || '').replace(/\s+/g, '');
-        for (const ch of Array.from(text)) {
-          out.push(`<rb><a href="${escapeAttr(href)}">${escapeHtml(ch)}</a></rb>`);
-        }
+        out.push(buildRubyBaseChunks(element.textContent || '', href));
         return;
       }
 
-      const text = (element.textContent || '').replace(/\s+/g, '');
-      for (const ch of Array.from(text)) {
-        out.push(`<rb>${escapeHtml(ch)}</rb>`);
-      }
+      out.push(buildRubyBaseChunks(element.textContent || ''));
     });
     return out.join('');
   } catch {
     const plain = String(titleHtml || '').replace(/<[^>]*>/g, '');
-    return Array.from(plain).map((ch) => `<rb>${escapeHtml(ch)}</rb>`).join('');
+    return buildRubyBaseChunks(plain);
   }
 }
 
@@ -149,8 +167,8 @@ export function decorateRuby(params: {
     .replace(/<br>.*/, '');
 
   const convertedP = convertPinyinByLang(LANG, p, false);
-  const pArray = convertedP.replace(/[,.;，、；！。－—]\s?/g, ' ').split(' ');
-  const originalPArray = p.replace(/[,.;，、；！。－—]\s?/g, ' ').split(' ');
+  const pArray = splitAnnotationTokens(convertedP);
+  const originalPArray = splitAnnotationTokens(p);
 
   const pUpper: string[] = [];
   const isParallel = isParallelPinyin(LANG);
@@ -180,7 +198,11 @@ export function decorateRuby(params: {
     pArray[idx] = `<rt${span}>${yin}</rt>`;
   }
 
-  ruby += `<rtc class="zhuyin" hidden="hidden"><rt>${b.replace(/[ ]+/g, '</rt><rt>')}</rt></rtc>`;
+  const bArray = splitAnnotationTokens(b);
+
+  ruby += '<rtc class="zhuyin" hidden="hidden">';
+  ruby += bArray.map((token) => `<rt>${token}</rt>`).join('');
+  ruby += '</rtc>';
   ruby += '<rtc class="romanization" hidden="hidden">';
   ruby += pArray.join('');
   ruby += '</rtc>';
