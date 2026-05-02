@@ -26,6 +26,7 @@ const PREFETCH_RESULT_LIMIT = 3;
 const PREFETCH_MIN_TERM_LENGTH = 2;
 const PREFETCH_DELAY_MS = 120;
 const MOBILE_BREAKPOINT_QUERY = '(max-width: 767px)';
+const MOBILE_TOGGLE_BLUR_GUARD_MS = 350;
 const INDEX_CACHE = new Map<Lang, string[]>();
 const INDEX_PROMISE_CACHE = new Map<Lang, Promise<string[]>>();
 const TAIWANESE_PINYIN_CACHE = new Map<string, string[]>();
@@ -574,10 +575,13 @@ async function fetchHanYuRomanizationTerms(keyword: string, lang: Lang): Promise
 export function SearchBox({ currentLang }: SearchBoxProps) {
 	const location = useLocation();
 	const navigate = useNavigate();
+	const containerRef = useRef<HTMLDivElement>(null);
 	const inputRef = useRef<HTMLInputElement>(null);
 	const suggestionRefs = useRef<Array<HTMLAnchorElement | null>>([]);
 	const requestIdRef = useRef(0);
 	const blurTimerRef = useRef<number | null>(null);
+	const mobileToggleGuardTimerRef = useRef<number | null>(null);
+	const mobileToggleInteractionRef = useRef(false);
 	const isComposingRef = useRef(false);
 	const preserveSuggestionsOnNextNavigationRef = useRef(false);
 	const [searchValue, setSearchValue] = useState('');
@@ -656,8 +660,35 @@ export function SearchBox({ currentLang }: SearchBoxProps) {
 			if (blurTimerRef.current !== null) {
 				window.clearTimeout(blurTimerRef.current);
 			}
+			if (mobileToggleGuardTimerRef.current !== null) {
+				window.clearTimeout(mobileToggleGuardTimerRef.current);
+			}
 		};
 	}, []);
+
+	// 手機版結果面板由按鈕展開後，改用外點事件收合，避免依賴 iOS WebView 不穩定的 blur 順序。
+	useEffect(() => {
+		if (!isMobileViewport || !showMobileResults) return;
+		if (typeof document === 'undefined') return;
+
+		const handleOutsidePress = (event: PointerEvent | TouchEvent) => {
+			const target = event.target;
+			if (!(target instanceof Node)) return;
+			if (containerRef.current?.contains(target)) return;
+
+			setShowMobileResults(false);
+			setIsContainerActive(false);
+			setSuggestionQueryOverride(null);
+			preserveSuggestionsOnNextNavigationRef.current = false;
+		};
+
+		document.addEventListener('pointerdown', handleOutsidePress, true);
+		document.addEventListener('touchstart', handleOutsidePress, true);
+		return () => {
+			document.removeEventListener('pointerdown', handleOutsidePress, true);
+			document.removeEventListener('touchstart', handleOutsidePress, true);
+		};
+	}, [isMobileViewport, showMobileResults]);
 
 	// 從 index.json 載入搜尋結果
 	useEffect(() => {
@@ -793,6 +824,15 @@ export function SearchBox({ currentLang }: SearchBoxProps) {
 
 	// container 失去 focus（延遲確認 focus 沒有移到 container 內其他元素）
 	const handleContainerBlur = useCallback((e: React.FocusEvent<HTMLDivElement>) => {
+		if (mobileToggleInteractionRef.current) {
+			if (blurTimerRef.current !== null) {
+				window.clearTimeout(blurTimerRef.current);
+				blurTimerRef.current = null;
+			}
+			setIsContainerActive(true);
+			return;
+		}
+
 		if (e.currentTarget.contains(e.relatedTarget as Node)) {
 			return;
 		}
@@ -899,14 +939,35 @@ export function SearchBox({ currentLang }: SearchBoxProps) {
 		[focusSuggestionByIndex, handleSelectSuggestion, suggestions.length]
 	);
 
-	const handleMobileTogglePointerDown = useCallback((event: React.PointerEvent<HTMLButtonElement>) => {
-		event.preventDefault();
+	const armMobileToggleBlurGuard = useCallback(() => {
+		mobileToggleInteractionRef.current = true;
+
+		if (mobileToggleGuardTimerRef.current !== null) {
+			window.clearTimeout(mobileToggleGuardTimerRef.current);
+		}
+		mobileToggleGuardTimerRef.current = window.setTimeout(() => {
+			mobileToggleInteractionRef.current = false;
+			mobileToggleGuardTimerRef.current = null;
+		}, MOBILE_TOGGLE_BLUR_GUARD_MS);
+
 		if (blurTimerRef.current !== null) {
 			window.clearTimeout(blurTimerRef.current);
 			blurTimerRef.current = null;
 		}
 		setIsContainerActive(true);
 	}, []);
+
+	const handleMobileTogglePointerDown = useCallback(
+		(event: React.PointerEvent<HTMLButtonElement>) => {
+			event.preventDefault();
+			armMobileToggleBlurGuard();
+		},
+		[armMobileToggleBlurGuard]
+	);
+
+	const handleMobileToggleTouchStart = useCallback(() => {
+		armMobileToggleBlurGuard();
+	}, [armMobileToggleBlurGuard]);
 
 	// 輸入框鍵盤事件
 	const handleInputKeyDown = useCallback(
@@ -949,11 +1010,12 @@ export function SearchBox({ currentLang }: SearchBoxProps) {
 		[focusSuggestionByIndex, isMobileViewport, loadingSuggestions, suggestions]
 	);
 
-	const shouldShowMobileToggle = isMobileViewport && hasActiveSearch && isContainerActive;
-	const shouldRenderResultList = hasActiveSearch && isContainerActive && (!isMobileViewport || showMobileResults);
+	const shouldShowMobileToggle = isMobileViewport && hasActiveSearch && (isContainerActive || showMobileResults);
+	const shouldRenderResultList = hasActiveSearch && (!isMobileViewport ? isContainerActive : showMobileResults);
 
 	return (
 		<div
+			ref={containerRef}
 			className="search-container"
 			style={{ position: 'relative' }}
 			onFocus={handleContainerFocus}
@@ -980,6 +1042,7 @@ export function SearchBox({ currentLang }: SearchBoxProps) {
 					className="mobile-search-toggle"
 					aria-expanded={showMobileResults}
 					onPointerDown={handleMobileTogglePointerDown}
+					onTouchStart={handleMobileToggleTouchStart}
 					onClick={() => setShowMobileResults((prev) => !prev)}
 				>
 					<span className="mobile-search-toggle-arrow" aria-hidden="true">
