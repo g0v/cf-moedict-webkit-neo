@@ -31,8 +31,8 @@ dist-ssr
 !.env.example
 
 # wrangler.jsonc
-public/search-index
-data/dictionary/search-index
+# public/search-index
+# data/dictionary/search-index
 
 # Test artifacts
 tests/.build/
