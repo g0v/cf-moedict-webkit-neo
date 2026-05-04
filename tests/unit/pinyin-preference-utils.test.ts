@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
+  applyTaigiSandhi,
   convertPinyinByLang,
   isParallelPinyin,
   trsToBpmf,
@@ -191,10 +192,13 @@ describe('trsToBpmf (extended)', () => {
     });
 
     it('strips punctuation and collapses hyphen/space separators', () => {
+      // Single-syllable phrases keep their citation tone (no sandhi target).
       expect(trsToBpmf('t', 'hang.')).toBe('\u310F\u3124 ');
       expect(trsToBpmf('t', 'hang,')).toBe('\u310F\u3124 ');
-      expect(trsToBpmf('t', 'hang-hang')).toBe('\u310F\u3124 \u310F\u3124 ');
-      expect(trsToBpmf('t', 'hang hang')).toBe('\u310F\u3124 \u310F\u3124 ');
+      // Multi-syllable: tone 1 -> tone 7 sandhi on the non-final syllable, the
+      // final syllable retains its citation tone.
+      expect(trsToBpmf('t', 'hang-hang')).toBe('\u310F\u3124\u02EB\u310F\u3124 ');
+      expect(trsToBpmf('t', 'hang hang')).toBe('\u310F\u3124\u02EB\u310F\u3124 ');
     });
 
     it('leaves unknown Latin letters in place and fills tone slot with space', () => {
@@ -594,5 +598,255 @@ describe('convertPinyinByLang — lang h (Hakka)', () => {
     it('returns empty for empty input', () => {
       expect(convertPinyinByLang('h', '')).toBe('');
     });
+  });
+});
+
+/* -------------------------------------------------------------------------
+ * Taigi (Taiwanese) tone sandhi at the bopomofo level.
+ * Standard rule: every syllable in a tone group except the LAST one undergoes
+ * sandhi. The last syllable retains its citation tone. A double-hyphen "--"
+ * ends the main tone group; trailing light-tone particles do not sandhi either.
+ * ------------------------------------------------------------------------- */
+
+describe('applyTaigiSandhi', () => {
+  describe('single-syllable inputs (citation tone preserved)', () => {
+    it('returns single open syllable verbatim', () => {
+      expect(applyTaigiSandhi('a')).toBe('a');
+      expect(applyTaigiSandhi('á')).toBe('á');
+      expect(applyTaigiSandhi('à')).toBe('à');
+      expect(applyTaigiSandhi('â')).toBe('â');
+      expect(applyTaigiSandhi('ā')).toBe('ā');
+    });
+
+    it('returns single checked syllable verbatim', () => {
+      expect(applyTaigiSandhi('ah')).toBe('ah');
+      expect(applyTaigiSandhi('a̍h')).toBe('a̍h');
+      expect(applyTaigiSandhi('ap')).toBe('ap');
+      expect(applyTaigiSandhi('a̍t')).toBe('a̍t');
+      expect(applyTaigiSandhi('huat')).toBe('huat');
+    });
+  });
+
+  describe('open-syllable sandhi (non-final position in tone group)', () => {
+    it('tone 1 (no mark) -> tone 7 (U+0304 macron)', () => {
+      expect(applyTaigiSandhi('a-a')).toBe('ā-a');
+      expect(applyTaigiSandhi('kong-ke')).toBe('kōng-ke');
+      expect(applyTaigiSandhi('hang-hang')).toBe('hāng-hang');
+    });
+
+    it('tone 2 (U+0301 acute) -> tone 1 (no mark)', () => {
+      expect(applyTaigiSandhi('á-a')).toBe('a-a');
+    });
+
+    it('tone 3 (U+0300 grave) -> tone 2 (U+0301 acute)', () => {
+      expect(applyTaigiSandhi('à-a')).toBe('á-a');
+    });
+
+    it('tone 5 (U+0302 circumflex) -> tone 7 (U+0304 macron)', () => {
+      // Taiwan southern variety / MoE convention; northern would map to tone 3.
+      expect(applyTaigiSandhi('â-a')).toBe('ā-a');
+    });
+
+    it('tone 7 (U+0304 macron) -> tone 3 (U+0300 grave)', () => {
+      expect(applyTaigiSandhi('ā-a')).toBe('à-a');
+    });
+  });
+
+  describe('checked-syllable sandhi -p / -t / -k (no consonant drop)', () => {
+    it('tone 4 (no mark) -> tone 8 (U+030D added on vowel)', () => {
+      expect(applyTaigiSandhi('ap-a')).toBe('a̍p-a');
+      expect(applyTaigiSandhi('at-a')).toBe('a̍t-a');
+      expect(applyTaigiSandhi('ak-a')).toBe('a̍k-a');
+      // The MoE-Taigi headword "huat-ínn" (sprout): -t triggers tone 4 -> 8.
+      expect(applyTaigiSandhi('huat-ínn')).toBe('hua̍t-ínn');
+    });
+
+    it('tone 8 (U+030D) -> tone 4 (mark removed)', () => {
+      expect(applyTaigiSandhi('a̍p-a')).toBe('ap-a');
+      expect(applyTaigiSandhi('a̍t-a')).toBe('at-a');
+      expect(applyTaigiSandhi('a̍k-a')).toBe('ak-a');
+    });
+  });
+
+  describe('checked-syllable sandhi -h (glottal stop drops, becomes open)', () => {
+    it('tone 4 with -h -> tone 2 (drop -h, place U+0301 on vowel)', () => {
+      expect(applyTaigiSandhi('ah-a')).toBe('á-a');
+    });
+
+    it('tone 8 with -h -> tone 3 (drop -h, U+030D becomes U+0300)', () => {
+      expect(applyTaigiSandhi('a̍h-a')).toBe('à-a');
+    });
+  });
+
+  describe('phrase / tone-group boundaries', () => {
+    it('the final syllable of a tone group keeps its citation tone', () => {
+      // Two-syllable: only the first sandhies.
+      expect(applyTaigiSandhi('a-á')).toBe('ā-á');
+    });
+
+    it('three-syllable tone groups sandhi all but the last', () => {
+      expect(applyTaigiSandhi('kong-kong-ke')).toBe('kōng-kōng-ke');
+    });
+
+    it('ASCII punctuation resets tone groups (no sandhi across)', () => {
+      expect(applyTaigiSandhi('kong, kong')).toBe('kong, kong');
+      expect(applyTaigiSandhi('kong. ke')).toBe('kong. ke');
+      expect(applyTaigiSandhi('kong! ke')).toBe('kong! ke');
+      expect(applyTaigiSandhi('kong; ke')).toBe('kong; ke');
+    });
+
+    it('Chinese punctuation also resets tone groups', () => {
+      expect(applyTaigiSandhi('kong，ke')).toBe('kong，ke');
+      expect(applyTaigiSandhi('kong。ke')).toBe('kong。ke');
+    });
+
+    it('sandhi applies within each phrase independently', () => {
+      // 'kong-ke. kong-ke' -> sandhi inside each comma-separated phrase.
+      expect(applyTaigiSandhi('kong-ke. kong-ke')).toBe('kōng-ke. kōng-ke');
+    });
+
+    it('treats space as an in-phrase syllable separator (sandhi crosses spaces)', () => {
+      // 'lí ài tsiah' (you must eat): tone 2 -> 1, tone 3 -> 2, last unchanged.
+      expect(applyTaigiSandhi('lí ài tsiah')).toBe('li ái tsiah');
+    });
+
+    it('double hyphen ends the main tone group; pre-dash syllable keeps citation', () => {
+      expect(applyTaigiSandhi('huat-ínn--ah')).toBe('hua̍t-ínn--ah');
+      expect(applyTaigiSandhi('kong--ah')).toBe('kong--ah');
+    });
+
+    it('also recognizes U+2011 non-breaking hyphen as a syllable separator', () => {
+      expect(applyTaigiSandhi('kong‑ke')).toBe('kōng‑ke');
+    });
+
+    it('treats double U+2011 like double ASCII hyphen as tone-group end', () => {
+      expect(applyTaigiSandhi('kong‑‑ah')).toBe('kong‑‑ah');
+    });
+  });
+
+  describe('NFD normalization', () => {
+    it('accepts precomposed accented vowels by normalizing input first', () => {
+      // U+00ED (precomposed í) decomposes to i + U+0301; sandhi treats it as tone 2.
+      expect(applyTaigiSandhi('í-a')).toBe('i-a');
+      expect(applyTaigiSandhi('í-a')).toBe('i-a');
+    });
+
+    it('accepts precomposed grave (U+00E0) the same as decomposed (a + U+0300)', () => {
+      expect(applyTaigiSandhi('à-a')).toBe('á-a');
+      expect(applyTaigiSandhi('à-a')).toBe('á-a');
+    });
+  });
+
+  describe('syllabic nasals and tone placement', () => {
+    it('places sandhi mark on syllabic m', () => {
+      // m̄ (tone 7) -> tone 3 (m + grave).
+      expect(applyTaigiSandhi('m̄-a')).toBe('m̀-a');
+    });
+
+    it('places sandhi mark on syllabic ng (between n and g)', () => {
+      // sng (tone 1) -> tone 7: macron on the n of ng.
+      expect(applyTaigiSandhi('sng-a')).toBe('sn̄g-a');
+    });
+
+    it('uses TL placement priority a > o > e > i/u for tone 1 -> 7', () => {
+      // 'kong' has no 'a', so the macron goes on 'o'.
+      expect(applyTaigiSandhi('kong-a')).toBe('kōng-a');
+      // 'tek' (no 'a' or 'o') -> macron on 'e'... wait 'tek' is checked.
+      // 'be' (tone 1) -> tone 7: macron on 'e'.
+      expect(applyTaigiSandhi('be-a')).toBe('bē-a');
+    });
+
+    it('preserves uppercase initials when placing the sandhi mark', () => {
+      expect(applyTaigiSandhi('Kong-ke')).toBe('Kōng-ke');
+    });
+  });
+
+  describe('edge / fall-through cases', () => {
+    it('returns empty input verbatim', () => {
+      expect(applyTaigiSandhi('')).toBe('');
+    });
+
+    it('returns nullish input verbatim (truthiness short-circuit)', () => {
+      expect(applyTaigiSandhi(null as unknown as string)).toBe(null as unknown as string);
+      expect(applyTaigiSandhi(undefined as unknown as string)).toBe(undefined as unknown as string);
+    });
+
+    it('preserves separator runs verbatim', () => {
+      expect(applyTaigiSandhi('a-')).toBe('a-');
+      expect(applyTaigiSandhi('-a')).toBe('-a');
+    });
+
+    it('leaves tone-less segments without ASCII letters untouched', () => {
+      expect(applyTaigiSandhi('---')).toBe('---');
+      expect(applyTaigiSandhi('   ')).toBe('   ');
+    });
+
+    it('places sandhi mark on plain syllabic n when no other vowel is available', () => {
+      // 'n' alone has no a/o/e/iu/m/ng — placeTlToneMark falls through to plain n.
+      expect(applyTaigiSandhi('n-a')).toBe('n̄-a');
+    });
+
+    it('places sandhi mark on the second of an i/u cluster (e.g., "iu", "ui")', () => {
+      // 'siu' (tone 1) -> tone 7: macron on the 'u' of the 'iu' cluster.
+      expect(applyTaigiSandhi('siu-a')).toBe('siū-a');
+      // 'kui' (tone 1) -> tone 7: macron on the 'i' of the 'ui' cluster.
+      expect(applyTaigiSandhi('kui-a')).toBe('kuī-a');
+    });
+
+    it('places sandhi mark on syllabic m alone (no other vowel)', () => {
+      // 'm' alone (tone 1) -> tone 7: macron on the m.
+      expect(applyTaigiSandhi('m-a')).toBe('m̄-a');
+    });
+
+    it('leaves an open-syllable carrying tone-8 mark (U+030D) without a checked ending unchanged', () => {
+      // U+030D on an open syllable is non-canonical; sandhi has no rule for it.
+      expect(applyTaigiSandhi('a̍-a')).toBe('a̍-a');
+    });
+
+    it('appends the sandhi mark when no vowel or syllabic nasal is present', () => {
+      // A pure consonant like 'b' is not a real Taigi syllable, but the function
+      // must still terminate gracefully and not throw.
+      expect(applyTaigiSandhi('b-a')).toBe('b̄-a');
+    });
+
+    it('leaves checked syllable with -h and an unsupported tone mark unchanged', () => {
+      // Tone 2 with -h (acute on vowel) is not a standard combination; sandhi
+      // falls through and returns the segment unmodified.
+      expect(applyTaigiSandhi('áh-a')).toBe('áh-a');
+    });
+
+    it('leaves checked syllable with -p / -t / -k and an unsupported tone mark unchanged', () => {
+      // Tone 2 with -p is not a standard combination; fall-through path.
+      expect(applyTaigiSandhi('áp-a')).toBe('áp-a');
+    });
+  });
+});
+
+describe('trsToBpmf — sandhi integration', () => {
+  it('applies sandhi to multi-syllable Taigi by default', () => {
+    // 'huat-ínn' -> sandhi'd 'hua̍t-ínn' -> bopomofo includes U+0358 on the
+    // checked tone glyph for the first syllable; second syllable keeps its acute.
+    expect(trsToBpmf('t', 'huat-ínn')).toBe('ㄏㄨㄚㆵ͘ㆪˋ');
+  });
+
+  it('does not apply sandhi to single-syllable input (last in phrase)', () => {
+    expect(trsToBpmf('t', 'huat')).toBe('ㄏㄨㄚㆵ');
+  });
+
+  it('keeps citation tones across punctuation boundaries', () => {
+    // Each side of a comma is its own phrase; both single-syllable -> no sandhi.
+    expect(trsToBpmf('t', 'kong, kong')).toBe('ㄍㆲ ㄍㆲ ');
+  });
+
+  it('respects bopomofo_sandhi_t=off opt-out (citation tones preserved)', () => {
+    window.localStorage.setItem('bopomofo_sandhi_t', 'off');
+    // Without sandhi, both syllables keep their citation tone marks.
+    expect(trsToBpmf('t', 'huat-ínn')).toBe('ㄏㄨㄚㆵㆪˋ');
+    expect(trsToBpmf('t', 'hang-hang')).toBe('ㄏㄤ ㄏㄤ ');
+  });
+
+  it('opt-out with bopomofo_sandhi_t=on still applies sandhi (default branch)', () => {
+    window.localStorage.setItem('bopomofo_sandhi_t', 'on');
+    expect(trsToBpmf('t', 'hang-hang')).toBe('ㄏㄤ˫ㄏㄤ ');
   });
 });
