@@ -309,11 +309,143 @@ const TAIWANESE_TONES: Record<string, string> = {
 const V_RE = new RegExp(Object.keys(TAIWANESE_VOWELS).sort((a, b) => b.length - a.length).join('|'), 'g');
 const CV_RE = new RegExp(`^(${Object.keys(TAIWANESE_CONSONANTS).sort((a, b) => b.length - a.length).join('|')})((?:${Object.keys(TAIWANESE_VOWELS).sort((a, b) => b.length - a.length).join('|')})+[ptkh]?)$`);
 
+// TL combining tone marks. Tone 1 (open) and tone 4 (checked) are unmarked.
+const TL_TONE_RE = /[\u0300\u0301\u0302\u0304\u030D]/;
+const TL_TONE_RE_GLOBAL = /[\u0300\u0301\u0302\u0304\u030D]/g;
+
+// Citation -> sandhi tone mapping for open syllables, in TL combining marks:
+//   tone 1 (no mark)  -> tone 7 (U+0304 macron)
+//   tone 2 (U+0301)   -> tone 1 (no mark)
+//   tone 3 (U+0300)   -> tone 2 (U+0301)
+//   tone 5 (U+0302)   -> tone 7 (U+0304) [Taiwan southern variety; MoE convention]
+//   tone 7 (U+0304)   -> tone 3 (U+0300)
+const TL_OPEN_SANDHI: Record<string, string> = {
+  '': '\u0304',
+  '\u0301': '',
+  '\u0300': '\u0301',
+  '\u0302': '\u0304',
+  '\u0304': '\u0300',
+};
+
+const PHRASE_BOUNDARY_RE = /([.!?;:,\uFF0C\u3002\uFF01\uFF1F\uFF1B\uFF1A])/;
+
+// Place a TL combining tone mark using TL placement priority: a > o > e >
+// second of an i/u cluster > i/u > ng (mark sits between n and g). Lone
+// syllabic m or n falls through to the trailing-append branch \u2014 for those
+// shapes `insertAt(0)` and `syllable + mark` produce the same string, so a
+// single fall-through covers them. Bopomofo conversion only inspects the
+// mark's identity, but correct placement keeps the helper usable for
+// romanization-level rendering. Caller passes a syllable without TL tone
+// marks and a non-empty mark.
+function placeTlToneMark(syllable: string, mark: string): string {
+  const insertAt = (pos: number) => `${syllable.slice(0, pos + 1)}${mark}${syllable.slice(pos + 1)}`;
+  const a = syllable.search(/[aA]/);
+  if (a >= 0) return insertAt(a);
+  const o = syllable.search(/[oO]/);
+  if (o >= 0) return insertAt(o);
+  const e = syllable.search(/[eE]/);
+  if (e >= 0) return insertAt(e);
+  const cluster = syllable.search(/[iIuU][iIuU]/);
+  if (cluster >= 0) return insertAt(cluster + 1);
+  const iu = syllable.search(/[iIuU]/);
+  if (iu >= 0) return insertAt(iu);
+  const ng = syllable.search(/[nN][gG]/);
+  if (ng >= 0) return insertAt(ng);
+  return syllable + mark;
+}
+
+function applyTaigiSandhiToSyllable(segment: string): string {
+  // Caller (sandhiTokenSequence) guarantees the segment contains an ASCII letter.
+  const toneMatch = segment.match(TL_TONE_RE);
+  const tone = toneMatch ? toneMatch[0] : '';
+  const checkedMatch = segment.match(/[ptkhPTKH]$/);
+
+  if (checkedMatch) {
+    const ending = checkedMatch[0].toLowerCase();
+    if (ending === 'h') {
+      // Tone 4 (-h) -> tone 2 open: drop -h, place U+0301 acute on the vowel.
+      if (tone === '') return placeTlToneMark(segment.slice(0, -1), '\u0301');
+      // Tone 8 (U+030D + -h) -> tone 3 open: drop -h, replace U+030D with U+0300 grave.
+      if (tone === '\u030D') {
+        const stripped = segment.replace(TL_TONE_RE_GLOBAL, '').slice(0, -1);
+        return placeTlToneMark(stripped, '\u0300');
+      }
+      return segment;
+    }
+    // -p / -t / -k endings.
+    if (tone === '') return placeTlToneMark(segment, '\u030D'); // tone 4 -> tone 8
+    if (tone === '\u030D') return segment.replace(TL_TONE_RE_GLOBAL, ''); // tone 8 -> tone 4
+    return segment;
+  }
+
+  // Open syllable.
+  const newTone = TL_OPEN_SANDHI[tone];
+  if (newTone === undefined) return segment;
+  if (tone === '') return placeTlToneMark(segment, newTone);
+  // For tone 2 (newTone === ''), this collapses to stripping the U+0301 mark.
+  return segment.replace(tone, newTone);
+}
+
+function sandhiTokenSequence(phrase: string): string {
+  // Tokens alternate between word chunks and single-character separators
+  // (ASCII hyphen / U+2011 non-breaking hyphen / space). Splitting on a
+  // single-char class means consecutive separators emit empty word chunks
+  // between them; downstream filters short-circuit on those.
+  const tokens = phrase.split(/([- \u2011])/);
+  // Find the index of the last alphabetic token (the tone group's "head" \u2014
+  // the only syllable that keeps its citation tone). The sentinel
+  // `tokens.length` marks "no alphabetic token in this phrase".
+  let lastAlpha = tokens.length;
+  for (let i = tokens.length - 1; i >= 0; i -= 1) {
+    if (/[a-zA-Z]/.test(tokens[i])) {
+      lastAlpha = i;
+      break;
+    }
+  }
+  return tokens
+    .map((tok, idx) => {
+      if (idx >= lastAlpha) return tok;
+      if (!/[a-zA-Z]/.test(tok)) return tok;
+      return applyTaigiSandhiToSyllable(tok);
+    })
+    .join('');
+}
+
+function sandhiToneGroup(group: string): string {
+  // A double hyphen ends the main tone group; the syllable directly before "--"
+  // keeps its citation tone, and trailing light-tone particles after "--" do not
+  // undergo sandhi either.
+  const dashIdx = group.search(/[-\u2011][-\u2011]/);
+  if (dashIdx >= 0) {
+    return sandhiTokenSequence(group.slice(0, dashIdx)) + group.slice(dashIdx);
+  }
+  return sandhiTokenSequence(group);
+}
+
+export function applyTaigiSandhi(trs: string): string {
+  if (!trs) return trs;
+  // PHRASE_BOUNDARY_RE is a capture-group split, so odd indices are the captured
+  // single-character punctuation tokens. Even indices are tone-group bodies.
+  // Stryker disable next-line ConditionalExpression: the punctuation parts
+  // captured at odd indices are single-char sentence terminators with no
+  // alphabetic content, so calling sandhiToneGroup on them is observationally
+  // a no-op. The "always sandhi" mutant is therefore equivalent.
+  return trs
+    .normalize('NFD')
+    .split(PHRASE_BOUNDARY_RE)
+    .map((part, idx) => (idx % 2 === 0 ? sandhiToneGroup(part) : part))
+    .join('');
+}
+
 export function trsToBpmf(lang: Lang, trs: string): string {
   if (lang === 'h') return ' ';
   if (lang === 'a' || lang === 'c') return trs;
 
-  return String(trs || '')
+  const input = String(trs || '');
+  const sandhiPref = readLocalStorage('bopomofo_sandhi_t');
+  const source = sandhiPref === 'off' ? input : applyTaigiSandhi(input);
+
+  return source
     .replace(/(?:[A-Za-z]|[\u0300-\u030D])+/gu, (chunk) => {
       let tone = '';
       let token = chunk.toLowerCase();
