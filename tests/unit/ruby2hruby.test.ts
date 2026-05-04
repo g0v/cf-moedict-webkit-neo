@@ -97,6 +97,25 @@ describe('ruby2hruby — zhuyin rtc', () => {
     expect(out).toContain('diao="\u02C7"');
     expect(out).not.toContain('diao="\u02C5"');
   });
+
+  it('normalises U+030D combining mark on a ruyun final to U+0307 via the U+030D->U+0358->U+0307 chain', () => {
+    // Pin every step of the chain individually. Drop any of them and U+030D
+    // either stays raw, is deleted, or stops at U+0358 in the diao attribute.
+    const out = ruby2hruby('<rb>x</rb><rtc class="zhuyin"><rt>\u3107\u31B4\u030D</rt></rtc>');
+    expect(out).toContain('diao="\u31B4\u0307"');
+    expect(out).not.toContain('diao="\u31B4\u030D"');
+    expect(out).not.toContain('diao="\u31B4\u0358"');
+    expect(out).not.toContain('diao="\u31B4"');
+  });
+
+  it('captures a bare ruyun final (no combining diacritic) as the diao attribute', () => {
+    // Pins the `?` quantifier on the ruyun pattern: dropping it would require
+    // the diacritic and a bare \u31B4 would slip through into yin instead of diao.
+    const out = ruby2hruby('<rb>x</rb><rtc class="zhuyin"><rt>\u3107\u31B4</rt></rtc>');
+    expect(out).toContain('diao="\u31B4"');
+    expect(out).toContain('<yin>\u3107</yin>');
+    expect(out).not.toContain('<yin>\u3107\u31B4</yin>');
+  });
 });
 
 describe('ruby2hruby — ordered rtc (non-zhuyin)', () => {
@@ -198,6 +217,43 @@ describe('ruby2hruby — multi-rtc (order > 0) branch', () => {
     // The surrogate pair U+DB80 U+DC61 renders as the PUA character; check the raw
     // bytes end up in the annotation attribute (attribute serialization preserves them).
     expect(out).toContain(`annotation="\uDB80\uDC61"`);
+  });
+
+  it.each([
+    // [base vowel, target high-byte, target low-byte]
+    ['e', 0xDB80, 0xDC65],
+    ['i', 0xDB80, 0xDC69],
+    ['o', 0xDB80, 0xDC6F],
+    ['u', 0xDB80, 0xDC75],
+  ])(
+    'normalizeAnnotation maps base vowel %s + each combining mark (U+0307/U+030D/U+0358) to its PUA codepoint',
+    (vowel, hi, lo) => {
+      // Pin every row of the e/i/o/u replace-table individually. Each base vowel
+      // is paired with each of the three combining marks the normalizer recognizes;
+      // dropping any row would silently leave the literal vowel+combiner in the
+      // annotation attribute downstream.
+      const expected = String.fromCharCode(hi as number, lo as number);
+      for (const mark of ['\u0307', '\u030d', '\u0358']) {
+        const out = ruby2hruby(
+          `<rb>x</rb><rtc class="zhuyin"><rt>\u3107</rt></rtc><rtc><rt>${vowel}${mark}</rt></rtc>`,
+        );
+        expect(out).toContain(`annotation="${expected}"`);
+      }
+    },
+  );
+
+  it('order=0 ru carries the original class attribute from the ruby root', () => {
+    // The ruby2hruby template injects class="rightangle" on the outer <ruby>;
+    // each order=0 wrapper ru should inherit it via setAttribute('class', originalClass).
+    const out = ruby2hruby(
+      '<rb>\u840C</rb><rtc class="zhuyin"><rt>\u3107\u3125\u02CA</rt></rtc><rtc class="romanization"><rt>meng</rt></rtc>',
+    );
+    // happy-dom serializes the wrapper as <ru span order class annotation>;
+    // pin class="rightangle" specifically on the order="0" tag without
+    // assuming a particular attribute order.
+    const orderZero = out.match(/<ru\b[^>]*\border="0"[^>]*>/);
+    expect(orderZero).not.toBeNull();
+    expect(orderZero![0]).toContain('class="rightangle"');
   });
 
   it('order>0 with more rts than order=0 produced: excess rts are skipped (line 128)', () => {

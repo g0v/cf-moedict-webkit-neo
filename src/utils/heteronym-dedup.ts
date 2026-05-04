@@ -34,6 +34,9 @@ export function dedupeHeteronyms<T extends HeteronymLike>(heteronyms: readonly T
   const firstIndexByKey = new Map<string, number>();
   const result: (T | null)[] = heteronyms.slice();
 
+  // Stryker disable next-line EqualityOperator: i <= result.length runs one extra
+  // iteration where result[i] is undefined; the !heteronym guard short-circuits
+  // it to a no-op, so the off-by-one mutant is observationally equivalent.
   for (let i = 0; i < result.length; i++) {
     const heteronym = result[i];
     if (!heteronym || !hasIdentity(heteronym)) continue;

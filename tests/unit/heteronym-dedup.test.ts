@@ -82,4 +82,94 @@ describe('dedupeHeteronyms', () => {
     const result = dedupeHeteronyms(input);
     expect(result.map((h) => h.audio_id)).toEqual(['1', '2', '3']);
   });
+
+  describe('normalize() identity-key behavior', () => {
+    it('treats heteronyms differing only in leading/trailing whitespace as duplicates', () => {
+      // Tests the .trim() in normalize(): without it, ' ㄐㄧㄚ ' and 'ㄐㄧㄚ' would
+      // hash to different identity keys and never merge.
+      const input = [
+        { audio_id: '1', bopomofo: ' ㄐㄧㄚ ', pinyin: 'jiā' },
+        { audio_id: '1', bopomofo: 'ㄐㄧㄚ', pinyin: 'jiā' },
+      ];
+      expect(dedupeHeteronyms(input)).toHaveLength(1);
+    });
+
+    it('collapses runs of internal whitespace (tabs, multiple spaces) before deduping', () => {
+      // Tests the /\s+/ quantifier in normalize(): single \s would replace each
+      // whitespace char individually, leaving multi-char runs intact.
+      const input = [
+        { audio_id: '1', bopomofo: 'ㄐ\t\tㄚ', pinyin: 'jiā' },
+        { audio_id: '1', bopomofo: 'ㄐ ㄚ', pinyin: 'jiā' },
+      ];
+      expect(dedupeHeteronyms(input)).toHaveLength(1);
+    });
+
+    it('preserves the single space between syllables (does not delete whitespace)', () => {
+      // Tests the ' ' replacement in normalize(): an empty replacement would
+      // collapse 'ㄐ ㄚ' to 'ㄐㄚ' and falsely merge it with the un-spaced form.
+      const input = [
+        { audio_id: '1', bopomofo: 'ㄐ ㄚ', pinyin: 'jiā' },
+        { audio_id: '1', bopomofo: 'ㄐㄚ', pinyin: 'jiā' },
+      ];
+      expect(dedupeHeteronyms(input)).toHaveLength(2);
+    });
+  });
+
+  describe('hasIdentity() field disjunction', () => {
+    it('treats a heteronym with only audio_id (no other phonetic fields) as identity-bearing', () => {
+      // Tests the OR-chain in hasIdentity(): if the chain were tightened to AND
+      // anywhere, a partially-populated heteronym would slip through unmerged.
+      const input = [
+        { audio_id: '8001', definitions: [{ def: 'A' }] },
+        { audio_id: '8001', definitions: [{ def: 'B' }] },
+      ];
+      expect(dedupeHeteronyms(input)).toHaveLength(1);
+    });
+
+    it('treats a heteronym with only trs (Taigi romanization) as identity-bearing', () => {
+      const input = [
+        { trs: 'tsiah', definitions: [{ def: 'A' }] },
+        { trs: 'tsiah', definitions: [{ def: 'B' }] },
+      ];
+      expect(dedupeHeteronyms(input)).toHaveLength(1);
+    });
+  });
+
+  describe('content-size tie-breaking', () => {
+    it('keeps the earlier heteronym when its JSON content is larger than a later duplicate', () => {
+      // Tests the `contentSize > existingSize` direction: an always-replace
+      // mutation would silently swap in the smaller, less-informative entry.
+      const longer = {
+        audio_id: '1',
+        bopomofo: 'ㄐ',
+        pinyin: 'jiā',
+        definitions: [{ def: '更詳盡的解釋以增加內容長度，避免被視為較短的重複項。' }],
+      };
+      const shorter = { audio_id: '1', bopomofo: 'ㄐ', pinyin: 'jiā' };
+      const result = dedupeHeteronyms([longer, shorter]);
+      expect(result).toHaveLength(1);
+      expect(result[0]).toBe(longer);
+    });
+
+    it('keeps the first-seen heteronym when duplicates have identical content size', () => {
+      // Tests the strict `>` (vs `>=`): on a tie, the earlier entry wins.
+      const first = { audio_id: '1', bopomofo: 'ㄐ', pinyin: 'jiā', tag: 'aaa' };
+      const second = { audio_id: '1', bopomofo: 'ㄐ', pinyin: 'jiā', tag: 'bbb' };
+      const result = dedupeHeteronyms([first, second]);
+      expect(result).toHaveLength(1);
+      expect(result[0]).toBe(first);
+    });
+  });
+
+  it('does not mutate the caller-supplied input array', () => {
+    // Tests the heteronyms.slice() defensive clone: without it, the function
+    // would null out duplicate slots in the input that the caller still holds.
+    const a = { audio_id: '1', bopomofo: 'ㄐ', pinyin: 'jiā' };
+    const b = { audio_id: '1', bopomofo: 'ㄐ', pinyin: 'jiā' };
+    const input = [a, b];
+    const snapshot = [...input];
+    dedupeHeteronyms(input);
+    expect(input).toEqual(snapshot);
+    expect(input[1]).toBe(b);
+  });
 });

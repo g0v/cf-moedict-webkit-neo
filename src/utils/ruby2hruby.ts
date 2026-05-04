@@ -88,8 +88,11 @@ export function ruby2hruby(html: string): string {
           .replace(/[\u030D]/g, '\u0358')
           .replace(/[\u0358]/g, '\u0307');
 
+        // Array#join('') already drops null/undefined, so we don't need
+        // .filter(Boolean) before it; keeping it would add a never-killable
+        // mutant on the redundant call.
         const form = zhuyin.replace(TYPESET.zhuyin.form, (_s, s, j, y) =>
-          [s ? 'S' : null, j ? 'J' : null, y ? 'Y' : null].filter(Boolean).join(''),
+          [s ? 'S' : '', j ? 'J' : '', y ? 'Y' : ''].join(''),
         );
 
         const ru = doc.createElement('ru');
