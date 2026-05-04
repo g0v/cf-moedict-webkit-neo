@@ -40,6 +40,8 @@ playwright-report/
 test-results/
 coverage/
 unit-report.xml
+reports/mutation/
+.stryker-tmp/
 
 # Visual-regression: commit only linux baselines; local runs generate darwin/win32 variants.
 # The `visual` Playwright project uses its own name (not the browser) in the snapshot filename.

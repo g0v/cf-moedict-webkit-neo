@@ -27,6 +27,7 @@
 		"test:e2e:visual:update": "playwright test --project=visual --update-snapshots",
 		"test:coverage": "rm -rf coverage && bun run test:unit -- --coverage && bun run test:integration -- --coverage && bun run test:coverage:e2e && bun scripts/merge-coverage.mjs",
 		"test:coverage:e2e": "E2E_COVERAGE=1 bun run build && E2E_COVERAGE=1 E2E_SKIP_BUILD=1 playwright test --project=chromium",
+		"stryker": "stryker run",
 		"preview": "bun run build && wrangler dev",
 		"deploy": "bun run build && wrangler deploy",
 		"cf-typegen": "wrangler types"
@@ -42,6 +43,8 @@
 		"@cloudflare/vite-plugin": "^1.25.5",
 		"@eslint/js": "^9.33.0",
 		"@playwright/test": "^1.59.1",
+		"@stryker-mutator/core": "^9.6.1",
+		"@stryker-mutator/vitest-runner": "^9.6.1",
 		"@types/node": "^24.7.2",
 		"@types/react": "^19.1.10",
 		"@types/react-dom": "^19.1.7",

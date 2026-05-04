@@ -328,33 +328,30 @@ const TL_OPEN_SANDHI: Record<string, string> = {
 };
 
 const PHRASE_BOUNDARY_RE = /([.!?;:,\uFF0C\u3002\uFF01\uFF1F\uFF1B\uFF1A])/;
-const PHRASE_BOUNDARY_TEST_RE = /^[.!?;:,\uFF0C\u3002\uFF01\uFF1F\uFF1B\uFF1A]$/;
 
-// Place a TL combining tone mark using the conventional priority: a > o > e >
-// last of an i/u cluster > syllabic m > ng > n. Bopomofo conversion only inspects
-// the mark's identity, but correct placement keeps the function reusable for
-// romanization-level rendering and avoids surprising downstream consumers.
-// Caller is expected to pass a non-empty `mark` (one of the TL combining marks).
+// Place a TL combining tone mark using TL placement priority: a > o > e >
+// second of an i/u cluster > i/u > ng (mark sits between n and g). Lone
+// syllabic m or n falls through to the trailing-append branch \u2014 for those
+// shapes `insertAt(0)` and `syllable + mark` produce the same string, so a
+// single fall-through covers them. Bopomofo conversion only inspects the
+// mark's identity, but correct placement keeps the helper usable for
+// romanization-level rendering. Caller passes a syllable without TL tone
+// marks and a non-empty mark.
 function placeTlToneMark(syllable: string, mark: string): string {
-  const core = syllable.replace(TL_TONE_RE_GLOBAL, '');
-  const insertAt = (pos: number) => `${core.slice(0, pos + 1)}${mark}${core.slice(pos + 1)}`;
-  let pos = core.search(/[aA]/);
-  if (pos >= 0) return insertAt(pos);
-  pos = core.search(/[oO]/);
-  if (pos >= 0) return insertAt(pos);
-  pos = core.search(/[eE]/);
-  if (pos >= 0) return insertAt(pos);
-  pos = core.search(/[iIuU][iIuU]/);
-  if (pos >= 0) return insertAt(pos + 1);
-  pos = core.search(/[iIuU]/);
-  if (pos >= 0) return insertAt(pos);
-  pos = core.search(/[mM]/);
-  if (pos >= 0) return insertAt(pos);
-  pos = core.search(/[nN][gG]/);
-  if (pos >= 0) return insertAt(pos);
-  pos = core.search(/[nN]/);
-  if (pos >= 0) return insertAt(pos);
-  return core + mark;
+  const insertAt = (pos: number) => `${syllable.slice(0, pos + 1)}${mark}${syllable.slice(pos + 1)}`;
+  const a = syllable.search(/[aA]/);
+  if (a >= 0) return insertAt(a);
+  const o = syllable.search(/[oO]/);
+  if (o >= 0) return insertAt(o);
+  const e = syllable.search(/[eE]/);
+  if (e >= 0) return insertAt(e);
+  const cluster = syllable.search(/[iIuU][iIuU]/);
+  if (cluster >= 0) return insertAt(cluster + 1);
+  const iu = syllable.search(/[iIuU]/);
+  if (iu >= 0) return insertAt(iu);
+  const ng = syllable.search(/[nN][gG]/);
+  if (ng >= 0) return insertAt(ng);
+  return syllable + mark;
 }
 
 function applyTaigiSandhiToSyllable(segment: string): string {
@@ -385,24 +382,29 @@ function applyTaigiSandhiToSyllable(segment: string): string {
   const newTone = TL_OPEN_SANDHI[tone];
   if (newTone === undefined) return segment;
   if (tone === '') return placeTlToneMark(segment, newTone);
-  if (newTone === '') return segment.replace(tone, '');
+  // For tone 2 (newTone === ''), this collapses to stripping the U+0301 mark.
   return segment.replace(tone, newTone);
 }
 
 function sandhiTokenSequence(phrase: string): string {
-  // Tokens alternate between word chunks and runs of separators (hyphen / U+2011 / space).
-  const tokens = phrase.split(/([- \u2011]+)/);
-  let lastIdx = -1;
+  // Tokens alternate between word chunks and single-character separators
+  // (ASCII hyphen / U+2011 non-breaking hyphen / space). Splitting on a
+  // single-char class means consecutive separators emit empty word chunks
+  // between them; downstream filters short-circuit on those.
+  const tokens = phrase.split(/([- \u2011])/);
+  // Find the index of the last alphabetic token (the tone group's "head" \u2014
+  // the only syllable that keeps its citation tone). The sentinel
+  // `tokens.length` marks "no alphabetic token in this phrase".
+  let lastAlpha = tokens.length;
   for (let i = tokens.length - 1; i >= 0; i -= 1) {
     if (/[a-zA-Z]/.test(tokens[i])) {
-      lastIdx = i;
+      lastAlpha = i;
       break;
     }
   }
-  if (lastIdx < 0) return phrase;
   return tokens
     .map((tok, idx) => {
-      if (idx === lastIdx) return tok;
+      if (idx >= lastAlpha) return tok;
       if (!/[a-zA-Z]/.test(tok)) return tok;
       return applyTaigiSandhiToSyllable(tok);
     })
@@ -413,19 +415,25 @@ function sandhiToneGroup(group: string): string {
   // A double hyphen ends the main tone group; the syllable directly before "--"
   // keeps its citation tone, and trailing light-tone particles after "--" do not
   // undergo sandhi either.
-  const dashMatch = group.match(/[-\u2011][-\u2011]/);
-  if (dashMatch && dashMatch.index !== undefined) {
-    return sandhiTokenSequence(group.slice(0, dashMatch.index)) + group.slice(dashMatch.index);
+  const dashIdx = group.search(/[-\u2011][-\u2011]/);
+  if (dashIdx >= 0) {
+    return sandhiTokenSequence(group.slice(0, dashIdx)) + group.slice(dashIdx);
   }
   return sandhiTokenSequence(group);
 }
 
 export function applyTaigiSandhi(trs: string): string {
   if (!trs) return trs;
-  const normalized = trs.normalize('NFD');
-  return normalized
+  // PHRASE_BOUNDARY_RE is a capture-group split, so odd indices are the captured
+  // single-character punctuation tokens. Even indices are tone-group bodies.
+  // Stryker disable next-line ConditionalExpression: the punctuation parts
+  // captured at odd indices are single-char sentence terminators with no
+  // alphabetic content, so calling sandhiToneGroup on them is observationally
+  // a no-op. The "always sandhi" mutant is therefore equivalent.
+  return trs
+    .normalize('NFD')
     .split(PHRASE_BOUNDARY_RE)
-    .map((part) => (PHRASE_BOUNDARY_TEST_RE.test(part) ? part : sandhiToneGroup(part)))
+    .map((part, idx) => (idx % 2 === 0 ? sandhiToneGroup(part) : part))
     .join('');
 }
 

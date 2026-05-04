@@ -819,6 +819,62 @@ describe('applyTaigiSandhi', () => {
       // Tone 2 with -p is not a standard combination; fall-through path.
       expect(applyTaigiSandhi('áp-a')).toBe('áp-a');
     });
+
+    /* ----------------------------------------------------------------------
+     * Differential placement tests for the placeTlToneMark cascade. Each
+     * exercises a placement branch with the target letter at index 0 of the
+     * core (no preceding consonant), so skipping that branch falls through
+     * to a different rule and produces a distinct string. They guard against
+     * mutation-equivalent shortcuts in the priority ordering.
+     * -------------------------------------------------------------------- */
+
+    it("'o' branch fires when 'o' is at position 0 (kills falling-through to 'ng')", () => {
+      // 'ong' has 'o' at 0 and 'ng' as nasal coda; placement must land on the 'o'.
+      expect(applyTaigiSandhi('ong-a')).toBe('ōng-a');
+    });
+
+    it("'e' branch fires when 'e' is at position 0 (kills falling-through to 'ng')", () => {
+      // 'eng' has 'e' at 0 and 'ng' coda; placement must land on the 'e'.
+      expect(applyTaigiSandhi('eng-a')).toBe('ēng-a');
+    });
+
+    it("'i/u cluster' branch fires at position 0 (kills falling-through to single i/u)", () => {
+      // 'iu' alone — cluster at 0; mark must land on the second vowel ('u').
+      expect(applyTaigiSandhi('iu-a')).toBe('iū-a');
+    });
+
+    it("single-i/u branch fires at position 0 with a nasal coda (kills falling through)", () => {
+      // 'in' has 'i' at 0 and 'n' coda; placement must land on the 'i', not 'n'.
+      expect(applyTaigiSandhi('in-a')).toBe('īn-a');
+    });
+
+    it("'ng' branch fires when 'ng' is at position 0 (kills appending mark at end)", () => {
+      // 'ng' alone — the mark sits between 'n' and 'g', not after 'g'.
+      expect(applyTaigiSandhi('ng-a')).toBe('n̄g-a');
+    });
+
+    /* ----------------------------------------------------------------------
+     * `slice(0, -1)` differentiation tests for the -h drop logic. With a
+     * length-2 syllable like 'ah', `slice(0, -1)` and `slice(0, +1)` both
+     * yield 'a', so they don't distinguish a sign-flip mutation. We need a
+     * 3+ char checked syllable to see the difference.
+     * -------------------------------------------------------------------- */
+
+    it("tone 4 with -h on a 3-character syllable: drop -h preserves the consonant", () => {
+      // 'kah' -> sandhi tone 2: 'ká' (k + a + acute), not 'k' + acute.
+      expect(applyTaigiSandhi('kah-a')).toBe('ká-a');
+    });
+
+    it("tone 8 with -h on a 4-character syllable: drop -h preserves the consonant", () => {
+      // 'pe̍h' (white) -> sandhi tone 3: 'pè' (p + e + grave), not 'p' + grave.
+      expect(applyTaigiSandhi('pe̍h-a')).toBe('pè-a');
+    });
+
+    it("'--' at position 0 still suppresses sandhi for the trailing tone group", () => {
+      // When the input begins with --, everything after the dashes is light-tone
+      // and must NOT be sandhi'd, even though there are multiple syllables.
+      expect(applyTaigiSandhi('--a-b')).toBe('--a-b');
+    });
   });
 });
 
