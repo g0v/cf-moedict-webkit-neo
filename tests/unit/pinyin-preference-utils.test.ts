@@ -885,6 +885,10 @@ describe('trsToBpmf — sandhi integration', () => {
     expect(trsToBpmf('t', 'huat-ínn')).toBe('ㄏㄨㄚㆵ͘ㆪˋ');
   });
 
+  it('maps 免除 with sandhi on the first syllable', () => {
+    expect(trsToBpmf('t', 'bián-tû')).toBe('ㆠㄧㄢ ㄉㄨˊ');
+  });
+
   it('does not apply sandhi to single-syllable input (last in phrase)', () => {
     expect(trsToBpmf('t', 'huat')).toBe('ㄏㄨㄚㆵ');
   });

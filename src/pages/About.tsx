@@ -276,6 +276,9 @@ export function About({ assetBaseUrl }: AboutProps) {
 						</a>{' '}
 						授權。
 					</li>
+					<li>
+						教育部標準楷書字型由教育部提供，採用可完整轉散佈授權。
+					</li>
 				</ul>
 				<p>
 					<a

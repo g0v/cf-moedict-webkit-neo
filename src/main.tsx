@@ -60,7 +60,12 @@ function setupHistoryInterceptor() {
   };
 }
 
+function applyPlatformClasses() {
+  document.documentElement.classList.toggle('moe-android', /\bAndroid\b/i.test(navigator.userAgent));
+}
+
 // 在渲染前先修正 URL 和設置攔截器
+applyPlatformClasses();
 fixInitialURL();
 setupHistoryInterceptor();
 applyHeadByPath(window.location.pathname);

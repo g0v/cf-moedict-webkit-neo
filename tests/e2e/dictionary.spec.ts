@@ -1,6 +1,17 @@
 import type { Page } from '@playwright/test';
 import { expect, test } from './_fixtures';
 
+const ANDROID_WEBVIEW_UA =
+  'Mozilla/5.0 (Linux; Android 15; sdk_gphone64_arm64) AppleWebKit/537.36 Chrome/124.0.0.0 Mobile Safari/537.36';
+
+const MANDARIN_VERTICAL_ZHUYIN_SAMPLES = [
+  { path: '/%E6%95%96', title: '敖', lengths: ['1'] },
+  { path: '/%E5%AA%BD', title: '媽', lengths: ['2'] },
+  { path: '/%E7%BE%8E', title: '美', lengths: ['2'] },
+  { path: '/%E9%85%A9', title: '酩', lengths: ['3'] },
+  { path: '/%E7%AE%A1%E7%90%86', title: '管理', lengths: ['3', '2'] },
+];
+
 async function waitForEntryHydration(page: Page, titleFragment: string): Promise<void> {
   // DictionaryPage renders long-form definition text after /api/{word}.json resolves.
   // Wait for either definition text OR the "全文檢索" header (which always renders)
@@ -36,6 +47,290 @@ test.describe('dictionary pages per language', () => {
     expect(response?.status()).toBe(200);
     await waitForEntryHydration(page, '上訴');
   });
+});
+
+test.describe('mobile Android Taigi ruby layout', () => {
+  test.use({ viewport: { width: 393, height: 852 }, deviceScaleFactor: 2.75, isMobile: true });
+
+  test('bopomofo-only mode compacts hidden TL-DT rows and keeps POS text aligned', async ({ page }) => {
+    await page.addInitScript((ua) => {
+      Object.defineProperty(navigator, 'userAgent', {
+        get: () => ua,
+      });
+      localStorage.setItem('phonetics', 'bopomofo');
+      localStorage.setItem('pinyin_t', 'TL-DT');
+    }, ANDROID_WEBVIEW_UA);
+
+    const response = await page.goto("/'%E7%AE%A1%E7%90%86");
+    expect(response?.status()).toBe(200);
+    await page.waitForLoadState('networkidle');
+    await page.evaluate(() => document.fonts.ready);
+    await expect(page.locator('.entry-item .def')).toContainText('管轄經理', { timeout: 15_000 });
+
+    const metrics = await page.evaluate(() => {
+      const rect = (selector: string) => {
+        const element = document.querySelector(selector);
+        if (!element) throw new Error(`${selector} not found`);
+        const { top, height } = element.getBoundingClientRect();
+        return { top, height };
+      };
+      const annotation = document.querySelector('h1.title hruby ru[annotation]');
+      if (!annotation) throw new Error('right-angle annotation not found');
+      const annotationStyle = window.getComputedStyle(annotation, '::before');
+      const yinCenters = [...document.querySelectorAll('h1.title hruby.rightangle ru[zhuyin]')].map((ru) => {
+        const yin = ru.querySelector('yin');
+        if (!yin) throw new Error('yin not found');
+        const ruRect = ru.getBoundingClientRect();
+        const yinRect = yin.getBoundingClientRect();
+
+        return {
+          marginTop: window.getComputedStyle(ru.querySelector('zhuyin')!).marginTop,
+          delta: Math.abs((yinRect.top + yinRect.bottom - ruRect.top - ruRect.bottom) / 2),
+        };
+      });
+      const lengthTwoRu = document.querySelector('h1.title hruby.rightangle ru[zhuyin][length="2"]');
+      const lengthTwoDiao = lengthTwoRu?.querySelector('diao');
+      if (!lengthTwoRu || !lengthTwoDiao) throw new Error('length-2 tone mark not found');
+      const lengthTwoRuRect = lengthTwoRu.getBoundingClientRect();
+      const lengthTwoDiaoRect = lengthTwoDiao.getBoundingClientRect();
+
+      return {
+        isAndroid: document.documentElement.classList.contains('moe-android'),
+        eduKaiLoaded: document.fonts.check('40px "MOE EduKai Android"', '管'),
+        titleFontFamily: window.getComputedStyle(document.querySelector('h1.title')!).fontFamily,
+        yinCenters,
+        lengthTwoDiaoOffset: lengthTwoDiaoRect.top - (lengthTwoRuRect.top + lengthTwoRuRect.bottom) / 2,
+        title: rect('h1.title'),
+        pos: rect('.entry-item > .part-of-speech'),
+        definition: rect('.entry-item .def'),
+        entryItem: rect('.entry-item'),
+        annotationContent: annotationStyle.content,
+        annotationDisplay: annotationStyle.display,
+      };
+    });
+
+    expect(metrics.isAndroid).toBe(true);
+    expect(metrics.eduKaiLoaded).toBe(true);
+    expect(metrics.titleFontFamily).toContain('MOE EduKai Android');
+    expect(metrics.yinCenters).toHaveLength(2);
+    for (const center of metrics.yinCenters) {
+      expect(center.marginTop).toBe('0px');
+      expect(center.delta).toBeLessThan(2.25);
+    }
+    expect(metrics.lengthTwoDiaoOffset).toBeGreaterThanOrEqual(-14);
+    expect(metrics.lengthTwoDiaoOffset).toBeLessThan(6);
+    expect(metrics.annotationContent).toBe('none');
+    expect(metrics.annotationDisplay).toBe('none');
+    expect(metrics.title.height).toBeLessThan(76);
+    expect(Math.abs(metrics.definition.top - metrics.pos.top)).toBeLessThan(6);
+    expect(metrics.entryItem.height).toBeLessThan(45);
+  });
+
+  test('bopomofo-only mode keeps one-, two-, and three-symbol title ruby centered', async ({ page }) => {
+    await page.addInitScript((ua) => {
+      Object.defineProperty(navigator, 'userAgent', { get: () => ua });
+      localStorage.setItem('phonetics', 'bopomofo');
+      localStorage.setItem('pinyin_t', 'TL-DT');
+    }, ANDROID_WEBVIEW_UA);
+
+    const samples = [
+      { path: "/'%E6%84%8F%E6%84%9B", title: '意愛', lengths: ['1', '1'] },
+      { path: "/'%E4%BB%A5%E5%BE%8C", title: '以後', lengths: ['1', '1'] },
+      { path: "/'%E5%B8%9D%E7%8E%8B", title: '帝王', lengths: ['2', '1'] },
+      { path: "/'%E6%9E%9D%E4%BB%94%E5%86%B0", title: '枝仔冰', lengths: ['2', '1', '3'] },
+      { path: "/'%E6%A2%9D%E6%AC%BE", title: '條款', lengths: ['3', '3'] },
+      { path: "/'%E6%A2%9D%E7%9B%B4", title: '條直', lengths: ['3', '2'] },
+    ];
+
+    for (const sample of samples) {
+      const response = await page.goto(sample.path);
+      expect(response?.status()).toBe(200);
+      await page.waitForLoadState('networkidle');
+      await page.evaluate(() => document.fonts.ready);
+      await expect(page.locator('h1.title')).toContainText(sample.title[0], { timeout: 15_000 });
+
+      const metrics = await page.evaluate(() => {
+        return [...document.querySelectorAll('h1.title hruby.rightangle ru[zhuyin]')].map((ru) => {
+          const zhuyin = ru.querySelector('zhuyin');
+          const yin = ru.querySelector('yin');
+          const diao = ru.querySelector('diao');
+          if (!zhuyin || !yin || !diao) throw new Error('title ruby node missing');
+          const ruRect = ru.getBoundingClientRect();
+          const yinRect = yin.getBoundingClientRect();
+          const diaoRect = diao.textContent ? diao.getBoundingClientRect() : null;
+          const center = (ruRect.top + ruRect.bottom) / 2;
+
+          return {
+            length: ru.getAttribute('length'),
+            text: zhuyin.textContent,
+            yinCenterDelta: (yinRect.top + yinRect.bottom) / 2 - center,
+            zhuyinHeight: zhuyin.getBoundingClientRect().height,
+            diaoCenterDelta: diaoRect ? (diaoRect.top + diaoRect.bottom) / 2 - center : null,
+            marginTop: window.getComputedStyle(zhuyin).marginTop,
+          };
+        });
+      });
+
+      expect(metrics.map((item) => item.length)).toEqual(sample.lengths);
+      for (const item of metrics) {
+        expect(item.marginTop).toBe('0px');
+        expect(Math.abs(item.yinCenterDelta), `${sample.title} ${item.text}`).toBeLessThan(2.75);
+        if (item.length === '1') expect(item.zhuyinHeight).toBeLessThan(20);
+        if (item.diaoCenterDelta !== null) {
+          expect(item.diaoCenterDelta).toBeGreaterThan(-8);
+          expect(item.diaoCenterDelta).toBeLessThan(8);
+        }
+      }
+    }
+  });
+
+  for (const pinyin of ['TL', 'DT', 'TL-DT']) {
+    test(`${pinyin} right-angle title rows stay visible and compact`, async ({ page }) => {
+      await page.addInitScript(({ ua, pinyinPref }) => {
+        Object.defineProperty(navigator, 'userAgent', { get: () => ua });
+        localStorage.setItem('phonetics', 'rightangle');
+        localStorage.setItem('pinyin_t', pinyinPref);
+      }, { ua: ANDROID_WEBVIEW_UA, pinyinPref: pinyin });
+
+      const response = await page.goto("/'%E7%AE%A1%E7%90%86");
+      expect(response?.status()).toBe(200);
+      await page.waitForLoadState('networkidle');
+      await page.evaluate(() => document.fonts.ready);
+      await expect(page.locator('h1.title')).toContainText('管', { timeout: 15_000 });
+
+      const metrics = await page.evaluate(() => {
+        const title = document.querySelector('h1.title');
+        if (!title) throw new Error('title not found');
+        const annotations = [...title.querySelectorAll('ru[annotation]')].map((ru) => {
+          const before = window.getComputedStyle(ru, '::before');
+          return {
+            annotation: ru.getAttribute('annotation'),
+            content: before.content,
+            display: before.display,
+          };
+        });
+
+        return {
+          bodyPref: document.body.getAttribute('data-ruby-pref'),
+          titleHeight: title.getBoundingClientRect().height,
+          annotations,
+        };
+      });
+
+      expect(metrics.bodyPref).toBe('both');
+      expect(metrics.titleHeight).toBeLessThan(96);
+      expect(metrics.annotations.length).toBe(pinyin === 'TL-DT' ? 2 : 1);
+      for (const annotation of metrics.annotations) {
+        expect(annotation.annotation).toBeTruthy();
+        expect(annotation.content).not.toBe('none');
+        expect(annotation.display).not.toBe('none');
+      }
+    });
+  }
+});
+
+test.describe('Mandarin MOE vertical zhuyin proportions', () => {
+  test.use({ viewport: { width: 393, height: 852 }, deviceScaleFactor: 2.75, isMobile: true });
+
+  for (const platform of [
+    { name: 'non-Android', ua: undefined },
+    { name: 'Android', ua: ANDROID_WEBVIEW_UA },
+  ]) {
+    test(`${platform.name} title ruby fits the MOE 30:30 / 30:15 vertical grid`, async ({ page }) => {
+      await page.addInitScript(({ ua }) => {
+        if (ua) Object.defineProperty(navigator, 'userAgent', { get: () => ua });
+        localStorage.setItem('phonetics', 'bopomofo');
+        localStorage.setItem('pinyin_a', 'HanYu');
+      }, { ua: platform.ua });
+
+      for (const sample of MANDARIN_VERTICAL_ZHUYIN_SAMPLES) {
+        const response = await page.goto(sample.path);
+        expect(response?.status()).toBe(200);
+        await page.waitForLoadState('networkidle');
+        await page.evaluate(() => document.fonts.ready);
+        await expect(page.locator('.result .entry h1.title hruby.rightangle').first()).toBeVisible({ timeout: 15_000 });
+
+        const metrics = await page.evaluate((titleText) => {
+          const title = [...document.querySelectorAll('.result .entry h1.title')]
+            .find((element) => {
+              const baseText = [...element.querySelectorAll('hruby.rightangle rb')]
+                .map((rb) => rb.textContent?.trim() ?? '')
+                .join('');
+              return baseText === titleText;
+            });
+          if (!title) throw new Error('right-angle title not found');
+          const fontSize = Number.parseFloat(window.getComputedStyle(title).fontSize);
+          const rect = (element: Element) => {
+            const { x, y, width, height } = element.getBoundingClientRect();
+            return {
+              x: x / fontSize,
+              y: y / fontSize,
+              width: width / fontSize,
+              height: height / fontSize,
+              right: (x + width) / fontSize,
+              bottom: (y + height) / fontSize,
+              centerY: (y + height / 2) / fontSize,
+            };
+          };
+
+          return [...title.querySelectorAll('ru[zhuyin]')].map((ru) => {
+            const rb = ru.querySelector('rb');
+            const zhuyin = ru.querySelector('zhuyin');
+            const yin = ru.querySelector('yin');
+            const diao = ru.querySelector('diao');
+            if (!rb || !zhuyin || !yin || !diao) throw new Error('title ruby node missing');
+            const ruRect = rect(ru);
+            const rbRect = rect(rb);
+            const zhuyinRect = rect(zhuyin);
+            const yinRect = rect(yin);
+            const diaoRect = diao.textContent ? rect(diao) : null;
+
+            return {
+              length: ru.getAttribute('length'),
+              text: zhuyin.textContent,
+              rbWidth: rbRect.width,
+              ruWidth: ruRect.width,
+              zhuyinColumnWidth: zhuyinRect.width,
+              zhuyinLeft: zhuyinRect.x - rbRect.x,
+              zhuyinRight: zhuyinRect.right - rbRect.x,
+              zhuyinTopInRu: zhuyinRect.y - ruRect.y,
+              zhuyinBottomInRu: zhuyinRect.bottom - ruRect.y,
+              yinCenterDelta: yinRect.centerY - rbRect.centerY,
+              toneLeft: diaoRect ? diaoRect.x - rbRect.x : null,
+              toneRight: diaoRect ? diaoRect.right - rbRect.x : null,
+              toneTopInRu: diaoRect ? diaoRect.y - ruRect.y : null,
+              toneBottomInRu: diaoRect ? diaoRect.bottom - ruRect.y : null,
+            };
+          });
+        }, sample.title);
+
+        expect(metrics.map((item) => item.length)).toEqual(sample.lengths);
+        for (const item of metrics) {
+          expect(item.rbWidth, `${sample.title} ${item.text} Han square`).toBeGreaterThan(0.96);
+          expect(item.rbWidth, `${sample.title} ${item.text} Han square`).toBeLessThan(1.04);
+
+          // MOE 國語注音符號手冊: 國字 30:30, vertical zhuyin area 30:15,
+          // with the phonetic column 9 units wide and the tone column 5 units wide.
+          expect(item.ruWidth, `${sample.title} ${item.text} annotated unit`).toBeGreaterThan(1.48);
+          expect(item.ruWidth, `${sample.title} ${item.text} annotated unit`).toBeLessThan(1.62);
+          expect(item.zhuyinColumnWidth, `${sample.title} ${item.text} zhuyin column`).toBeGreaterThan(0.28);
+          expect(item.zhuyinColumnWidth, `${sample.title} ${item.text} zhuyin column`).toBeLessThan(0.35);
+          expect(item.zhuyinLeft, `${sample.title} ${item.text} zhuyin starts beside Han`).toBeGreaterThan(0.92);
+          expect(item.zhuyinRight, `${sample.title} ${item.text} zhuyin stays in 9-unit column`).toBeLessThan(1.31);
+          expect(item.zhuyinTopInRu, `${sample.title} ${item.text} zhuyin top fits`).toBeGreaterThanOrEqual(0);
+          expect(item.zhuyinBottomInRu, `${sample.title} ${item.text} zhuyin bottom fits`).toBeLessThan(1.56);
+          expect(Math.abs(item.yinCenterDelta), `${sample.title} ${item.text} zhuyin vertical center`).toBeLessThan(0.06);
+
+          if (item.toneLeft !== null && item.toneRight !== null && item.toneTopInRu !== null && item.toneBottomInRu !== null) {
+            expect(item.toneLeft, `${sample.title} ${item.text} tone column starts`).toBeGreaterThan(1.12);
+            expect(item.toneRight, `${sample.title} ${item.text} tone column ends`).toBeLessThan(1.53);
+            expect(item.toneTopInRu, `${sample.title} ${item.text} tone top fits`).toBeGreaterThanOrEqual(0);
+            expect(item.toneBottomInRu, `${sample.title} ${item.text} tone bottom fits`).toBeLessThan(1.56);
+          }
+        }
+      }
+    });
+  }
 });
 
 test.describe('special routes', () => {
